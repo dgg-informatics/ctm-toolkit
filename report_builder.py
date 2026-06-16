@@ -43,8 +43,8 @@ def _row(label: str, value: object, bold: bool = False) -> dict:
     return {"label": label, "value": value, "bold": bold}
 
 
-def _load_json(filename: str):
-    with open(DATA_DIR / filename) as f:
+def _load_json(data_dir: Path, filename: str):
+    with open(data_dir / filename) as f:
         return json.load(f)
 
 
@@ -59,8 +59,9 @@ def _extract(raw: dict, field_map: dict) -> list[dict]:
     return rows
 
 
-def load_context() -> dict:
-    raw_match = _load_json("sample_match.json")
+def load_context(use_real: bool = False) -> dict:
+    data_dir = DATA_DIR / ("real" if use_real else "mock")
+    raw_match = _load_json(data_dir, "sample_match.json")
 
     # Trial Name, Trial Therapy, Match Engine, and Match Certainty aren't in
     # the real JSON yet — hardcoded here as a placeholder for fields the
@@ -88,9 +89,9 @@ def load_context() -> dict:
 
     return {
         "primary_match": primary_match,
-        "other_matches": _load_json("mock_other_matches.json"),
-        "similar_patients": _load_json("mock_similar_patients.json"),
-        "patient_detail": _load_json("mock_patient_detail.json"),
+        "other_matches": _load_json(data_dir, "other_matches.json"),
+        "similar_patients": _load_json(data_dir, "similar_patients.json"),
+        "patient_detail": _load_json(data_dir, "patient_detail.json"),
         "provenance": {
             "generated_on": datetime.now().strftime("%d%b%Y"),
             "data_source": DATA_SOURCE_VERSION,
@@ -100,8 +101,8 @@ def load_context() -> dict:
     }
 
 
-def render_html() -> str:
+def render_html(use_real: bool = False) -> str:
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
     template = env.get_template("report.html")
     css = (STATIC_DIR / "report.css").read_text()
-    return template.render(css=css, **load_context())
+    return template.render(css=css, **load_context(use_real=use_real))
