@@ -1,0 +1,32 @@
+<section class="section section-primary">
+  <h2>Primary Trial Match</h2>
+
+  <div class="primary-columns">
+    <div class="primary-col">
+      <h3>Patient</h3>
+      <table class="kv-table">
+        {% for row in primary_match.patient %}
+        <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="primary-col">
+      <h3>Trial <span class="status-badge status-{{ primary_match.trial_status|lower }}">{{ primary_match.trial_status }}</span></h3>
+      <table class="kv-table">
+        {% for row in primary_match.trial %}
+        <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="primary-col">
+      <h3>Genomic Match Detail</h3>
+      <table class="kv-table">
+        {% for row in primary_match.genomic %}
+        <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</section>

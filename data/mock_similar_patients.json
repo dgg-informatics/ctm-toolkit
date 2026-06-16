@@ -1,0 +1,7 @@
+[
+  {"patient_id": "PT-10432", "similarity_score": 0.91, "diagnosis": "Non-Small Cell Lung Cancer", "key_alteration": "EGFR p.L858R", "3_year_prognosis": "ALIVE", "in_primary_trial": "YES"},
+  {"patient_id": "PT-20981", "similarity_score": 0.88, "diagnosis": "Non-Small Cell Lung Cancer", "key_alteration": "EGFR p.L858R", "3_year_prognosis": "ALIVE", "in_primary_trial": "NO"},
+  {"patient_id": "PT-30217", "similarity_score": 0.85, "diagnosis": "Lung Adenocarcinoma", "key_alteration": "EGFR exon 19 del", "3_year_prognosis": "ALIVE", "in_primary_trial": "YES"},
+  {"patient_id": "PT-40556", "similarity_score": 0.79, "diagnosis": "Non-Small Cell Lung Cancer", "key_alteration": "EGFR p.L858G", "3_year_prognosis": "ALIVE", "in_primary_trial": "NO"},
+  {"patient_id": "PT-50893", "similarity_score": 0.77, "diagnosis": "Lung Adenocarcinoma", "key_alteration": "EGFR p.L861Q", "3_year_prognosis": "ALIVE", "in_primary_trial": "NO"}
+]

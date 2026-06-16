@@ -1,0 +1,11 @@
+<section class="section section-secondary">
+  <h2>Other Candidate Matches</h2>
+  <table class="data-table compact">
+    <thead><tr><th>Trial ID</th><th>Score</th></tr></thead>
+    <tbody>
+      {% for m in other_matches %}
+      <tr><td>{{ m.trial_id }}</td><td>{{ "%.2f"|format(m.score) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

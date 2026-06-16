@@ -1,0 +1,27 @@
+<section class="section section-secondary">
+  <h2>Top Similar Patients</h2>
+  <table class="data-table compact">
+    <thead>
+      <tr>
+        <th>Patient ID</th>
+        <th>Similarity</th>
+        <th>Diagnosis</th>
+        <th>Key Alteration</th>
+        <th>3-Year Prognosis</th>
+        <th>In Primary Trial</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in similar_patients %}
+      <tr>
+        <td>{{ p.patient_id }}</td>
+        <td>{{ "%.2f"|format(p.similarity_score) }}</td>
+        <td>{{ p.diagnosis }}</td>
+        <td>{{ p.key_alteration }}</td>
+        <td>{{ p["3_year_prognosis"] }}</td>
+        <td>{{ p.in_primary_trial }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

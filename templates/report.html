@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trial Match Report</title>
+  <style>
+{{ css }}
+  </style>
+</head>
+<body>
+  <header class="report-header">
+    <h1>Trial Match Report</h1>
+    <div class="report-meta">NCT ID: {{ primary_match.nct_id }}</div>
+  </header>
+
+  {% include "_primary_match.html" %}
+  {% include "_other_matches.html" %}
+  {% include "_similar_patients.html" %}
+  {% include "_patient_detail.html" %}
+
+  <footer class="report-footer">
+    Generated on {{ provenance.generated_on }} on {{ provenance.data_source }}
+    &middot; Sample ID: {{ provenance.sample_id }}
+    &middot; Record: {{ provenance.record_hash }}
+  </footer>
+</body>
+</html>
