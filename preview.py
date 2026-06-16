@@ -31,7 +31,7 @@ def main():
     server.watch(str(BASE_DIR / "templates" / "*.html"), build)
     server.watch(str(data_dir / "*.json"), build)
     server.watch(str(BASE_DIR / "static" / "*.css"), build)
-    server.serve(root=str(OUTPUT_DIR), port=5500, open_url_delay=1)
+    server.serve(root=str(OUTPUT_DIR), port=5500, open_url_delay=1, default_filename="report.html")
 
 
 if __name__ == "__main__":
