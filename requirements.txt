@@ -1,3 +1,7 @@
 jinja2
 weasyprint
 livereload
+pymongo
+pydantic>=2.0
+python-dotenv
+pytest

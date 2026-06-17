@@ -7,7 +7,7 @@ import argparse
 
 from livereload import Server
 
-from report_builder import BASE_DIR, render_html
+from ctm.reports.builder import BASE_DIR, render_html
 
 OUTPUT_DIR = BASE_DIR / "output"
 OUTPUT_FILE = OUTPUT_DIR / "report.html"

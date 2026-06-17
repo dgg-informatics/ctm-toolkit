@@ -16,7 +16,7 @@ if platform.system() == "Darwin":
 
 from weasyprint import HTML  # noqa: E402
 
-from report_builder import BASE_DIR, render_html  # noqa: E402
+from ctm.reports.builder import BASE_DIR, render_html  # noqa: E402
 
 
 def main():

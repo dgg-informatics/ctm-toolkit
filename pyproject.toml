@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ctm"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "jinja2",
+    "weasyprint",
+    "livereload",
+    "pymongo",
+    "pydantic>=2.0",
+    "python-dotenv",
+]
+
+[project.scripts]
+ctm-process = "ctm.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ctm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
