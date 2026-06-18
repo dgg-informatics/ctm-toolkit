@@ -4,10 +4,10 @@ __pycache__/
 output/
 data/real/*
 !data/real/.gitkeep
-data/raw/*
-!data/raw/clinical_trials/.gitkeep
-!data/raw/patient_general/.gitkeep
-!data/raw/patient_genetic/.gitkeep
+data/normalized/*
+!data/normalized/clinical_trials/.gitkeep
+!data/normalized/patient_general/.gitkeep
+!data/normalized/patient_genetic/.gitkeep
 data/output/
 data/dump/*
 .env

@@ -13,7 +13,7 @@ RUN_ID = "17Jun2026-testabcd"
 
 
 def test_insert_and_get_run(db):
-    insert_run(RUN_ID, "/data/raw", {"ct": "0.1.0"}, "/data/output/x", db=db)
+    insert_run(RUN_ID, "/data/normalized", {"ct": "0.1.0"}, "/data/output/x", db=db)
     doc = get_run(RUN_ID, db=db)
     assert doc is not None
     assert doc["run_id"] == RUN_ID
