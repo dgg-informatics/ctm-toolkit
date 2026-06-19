@@ -59,16 +59,17 @@ def load_context(use_real: bool = False) -> dict:
     raw_match = _load_json(data_dir, "sample_match.json")
 
     trial_rows = [
-        _row("Trial Name", "EGFR-TKI Resistance Combination Study"),
+        _row("Trial Name", "EGFR-TKI Resistance Combination Study"),  #mock
         _row("NCT ID", raw_match.get("nct_id")),
         _row("Protocol No.", raw_match.get("protocol_no")),
-        _row("Trial Therapy", "Osimertinib + MET inhibitor add-on"),
+        _row("Trial Therapy", "Osimertinib + MET inhibitor add-on"),  #mock
+        _row("Trial Source", "Regional"),  #mock
         _row("Match Level", raw_match.get("match_level")),
         _row("Reason Type", raw_match.get("reason_type")),
         _row("Cancer Type Match", raw_match.get("cancer_type_match")),
         _row("Match Type", raw_match.get("match_type")),
-        _row("Match Engine", "MatchMiner-v2"),
-        _row("Match Certainty", "99%", bold=True),
+        _row("Match Engine", "MatchMiner-v2"),  #mock
+        _row("Match Score *", "99%", bold=True),  #mock
     ]
 
     primary_match = {
@@ -79,11 +80,20 @@ def load_context(use_real: bool = False) -> dict:
         "genomic": _extract(raw_match, PRIMARY_MATCH_FIELDS["genomic"]),
     }
 
+    all_matches = _load_json(data_dir, "other_matches.json")
+    regional_matches = [m for m in all_matches if m.get("source") == "regional"]
+    ctg_matches = [m for m in all_matches if m.get("source") == "clinicaltrials_gov"]
+
+    methods = _load_json(data_dir, "methods.json")["body"]
+    general = _load_json(data_dir, "general.json")
+
     return {
         "primary_match": primary_match,
-        "other_matches": _load_json(data_dir, "other_matches.json"),
-        "similar_patients": _load_json(data_dir, "similar_patients.json"),
+        "regional_matches": regional_matches,
+        "ctg_matches": ctg_matches,
         "patient_detail": _load_json(data_dir, "patient_detail.json"),
+        "methods": methods,
+        "disclaimer": general["disclaimer"],
         "provenance": {
             "generated_on": datetime.now().strftime("%d%b%Y"),
             "data_source": DATA_SOURCE_VERSION,

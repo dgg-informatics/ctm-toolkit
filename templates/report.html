@@ -14,12 +14,14 @@
   </header>
 
   {% include "_primary_match.html" %}
-  {% include "_other_matches.html" %}
-  {% include "_similar_patients.html" %}
+  {% include "_regional_matches.html" %}
+  {% include "_ctg_matches.html" %}
   {% include "_patient_detail.html" %}
+  {% include "_methods.html" %}
+  {% include "_disclaimer.html" %}
 
   <footer class="report-footer">
-    Generated on {{ provenance.generated_on }} on {{ provenance.data_source }}
+    Generated on {{ provenance.generated_on }} &middot; {{ provenance.data_source }}
     &middot; Sample ID: {{ provenance.sample_id }}
     &middot; Record: {{ provenance.record_hash }}
   </footer>

@@ -129,6 +129,116 @@ body {
   padding: 8px 10px;
 }
 
+.section-regional {
+  border-left: 3px solid #1565c0;
+  padding-left: 10px;
+}
+
+.section-regional h2 {
+  color: #1565c0;
+  border-bottom-color: #1565c0;
+}
+
+.section-regional .score {
+  font-weight: 700;
+  color: #1565c0;
+}
+
+.section-ctg {
+  opacity: 0.85;
+}
+
+.section-ctg h2 {
+  color: #555;
+}
+
+.section-ctg .score {
+  color: #777;
+}
+
+.section-note {
+  font-size: 8pt;
+  color: #777;
+  margin: 0 0 6px 0;
+  font-style: italic;
+}
+
+.no-results {
+  font-size: 9pt;
+  color: #999;
+  font-style: italic;
+}
+
+.badge-caution {
+  background: #e65100;
+  color: #fff;
+}
+
+.section-methods {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+}
+
+.section-methods p {
+  font-size: 8.5pt;
+  color: #444;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.section-disclaimer {
+  border: 1.5px solid #b71c1c;
+  border-radius: 3px;
+  padding: 8px 12px;
+  background: #fff8f8;
+}
+
+.section-disclaimer h2 {
+  color: #b71c1c;
+  border-bottom-color: #e57373;
+}
+
+.section-disclaimer p {
+  font-size: 8.5pt;
+  color: #555;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.trial-id {
+  font-family: monospace;
+  font-size: 8.5pt;
+  white-space: nowrap;
+}
+
+.trial-id-list {
+  list-style: none;
+  margin: 4px 0 0 0;
+  padding: 0;
+}
+
+.trial-id-list li {
+  font-family: monospace;
+  font-size: 9pt;
+  padding: 2px 0;
+}
+
+.match-score-note {
+  font-size: 7.5pt;
+  color: #888;
+  font-style: italic;
+  margin: 6px 0 0 0;
+  line-height: 1.4;
+}
+
+.section-subheader {
+  font-size: 8.5pt;
+  color: #777;
+  font-style: italic;
+  margin: -4px 0 6px 0;
+}
+
 .report-footer {
   margin-top: 24px;
   padding-top: 8px;
