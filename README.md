@@ -1,7 +1,43 @@
 # CTM Trial Match Report
 
-Generates a single-page trial-match report (Jinja2 + WeasyPrint) from a clinical
-trial matching JSON blob, previewable live in the browser and exportable to PDF.
+A data preparation and validation layer that normalizes patient, genetic, and clinical
+trial data before it enters a trial matching engine (MatchMiner or TrialMatchAI). Also
+generates single-page trial-match reports (Jinja2 + WeasyPrint) from the matching
+engine output, previewable live in the browser and exportable to PDF.
+
+## Data pipeline
+
+```
+Sources (files or manual transcription)
+        │
+        ▼
+data/dump/raw/               ← unmodified source files (XML, PDF, XLSX, DOCX)
+data/dump/manually_processed/ ← hand-transcribed from sources that can't be exported
+        │
+        │  minimal massaging
+        ▼
+data/normalized/             ← engine-agnostic raw schema; stored in MongoDB
+        │
+        │  transformer (one per engine)
+        ├──→ MatchMiner format
+        └──→ TrialMatchAI format
+                │
+                ▼
+        matching engine
+                │
+                ▼
+        match results  ──→  report.pdf
+```
+
+**Schema levels:**
+- `schemas/raw/` — engine-agnostic intermediate schema: minimal massaging, covers all
+  fields we want to preserve, MongoDB-friendly. This is the stable record.
+- `schemas/processed/` — Pydantic models for the fully transformed, engine-ready output.
+  One transformer module per engine.
+
+**Why two layers?** Separating normalization from engine-specific transformation means new
+engines can be added without re-ingesting source data. The normalized layer is the single
+source of truth.
 
 ## Setup
 
