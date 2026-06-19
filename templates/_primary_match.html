@@ -3,18 +3,18 @@
 
   <div class="primary-columns">
     <div class="primary-col">
-      <h3>Patient</h3>
+      <h3>Trial <span class="status-badge status-{{ primary_match.trial_status|lower }}">{{ primary_match.trial_status }}</span></h3>
       <table class="kv-table">
-        {% for row in primary_match.patient %}
+        {% for row in primary_match.trial %}
         <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
         {% endfor %}
       </table>
     </div>
 
     <div class="primary-col">
-      <h3>Trial <span class="status-badge status-{{ primary_match.trial_status|lower }}">{{ primary_match.trial_status }}</span></h3>
+      <h3>Match Detail</h3>
       <table class="kv-table">
-        {% for row in primary_match.trial %}
+        {% for row in primary_match.match_detail %}
         <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
         {% endfor %}
       </table>

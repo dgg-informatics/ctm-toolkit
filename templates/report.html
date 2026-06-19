@@ -9,17 +9,30 @@
 </head>
 <body>
   <header class="report-header">
-    <h1>Trial Match Report</h1>
-    <div class="report-meta">NCT ID: {{ primary_match.nct_id }}</div>
+    <div class="report-header-title">
+      <h1>Trial Match Report</h1>
+      <div class="report-meta">NCT ID: {{ primary_match.nct_id }}</div>
+    </div>
+    <div class="patient-header-box">
+      <div class="patient-header-label">Patient</div>
+      <table class="kv-table">
+        {% for row in patient_header %}
+        <tr><th>{{ row.label }}</th><td>{{ row.value }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
   </header>
 
   {% include "_primary_match.html" %}
-  {% include "_other_matches.html" %}
-  {% include "_similar_patients.html" %}
+  {% include "_regional_matches.html" %}
+  {% include "_ctg_matches.html" %}
   {% include "_patient_detail.html" %}
+  {% include "_methods.html" %}
+  {% include "_abbreviations.html" %}
+  {% include "_disclaimer.html" %}
 
   <footer class="report-footer">
-    Generated on {{ provenance.generated_on }} on {{ provenance.data_source }}
+    Generated on {{ provenance.generated_on }} &middot; {{ provenance.data_source }}
     &middot; Sample ID: {{ provenance.sample_id }}
     &middot; Record: {{ provenance.record_hash }}
   </footer>

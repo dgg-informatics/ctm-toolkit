@@ -1,0 +1,12 @@
+<section class="section section-regional">
+  <h2>Regional Trial Matches</h2>
+  {% if regional_matches %}
+  <ul class="trial-id-list">
+    {% for m in regional_matches %}
+    <li class="trial-id">{{ m.trial_id }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="no-results">No regional trial matches found.</p>
+  {% endif %}
+</section>

@@ -18,6 +18,14 @@ body {
   border-bottom: 2px solid #2c3e50;
   margin-bottom: 16px;
   padding-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.report-header-title {
+  flex: 1;
 }
 
 .report-header h1 {
@@ -29,6 +37,30 @@ body {
 .report-meta {
   font-size: 9pt;
   color: #555;
+}
+
+.patient-header-box {
+  border: 1px solid #c5ccd6;
+  border-radius: 3px;
+  padding: 6px 10px;
+  background: #f4f6f8;
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.patient-header-label {
+  font-size: 7pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.patient-header-box .kv-table th,
+.patient-header-box .kv-table td {
+  font-size: 8pt;
+  padding: 1px 4px 1px 0;
 }
 
 .section {
@@ -127,6 +159,142 @@ body {
   background: #fafafa;
   border: 1px dashed #bbb;
   padding: 8px 10px;
+}
+
+.section-regional {
+  border-left: 3px solid #1565c0;
+  padding-left: 10px;
+}
+
+.section-regional h2 {
+  color: #1565c0;
+  border-bottom-color: #1565c0;
+}
+
+.section-regional .score {
+  font-weight: 700;
+  color: #1565c0;
+}
+
+.section-ctg {
+  opacity: 0.85;
+}
+
+.section-ctg h2 {
+  color: #555;
+}
+
+.section-ctg .score {
+  color: #777;
+}
+
+.section-note {
+  font-size: 8pt;
+  color: #777;
+  margin: 0 0 6px 0;
+  font-style: italic;
+}
+
+.no-results {
+  font-size: 9pt;
+  color: #999;
+  font-style: italic;
+}
+
+.badge-caution {
+  background: #e65100;
+  color: #fff;
+}
+
+.section-methods {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+}
+
+.section-methods p {
+  font-size: 8.5pt;
+  color: #444;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.section-abbreviations {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+}
+
+.abbrev-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.abbrev-table th, .abbrev-table td {
+  font-size: 8.5pt;
+  color: #444;
+  padding: 2px 8px 2px 0;
+  vertical-align: top;
+  text-align: left;
+}
+
+.abbrev-table th {
+  font-weight: 700;
+  color: #2c3e50;
+  white-space: nowrap;
+  width: 60px;
+}
+
+.section-disclaimer {
+  border: 1.5px solid #b71c1c;
+  border-radius: 3px;
+  padding: 8px 12px;
+  background: #fff8f8;
+}
+
+.section-disclaimer h2 {
+  color: #b71c1c;
+  border-bottom-color: #e57373;
+}
+
+.section-disclaimer p {
+  font-size: 8.5pt;
+  color: #555;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.trial-id {
+  font-family: monospace;
+  font-size: 8.5pt;
+  white-space: nowrap;
+}
+
+.trial-id-list {
+  list-style: none;
+  margin: 4px 0 0 0;
+  padding: 0;
+}
+
+.trial-id-list li {
+  font-family: monospace;
+  font-size: 9pt;
+  padding: 2px 0;
+}
+
+.match-score-note {
+  font-size: 7.5pt;
+  color: #888;
+  font-style: italic;
+  margin: 6px 0 0 0;
+  line-height: 1.4;
+}
+
+.section-subheader {
+  font-size: 8.5pt;
+  color: #777;
+  font-style: italic;
+  margin: -4px 0 6px 0;
 }
 
 .report-footer {

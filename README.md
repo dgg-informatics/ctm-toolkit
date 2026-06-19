@@ -101,7 +101,7 @@ elsewhere:
   includes
 - `static/report.css` — shared styling, including the `@page` rule for PDF
   page size/margins
-- `report_builder.py` — loads the JSON data and renders the Jinja2 template
+- `src/ctm/reports/builder.py` — loads the JSON data and renders the Jinja2 template
   to an HTML string
 - `preview.py` — live-reload dev server
 - `build_pdf.py` — renders the HTML and exports it to PDF via WeasyPrint

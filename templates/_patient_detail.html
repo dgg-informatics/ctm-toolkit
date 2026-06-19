@@ -1,5 +1,6 @@
 <section class="section section-internal">
-  <h2>Extended Patient Data <span class="badge">internal only</span></h2>
+  <h2>Extended Patient Data</h2>
+  <p class="section-subheader">Potentially relevant other information</p>
   <table class="kv-table">
     {% for item in patient_detail %}
     <tr><th>{{ item.label }}</th><td>{{ item.value }}</td></tr>

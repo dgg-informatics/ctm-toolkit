@@ -1,0 +1,13 @@
+<section class="section section-ctg">
+  <h2>ClinicalTrials.gov Matches <span class="badge badge-caution">May be outdated</span></h2>
+  <p class="section-note">Verify current enrollment status directly with the sponsoring institution before referral.</p>
+  {% if ctg_matches %}
+  <ul class="trial-id-list">
+    {% for m in ctg_matches %}
+    <li class="trial-id">{{ m.trial_id }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="no-results">No ClinicalTrials.gov matches found.</p>
+  {% endif %}
+</section>

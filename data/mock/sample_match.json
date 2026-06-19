@@ -8,6 +8,8 @@
   "vital_status": "alive",
   "oncotree_primary_diagnosis_name": "Non-Small Cell Lung Cancer",
   "tumor_mutational_burden_per_megabase": 4.1,
+  "NCT_id": "NCT02477839",
+  "trial_title": "A Phase II Study of Osimertinib in Patients With Epidermal Growth Factor Receptor (EGFR) Mutation-Positive Non-Small Cell Lung Cancer (NSCLC) With Brain Metastases",
   "report_date": "",
   "clinical_id": {
     "$oid": "6a303a640b2bf9c4714dd86b"
