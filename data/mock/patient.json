@@ -1,0 +1,21 @@
+{
+  "_id": { "$oid": "6a303a640b2bf9c4714dd800" },
+  "pt_uuid": 1,
+  "mrn": "1036",
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "dob": "1972-03-14",
+  "sex": "Female",
+  "vital_status": "Alive",
+  "entity": "University of Michigan Rogel Cancer Center",
+  "primary_dx": "Non-Small Cell Lung Cancer",
+  "metastasis_sites": [],
+  "tmb_per_mb": 4.1,
+  "clinical_detail": {
+    "ecog": "1",
+    "prior_lines_of_therapy": "2 (osimertinib, carboplatin/pemetrexed)",
+    "smoking_history": "Former smoker, 15 pack-years",
+    "brain_metastases": "None observed",
+    "most_recent_imaging": "CT chest/abdomen/pelvis, 2026-05-02 — stable disease"
+  }
+}

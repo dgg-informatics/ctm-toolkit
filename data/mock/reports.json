@@ -1,0 +1,108 @@
+{
+  "pt_uuid": 1,
+  "mrn": "1036",
+  "reports": [
+    {
+      "report_uuid": 101,
+      "source": "tempus",
+      "test_name": "Tempus xT",
+      "accession_no": "TMP-2026-00441",
+      "physician": "Dr. Rao",
+      "specimen_type": "FFPE",
+      "date_collected": "2026-04-01",
+      "date_received": "2026-04-03",
+      "date_completed": "2026-04-15",
+      "obtained_from": "Core biopsy, right lower lobe",
+      "notes": null,
+      "findings": [
+        {
+          "gene": "EGFR",
+          "variant_type": "mutation",
+          "result_summary": "EGFR p.L858R — Pathogenic, Tier I",
+          "raw": {
+            "raw_biomarker": "EGFR",
+            "raw_result": "Pathogenic",
+            "raw_nucleotide_type": "Missense",
+            "raw_therapies_current_dx": "Erlotinib, Gefitinib, Afatinib, Osimertinib, Dacomitinib",
+            "raw_trials": "NCT02477839, NCT04739215"
+          }
+        },
+        {
+          "gene": "MET",
+          "variant_type": "cnv",
+          "result_summary": "MET amplification — High-level (CN 12)",
+          "raw": {
+            "raw_biomarker": "MET",
+            "raw_result": "Amplification",
+            "raw_category": "Copy Number Gain",
+            "raw_therapies_current_dx": "Capmatinib, Tepotinib",
+            "raw_trials": "NCT05112233"
+          }
+        },
+        {
+          "gene": "TP53",
+          "variant_type": "mutation",
+          "result_summary": "TP53 p.R175H — Pathogenic, Tier I",
+          "raw": {
+            "raw_biomarker": "TP53",
+            "raw_result": "Pathogenic",
+            "raw_nucleotide_type": "Missense",
+            "raw_therapies_current_dx": null,
+            "raw_trials": null
+          }
+        },
+        {
+          "gene": "TMB",
+          "variant_type": "tumor_biomarker",
+          "result_summary": "TMB 4.1 mut/Mb — Low",
+          "raw": {
+            "raw_tmb": "4.1 mut/Mb",
+            "raw_msi": "MSS",
+            "raw_mmr": "Proficient (pMMR)",
+            "raw_tumor_fraction": "0.42",
+            "raw_tumor_normal": "Tumor-only"
+          }
+        }
+      ]
+    },
+    {
+      "report_uuid": 102,
+      "source": "caris",
+      "test_name": "Caris MI Profile",
+      "accession_no": "CAR-2025-18823",
+      "physician": "Dr. Rao",
+      "specimen_type": "FFPE",
+      "date_collected": "2025-11-10",
+      "date_received": "2025-11-12",
+      "date_completed": "2025-11-24",
+      "obtained_from": "CT-guided biopsy, mediastinal lymph node",
+      "notes": "Prior report — pre-osimertinib progression",
+      "findings": [
+        {
+          "gene": "EGFR",
+          "variant_type": "mutation",
+          "result_summary": "EGFR exon 19 del — Pathogenic",
+          "raw": {
+            "raw_biomarker": "EGFR",
+            "raw_protein_alteration": "p.E746_A750del",
+            "raw_exon": 19,
+            "raw_dna_alteration": "c.2235_2249del",
+            "raw_frequency_pct": "38.2",
+            "raw_result": "Pathogenic",
+            "raw_therapy_assoc": "Erlotinib, Gefitinib, Osimertinib"
+          }
+        },
+        {
+          "gene": "TMB",
+          "variant_type": "tumor_biomarker",
+          "result_summary": "TMB 6.2 mut/Mb — Intermediate",
+          "raw": {
+            "raw_biomarker": "TMB",
+            "raw_result": "6.2 mutations per megabase",
+            "raw_biomarker_level": "Intermediate"
+          }
+        }
+      ]
+    }
+  ]
+}

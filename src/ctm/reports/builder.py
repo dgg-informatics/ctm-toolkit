@@ -12,26 +12,33 @@ STATIC_DIR = BASE_DIR / "static"
 
 DATA_SOURCE_VERSION = "TrialDBv0.1-jun26"
 
-PRIMARY_MATCH_FIELDS = {
-    "patient": {
-        "mrn": "MRN",
-        "gender": "Gender",
-        "vital_status": "Vital Status",
-        "oncotree_primary_diagnosis_name": "Diagnosis",
-        "tumor_mutational_burden_per_megabase": "TMB*",
-    },
-    "genomic": {
-        "true_hugo_symbol": "Gene",
-        "true_protein_change": "Protein Change",
-        "true_cdna_change": "cDNA Change",
-        "true_variant_classification": "Variant Classification",
-        "variant_category": "Variant Category",
-        "allele_fraction": "Allele Fraction",
-        "tier": "Tier",
-        "chromosome": "Chromosome",
-        "position": "Position",
-        "reference_allele": "Reference Allele",
-    },
+PATIENT_HEADER_FIELDS = {
+    "mrn": "MRN",
+    "sex": "Gender",
+    "vital_status": "Vital Status",
+    "primary_dx": "Diagnosis",
+    "tmb_per_mb": "TMB*",
+}
+
+PATIENT_DETAIL_FIELDS = {
+    "ecog": "ECOG Performance Status",
+    "prior_lines_of_therapy": "Prior Lines of Therapy",
+    "smoking_history": "Smoking History",
+    "brain_metastases": "Brain Metastases",
+    "most_recent_imaging": "Most Recent Imaging",
+}
+
+GENOMIC_FIELDS = {
+    "true_hugo_symbol": "Gene",
+    "true_protein_change": "Protein Change",
+    "true_cdna_change": "cDNA Change",
+    "true_variant_classification": "Variant Classification",
+    "variant_category": "Variant Category",
+    "allele_fraction": "Allele Fraction",
+    "tier": "Tier",
+    "chromosome": "Chromosome",
+    "position": "Position",
+    "reference_allele": "Reference Allele",
 }
 
 
@@ -56,9 +63,13 @@ def _extract(raw: dict, field_map: dict) -> list[dict]:
 
 def load_context(use_real: bool = False) -> dict:
     data_dir = DATA_DIR / ("real" if use_real else "mock")
-    raw_match = _load_json(data_dir, "sample_match.json")
 
-    patient_header = _extract(raw_match, PRIMARY_MATCH_FIELDS["patient"])
+    patient = _load_json(data_dir, "patient.json")
+    patient_header = _extract(patient, PATIENT_HEADER_FIELDS)
+    patient_detail = _extract(patient.get("clinical_detail", {}), PATIENT_DETAIL_FIELDS)
+
+    matches = _load_json(data_dir, "matches.json")
+    raw_match = matches["primary"]
 
     trial_rows = [
         _row("Trial Name", "EGFR-TKI Resistance Combination Study"),  #mock
@@ -84,28 +95,26 @@ def load_context(use_real: bool = False) -> dict:
         "trial_status": raw_match.get("trial_summary_status", "").capitalize(),
         "trial": trial_rows,
         "match_detail": match_detail_rows,
-        "genomic": _extract(raw_match, PRIMARY_MATCH_FIELDS["genomic"]),
+        "genomic": _extract(raw_match, GENOMIC_FIELDS),
     }
 
-    all_matches = _load_json(data_dir, "other_matches.json")
-    regional_matches = [m for m in all_matches if m.get("source") == "regional"]
-    ctg_matches = [m for m in all_matches if m.get("source") == "clinicaltrials_gov"]
+    others = matches["others"]
+    regional_matches = [m for m in others if m.get("source") == "regional"]
+    ctg_matches = [m for m in others if m.get("source") == "clinicaltrials_gov"]
 
     methods = _load_json(data_dir, "methods.json")["body"]  # list of paragraphs
-    general = _load_json(data_dir, "general.json")
 
     return {
         "primary_match": primary_match,
         "patient_header": patient_header,
+        "patient_detail": patient_detail,
         "regional_matches": regional_matches,
         "ctg_matches": ctg_matches,
-        "patient_detail": _load_json(data_dir, "patient_detail.json"),
         "methods": methods,
-        "disclaimer": general["disclaimer"],
         "provenance": {
             "generated_on": datetime.now().strftime("%d%b%Y"),
             "data_source": DATA_SOURCE_VERSION,
-            "sample_id": raw_match.get("sample_id"),
+            "sample_id": matches.get("pt_uuid"),
             "record_hash": (raw_match.get("hash") or "")[:8],
         },
     }

@@ -1,0 +1,47 @@
+{
+  "pt_uuid": 1,
+  "mrn": "1036",
+  "primary": {
+    "_id": { "$oid": "6a303a640b2bf9c4714dd87c" },
+    "sample_id": "5d2799d86756630d8dd065b9",
+    "match_level": "step",
+    "reason_type": "genomic",
+    "cancer_type_match": "specific",
+    "match_type": "gene",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "protocol_no": "NCT02477839",
+    "nct_id": "NCT02477839",
+    "genomic_alteration": "EGFR p.L858G",
+    "true_hugo_symbol": "EGFR",
+    "true_protein_change": "p.L858G",
+    "true_cdna_change": "c.2572T>G",
+    "true_variant_classification": "Missense_Mutation",
+    "variant_category": "MUTATION",
+    "true_transcript_exon": 21,
+    "wildtype": false,
+    "allele_fraction": 0.29,
+    "tier": 2,
+    "chromosome": "7",
+    "position": 55259515,
+    "reference_allele": "T",
+    "hash": "c89456f5cc7e37852fa5a69105f48642a295570c"
+  },
+  "others": [
+    {
+      "trial_id": "NCT02477839",
+      "trial_name": "EGFR-TKI Resistance Combination Study",
+      "source": "regional"
+    },
+    {
+      "trial_id": "NCT05112233",
+      "trial_name": "Targeted Therapy in EGFR-Mutant Lung Adenocarcinoma",
+      "source": "clinicaltrials_gov"
+    },
+    {
+      "trial_id": "NCT02871234",
+      "trial_name": "Combination Chemotherapy in Advanced Lung Adenocarcinoma",
+      "source": "clinicaltrials_gov"
+    }
+  ]
+}
