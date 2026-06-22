@@ -11,8 +11,7 @@ engine output, previewable live in the browser and exportable to PDF.
 Sources (files or manual transcription)
         │
         ▼
-data/dump/raw/               ← unmodified source files (XML, PDF, XLSX, DOCX)
-data/dump/manually_processed/ ← hand-transcribed from sources that can't be exported
+data/test/                   ← source files (XML, PDF, XLSX, DOCX) and hand-transcribed data
         │
         │  minimal massaging
         ▼
@@ -52,18 +51,31 @@ by default:
 brew install pango
 ```
 
-## Data sources: mock vs. real
+## Data directories
 
-Both scripts default to `data/mock/`, which holds synthetic data safe to
-commit to git. Real patient data goes in `data/real/` (gitignored — never
-committed) using the same four filenames: `sample_match.json`,
-`other_matches.json`, `similar_patients.json`, `patient_detail.json`. Pass
-`--real` to load from there instead:
+| Directory | Purpose |
+|-----------|---------|
+| `data/mock/` | Synthetic data, safe to commit — used for local development and report preview |
+| `data/real/` | Real patient data (gitignored) — drop files here to normalize and ingest |
+| `data/test/` | Source files and hand-transcribed data (gitignored) — input to the normalization pipeline |
+| `data/normalized/` | Engine-agnostic intermediate output (gitignored) — stored in MongoDB |
+
+Pass `--real` to load real data instead of mock:
 
 ```bash
 ./.venv/bin/python preview.py --real
 ./.venv/bin/python build_pdf.py --real
 ```
+
+## Mock data files
+
+| File | Purpose |
+|------|---------|
+| `patient.json` | Patient identity + clinical detail |
+| `reports.json` | Lab reports with findings embedded |
+| `matches.json` | Primary match + other matches (regional + CTG) |
+| `similar_patients.json` | DB storage artifact |
+| `methods.json` | Methods + disclaimer paragraphs |
 
 ## Spin up the live preview
 
@@ -91,17 +103,9 @@ elsewhere:
 
 ## Project layout
 
-- `data/mock/` — synthetic data, safe to commit: `sample_match.json` is a
-  real-shaped sample trial-match blob, the rest are placeholder data for the
-  other-matches, similar-patients, and extended-patient-data sections (no
-  real schema for those yet)
-- `data/real/` — gitignored; drop real patient data here using the same
-  filenames as `data/mock/`
-- `templates/` — `report.html` is the base page, `_*.html` are the per-section
-  includes
-- `static/report.css` — shared styling, including the `@page` rule for PDF
-  page size/margins
-- `src/ctm/reports/builder.py` — loads the JSON data and renders the Jinja2 template
-  to an HTML string
+- `data/` — see Data directories table above
+- `templates/` — `report.html` is the base page, `_*.html` are the per-section includes
+- `static/report.css` — shared styling, including the `@page` rule for PDF page size/margins
+- `src/ctm/reports/builder.py` — loads JSON data and renders the Jinja2 template to HTML
 - `preview.py` — live-reload dev server
 - `build_pdf.py` — renders the HTML and exports it to PDF via WeasyPrint
