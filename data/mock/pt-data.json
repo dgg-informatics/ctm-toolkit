@@ -1,0 +1,670 @@
+{
+  "clinical": [
+    {
+      "SAMPLE_ID": "12230850",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Breast Invasive Carcinoma",
+      "PRIMARY_DIAGNOSIS_RAW": "malignant neoplasm of overlapping sites of left breast, estrogen receptor positive",
+      "BIRTH_DATE": "1971-06-04",
+      "VITAL_STATUS": "Alive",
+      "GENDER": "Female",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-06-23T13:53:30.040851+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Non-Small Cell Lung Cancer",
+      "PRIMARY_DIAGNOSIS_RAW": "malignant neoplasm of lower lobe of right lung",
+      "BIRTH_DATE": "1998-04-03",
+      "VITAL_STATUS": "Alive",
+      "GENDER": "Female",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-06-23T13:53:30.040889+00:00"
+    },
+    {
+      "SAMPLE_ID": "7439568",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Lung Adenocarcinoma",
+      "PRIMARY_DIAGNOSIS_RAW": "primary lung adenocarcinoma",
+      "BIRTH_DATE": "1953-01-28",
+      "VITAL_STATUS": "Alive",
+      "GENDER": "Male",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-06-23T13:53:30.040964+00:00"
+    },
+    {
+      "SAMPLE_ID": "28067276",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Acute Leukemia",
+      "PRIMARY_DIAGNOSIS_RAW": "acute leukemia not having received remission",
+      "BIRTH_DATE": "1956-07-21",
+      "VITAL_STATUS": "Alive",
+      "GENDER": "Female",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-06-23T13:53:30.040974+00:00"
+    }
+  ],
+  "genomic": [
+    {
+      "SAMPLE_ID": "12230850",
+      "TRUE_HUGO_SYMBOL": "Microsatellite Instability",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040862+00:00",
+      "MMR_STATUS": "MSI-L"
+    },
+    {
+      "SAMPLE_ID": "12230850",
+      "TRUE_HUGO_SYMBOL": "ERBB3",
+      "VARIANT_CATEGORY": "CNV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040868+00:00",
+      "CNV_CALL": "positive"
+    },
+    {
+      "SAMPLE_ID": "12230850",
+      "TRUE_HUGO_SYMBOL": "ESR1",
+      "VARIANT_CATEGORY": "CNV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040870+00:00",
+      "CNV_CALL": "positive"
+    },
+    {
+      "SAMPLE_ID": "12230850",
+      "TRUE_HUGO_SYMBOL": "CCNE1",
+      "VARIANT_CATEGORY": "CNV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040871+00:00",
+      "CNV_CALL": "positive"
+    },
+    {
+      "SAMPLE_ID": "12230850",
+      "TRUE_HUGO_SYMBOL": "AR",
+      "VARIANT_CATEGORY": "CNV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040872+00:00",
+      "CNV_CALL": "positive"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "MSI",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040892+00:00",
+      "MMR_STATUS": "Deficient (MMR-D / MSI-H)"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "Mismatch Repair Status",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040895+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "ROS1",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040896+00:00",
+      "LEFT_PARTNER_GENE": "ROS1",
+      "RIGHT_PARTNER_GENE": null
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "ROS1",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040899+00:00",
+      "LEFT_PARTNER_GENE": "ROS1",
+      "RIGHT_PARTNER_GENE": null
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "BFAF",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040901+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "EGFR",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040902+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "KRAS",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040903+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "RET",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040905+00:00",
+      "LEFT_PARTNER_GENE": "RET",
+      "RIGHT_PARTNER_GENE": null
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "NTRC1",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040906+00:00",
+      "LEFT_PARTNER_GENE": "NTRC1",
+      "RIGHT_PARTNER_GENE": "2/3"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "ALK",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040908+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "BRAF",
+      "VARIANT_CATEGORY": "CNV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040909+00:00",
+      "CNV_CALL": "negative"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "ERBB2 (HER2/Neu)",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040910+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "ERBB2 (HER2",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040911+00:00",
+      "LEFT_PARTNER_GENE": "ERBB2 (HER2",
+      "RIGHT_PARTNER_GENE": "Neu)"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "FGFR3",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040912+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "KEAP1",
+      "VARIANT_CATEGORY": "CNV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040913+00:00",
+      "CNV_CALL": "negative"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "MET",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040914+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "MTAP",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040915+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "NFEL2",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040916+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "NEGL",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040917+00:00",
+      "LEFT_PARTNER_GENE": "NEGL",
+      "RIGHT_PARTNER_GENE": null
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "RBI",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040918+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "RET",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040919+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "STKL1",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040920+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "TP53",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040921+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "Tobacco Airway Signature",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040923+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "microsatellite instability (MSI)",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040924+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "Tumor Mutational Burden (TMB)",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040926+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "Genomic Loss of Heterozygosity",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040927+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "Tobacco Airway Signature",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040928+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "ROS1",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040929+00:00",
+      "LEFT_PARTNER_GENE": "ROS1",
+      "RIGHT_PARTNER_GENE": null
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "SETD2",
+      "VARIANT_CATEGORY": "SV",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040931+00:00",
+      "TRUE_PROTEIN_CHANGE": "K2541S",
+      "LEFT_PARTNER_GENE": "SETD2",
+      "RIGHT_PARTNER_GENE": null
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "Mismatch Repair Status",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040934+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "Mismatch Repair Status",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040935+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "MLH1",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040936+00:00",
+      "MMR_STATUS": "Deficient (MMR-D / MSI-H)"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "MSH2",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040938+00:00",
+      "MMR_STATUS": "Proficient (MMR-P / MSS)"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "MSH5",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040940+00:00",
+      "MMR_STATUS": "Proficient (MMR-P / MSS)"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "PD-L1 (22c3)",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040942+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "PD-L1 (SP142)",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040944+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "PD-L1 (SP142)",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040945+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "PMS2",
+      "VARIANT_CATEGORY": "SIGNATURE",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040946+00:00",
+      "MMR_STATUS": "Deficient (MMR-D / MSI-H)"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "COL2A1",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040948+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "DACH1",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040949+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "MDH2",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040950+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "PLCB4",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040951+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "PRDM6",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040952+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "PRKD1",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040953+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "RASA1",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040954+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "SMARCA2",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040955+00:00"
+    },
+    {
+      "SAMPLE_ID": "123456789",
+      "TRUE_HUGO_SYMBOL": "GATA3",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040957+00:00"
+    },
+    {
+      "SAMPLE_ID": "7439568",
+      "TRUE_HUGO_SYMBOL": "EGFR",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040966+00:00",
+      "TRUE_PROTEIN_CHANGE": "E746_A750del",
+      "TRUE_CDNA_CHANGE": "2236_2250del"
+    },
+    {
+      "SAMPLE_ID": "7439568",
+      "TRUE_HUGO_SYMBOL": "EGFR",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-23T13:53:30.040968+00:00",
+      "TRUE_PROTEIN_CHANGE": "E746_A750del",
+      "TRUE_CDNA_CHANGE": "2235_2249del"
+    },
+    {
+      "SAMPLE_ID": "28067276",
+      "TRUE_HUGO_SYMBOL": "PML/RARA",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": true,
+      "_updated": "2026-06-23T13:53:30.040978+00:00"
+    },
+    {
+      "SAMPLE_ID": "28067276",
+      "TRUE_HUGO_SYMBOL": "factor_v_leiden",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": true,
+      "_updated": "2026-06-23T13:53:30.040979+00:00"
+    },
+    {
+      "SAMPLE_ID": "28067276",
+      "TRUE_HUGO_SYMBOL": "IDH2",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": true,
+      "_updated": "2026-06-23T13:53:30.040981+00:00"
+    },
+    {
+      "SAMPLE_ID": "28067276",
+      "TRUE_HUGO_SYMBOL": "FLT3",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": true,
+      "_updated": "2026-06-23T13:53:30.040982+00:00"
+    }
+  ],
+  "extras": {
+    "patient": {
+      "pt_uuid": 1,
+      "mrn": "12230850",
+      "first_name": "Katrina",
+      "last_name": "Lovett",
+      "dob": "1971-06-04",
+      "sex": "female",
+      "vital_status": null,
+      "entity": "AMC",
+      "primary_dx": "malignant neoplasm of overlapping sites of left breast, estrogen receptor positive",
+      "oncotree_primary_diagnosis": "Breast Invasive Carcinoma",
+      "metastasis_sites": [
+        "bone",
+        "liver",
+        "breast"
+      ]
+    },
+    "reports": [
+      {
+        "source": "Tempus",
+        "test_name": "xT CDx",
+        "accession_no": "TL-26-LOVTO77643",
+        "physician": "Erin Cobain",
+        "date_completed": null,
+        "findings": [
+          {
+            "gene": "ERBB2",
+            "protein": "T733I",
+            "nucleotide": null,
+            "variant_type": null,
+            "result_summary": "53.2% VAF",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "53.2% VAF",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "Neratinib, Neratinib + Fulvestrant",
+              "raw_trials": "2 trials",
+              "raw_biomarker": "ERBB2 (HER2) p.T733I",
+              "raw_title": "somatic - potentially actionable"
+            }
+          },
+          {
+            "gene": "CDH1",
+            "protein": "T568fs",
+            "nucleotide": null,
+            "variant_type": null,
+            "result_summary": "51.1% VAF",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "51.1% VAF",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "NA",
+              "raw_trials": "1 trial",
+              "raw_biomarker": "CDH1 p.T568fs",
+              "raw_title": "somatic - potentially actionable"
+            }
+          },
+          {
+            "gene": "RB1",
+            "protein": "S816*",
+            "nucleotide": null,
+            "variant_type": null,
+            "result_summary": "39.7% VAF",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "39.7% VAF",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "NA",
+              "raw_trials": "1 trial",
+              "raw_biomarker": "RB1 p.S816*",
+              "raw_title": "somatic - biologically relevant"
+            }
+          },
+          {
+            "gene": "ZMYM3",
+            "protein": "Q207*",
+            "nucleotide": null,
+            "variant_type": null,
+            "result_summary": "12.6% VAF",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "12.6% VAF",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "NA",
+              "raw_trials": "NA",
+              "raw_biomarker": "ZMYM3 p.Q207*",
+              "raw_title": "somatic - biologically relevant"
+            }
+          },
+          {
+            "gene": "ESR1",
+            "protein": null,
+            "nucleotide": null,
+            "variant_type": null,
+            "result_summary": "negative",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "NA",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "NA",
+              "raw_trials": "NA",
+              "raw_biomarker": "ESR1",
+              "raw_title": "pertinent negatives"
+            }
+          },
+          {
+            "gene": "PIK3CA",
+            "protein": null,
+            "nucleotide": null,
+            "variant_type": null,
+            "result_summary": "negative",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "NA",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "NA",
+              "raw_trials": "NA",
+              "raw_biomarker": "PIK3CA",
+              "raw_title": "pertinent negatives"
+            }
+          },
+          {
+            "gene": "Tumor Mutational Burden",
+            "protein": null,
+            "nucleotide": null,
+            "variant_type": "tumor biomarker",
+            "result_summary": "TMB-L",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "3.2m/MB",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "NA",
+              "raw_trials": "NA",
+              "raw_biomarker": "Tumor Mutational Burden",
+              "raw_title": "immunotherapy markers"
+            }
+          },
+          {
+            "gene": "Microsatellite Instability",
+            "protein": null,
+            "nucleotide": null,
+            "variant_type": "tumor biomarker",
+            "result_summary": "MSI-L",
+            "raw": {
+              "raw_test": "xT CDx",
+              "raw_result": "Stable",
+              "raw_category": "NA",
+              "raw_nucleotide_type": "DNA",
+              "raw_therapies_current_dx": "NA",
+              "raw_therapies_other_indications": "NA",
+              "raw_trials": "NA",
+              "raw_biomarker": "Microsatellite Instability",
+              "raw_title": "immunotherapy markers"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

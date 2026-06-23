@@ -12,6 +12,9 @@ STATIC_DIR = BASE_DIR / "static"
 
 DATA_SOURCE_VERSION = "TrialDBv0.1-jun26"
 
+MOCK_PT_PATH = DATA_DIR / "mock" / "pt-data.json"
+MOCK_MATCHES_PATH = DATA_DIR / "mock" / "mm-matches.json"
+
 PATIENT_HEADER_FIELDS = {
     "mrn": "MRN",
     "first_name": "First Name",
@@ -338,8 +341,9 @@ def render_html_from_sources(excel_path: str, mm_export_path: str) -> str:
 
 
 def render_html(use_real: bool = False, context_override: dict | None = None) -> str:
-    env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
-    template = env.get_template("report.html")
-    css = (STATIC_DIR / "report.css").read_text()
-    ctx = context_override if context_override is not None else load_context(use_real=use_real)
-    return template.render(css=css, **ctx)
+    if context_override is not None:
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        template = env.get_template("report.html")
+        css = (STATIC_DIR / "report.css").read_text()
+        return template.render(css=css, **context_override)
+    return render_html_from_pt_and_matches(str(MOCK_PT_PATH), str(MOCK_MATCHES_PATH), "mm")

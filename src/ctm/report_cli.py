@@ -35,29 +35,35 @@ def _write_to_mongo(pt_path: str, matches_path: str, db_name: str) -> None:
     uri = os.getenv("CTM_MONGO_URI", "mongodb://localhost:27017")
     db = MongoClient(uri)[db_name]
 
-    clinical = pt_data.get("clinical", {})
-    clinical_id = None
-    if clinical:
+    # clinical may be a list (ctm-mm output) or a single dict (mm export)
+    clinical_docs = pt_data.get("clinical", [])
+    if isinstance(clinical_docs, dict):
+        clinical_docs = [clinical_docs]
+    genomic_all = pt_data.get("genomic", [])
+
+    sample_id_to_clinical_id: dict = {}
+    for clinical in clinical_docs:
         sample_id = clinical.get("SAMPLE_ID")
         db["clinical"].replace_one({"SAMPLE_ID": sample_id}, clinical, upsert=True)
         doc = db["clinical"].find_one({"SAMPLE_ID": sample_id}, {"_id": 1})
-        clinical_id = doc["_id"] if doc else None
+        sample_id_to_clinical_id[sample_id] = doc["_id"] if doc else None
         print(f"  clinical: upserted SAMPLE_ID={sample_id}")
 
-    genomic = pt_data.get("genomic", [])
-    if genomic and clinical:
-        sample_id = clinical.get("SAMPLE_ID")
-        db["genomic"].delete_many({"SAMPLE_ID": sample_id})
-        if clinical_id:
-            for g in genomic:
-                g["CLINICAL_ID"] = clinical_id
-        db["genomic"].insert_many(genomic)
-        print(f"  genomic: inserted {len(genomic)} docs")
+    for sample_id, clinical_id in sample_id_to_clinical_id.items():
+        pt_genomic = [g for g in genomic_all if g.get("SAMPLE_ID") == sample_id]
+        if pt_genomic:
+            db["genomic"].delete_many({"SAMPLE_ID": sample_id})
+            if clinical_id:
+                for g in pt_genomic:
+                    g["CLINICAL_ID"] = clinical_id
+            db["genomic"].insert_many(pt_genomic)
+            print(f"  genomic: inserted {len(pt_genomic)} docs for {sample_id}")
 
     trial_matches = matches_data.get("trial_match", [])
-    if trial_matches and clinical:
-        sample_id = clinical.get("SAMPLE_ID")
-        db["trial_match"].delete_many({"sample_id": sample_id})
+    if trial_matches:
+        match_sample_ids = {m.get("sample_id") for m in trial_matches if m.get("sample_id")}
+        for sid in match_sample_ids:
+            db["trial_match"].delete_many({"sample_id": sid})
         db["trial_match"].insert_many(trial_matches)
         print(f"  trial_match: inserted {len(trial_matches)} docs")
 
@@ -87,20 +93,25 @@ def _run_preview(pt_path: str, matches_path: str, engine: str) -> None:
 
 def _run_mock_preview() -> None:
     from livereload import Server
-    from ctm.reports.builder import BASE_DIR, render_html
+    from ctm.reports.builder import (
+        BASE_DIR, MOCK_MATCHES_PATH, MOCK_PT_PATH, render_html_from_pt_and_matches,
+    )
 
     output_dir = BASE_DIR / "output"
     output_file = output_dir / "report.html"
 
     def build():
         output_dir.mkdir(exist_ok=True)
-        output_file.write_text(render_html(use_real=False))
+        output_file.write_text(
+            render_html_from_pt_and_matches(str(MOCK_PT_PATH), str(MOCK_MATCHES_PATH), "mm")
+        )
 
     build()
     server = Server()
     server.watch(str(BASE_DIR / "templates" / "*.html"), build)
     server.watch(str(BASE_DIR / "static" / "*.css"), build)
-    server.watch(str(BASE_DIR / "data" / "mock" / "*.json"), build)
+    server.watch(str(MOCK_PT_PATH), build)
+    server.watch(str(MOCK_MATCHES_PATH), build)
     server.serve(root=str(output_dir), port=5500, open_url_delay=1,
                  default_filename="report.html")
 
