@@ -120,6 +120,94 @@ def load_context(use_real: bool = False) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Primary-match selection helpers
+# ---------------------------------------------------------------------------
+
+def _select_primary_match(trial_matches: list[dict]) -> dict | None:
+    if not trial_matches:
+        return None
+
+    def _priority(m: dict) -> tuple:
+        level = 0 if m.get("match_level") == "arm" else 1
+        reason = 0 if m.get("reason_type") == "genomic" else 1
+        sort = m.get("sort_order") or [99] * 6
+        return (level, reason, sort)
+
+    return min(trial_matches, key=_priority)
+
+
+def _build_other_matches(trial_matches: list[dict], primary: dict | None) -> list[dict]:
+    primary_protocol = primary.get("protocol_no") if primary else None
+    seen: set[str] = set()
+    others = []
+    for m in trial_matches:
+        protocol = m.get("protocol_no")
+        if not protocol or protocol == primary_protocol or protocol in seen:
+            continue
+        seen.add(protocol)
+        others.append({
+            "protocol_no": protocol,
+            "nct_id": m.get("nct_id"),
+            "match_level": m.get("match_level"),
+            "match_type": m.get("match_type"),
+            "genomic_alteration": m.get("genomic_alteration", ""),
+            "source": "matchminer",
+        })
+    return others
+
+
+_GENOMIC_MATCH_FIELDS = {
+    "true_hugo_symbol": "Gene",
+    "true_protein_change": "Protein Change",
+    "true_cdna_change": "cDNA Change",
+    "variant_category": "Variant Category",
+    "genomic_alteration": "Alteration",
+}
+
+
+def _build_primary_match_context(match: dict) -> dict:
+    trial_rows = [
+        _row("NCT ID", match.get("nct_id")),
+        _row("Protocol No.", match.get("protocol_no")),
+        _row("Match Level", match.get("match_level")),
+        _row("Trial Status", (match.get("trial_summary_status") or "").capitalize()),
+        _row("Match Engine", "MatchMiner-v2"),
+    ]
+    match_detail_rows = [
+        _row("Cancer Type Match", match.get("cancer_type_match")),
+        _row("Reason Type", match.get("reason_type")),
+        _row("Match Type", match.get("match_type")),
+    ]
+    if match.get("code"):
+        match_detail_rows.append(_row("Arm", match["code"]))
+
+    return {
+        "nct_id": match.get("nct_id"),
+        "trial_status": (match.get("trial_summary_status") or "").capitalize(),
+        "trial": [r for r in trial_rows if r["value"] not in (None, "")],
+        "match_detail": [r for r in match_detail_rows if r["value"] not in (None, "")],
+        "genomic": _extract(match, _GENOMIC_MATCH_FIELDS),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public loader: matchminer export
+# ---------------------------------------------------------------------------
+
+def load_context_from_mm_matches(mm_export_path: str) -> dict:
+    with open(mm_export_path) as f:
+        data = json.load(f)
+
+    visible = [m for m in data.get("trial_match", []) if m.get("show_in_ui")]
+    primary = _select_primary_match(visible)
+
+    return {
+        "primary_match": _build_primary_match_context(primary) if primary else None,
+        "other_matches": _build_other_matches(visible, primary),
+    }
+
+
 def render_html(use_real: bool = False, context_override: dict | None = None) -> str:
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
     template = env.get_template("report.html")
