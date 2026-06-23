@@ -99,8 +99,17 @@ def load_context(use_real: bool = False) -> dict:
     }
 
     others = matches["others"]
-    regional_matches = [m for m in others if m.get("source") == "regional"]
-    ctg_matches = [m for m in others if m.get("source") == "clinicaltrials_gov"]
+    other_matches = [
+        {
+            "protocol_no": m.get("trial_id"),
+            "nct_id": m.get("trial_id"),
+            "match_level": None,
+            "match_type": None,
+            "genomic_alteration": "",
+            "source": m.get("source", ""),
+        }
+        for m in others
+    ]
 
     methods = _load_json(data_dir, "methods.json")["body"]  # list of paragraphs
 
@@ -108,8 +117,7 @@ def load_context(use_real: bool = False) -> dict:
         "primary_match": primary_match,
         "patient_header": patient_header,
         "patient_detail": patient_detail,
-        "regional_matches": regional_matches,
-        "ctg_matches": ctg_matches,
+        "other_matches": other_matches,
         "methods": methods,
         "provenance": {
             "generated_on": datetime.now().strftime("%d%b%Y"),
