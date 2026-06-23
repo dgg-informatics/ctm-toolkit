@@ -15,3 +15,6 @@ data/dump/*
 !data/dump/.gitkeep
 
 # data/raw/ and data/normalized/ are committed (example/reference files)
+
+# output/ — generated preview artifacts, never commit
+output/

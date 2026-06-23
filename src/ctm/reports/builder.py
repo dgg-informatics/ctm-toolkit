@@ -204,8 +204,12 @@ def _build_primary_match_context(match: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def load_context_from_mm_matches(mm_export_path: str) -> dict:
-    with open(mm_export_path) as f:
-        data = json.load(f)
+    _empty = {"primary_match": None, "other_matches": [], "sample_id": ""}
+    try:
+        with open(mm_export_path) as f:
+            data = json.load(f)
+    except (FileNotFoundError, OSError):
+        return _empty
 
     visible = [m for m in data.get("trial_match", []) if m.get("show_in_ui")]
     primary = _select_primary_match(visible)
@@ -213,6 +217,7 @@ def load_context_from_mm_matches(mm_export_path: str) -> dict:
     return {
         "primary_match": _build_primary_match_context(primary) if primary else None,
         "other_matches": _build_other_matches(visible, primary),
+        "sample_id": data.get("clinical", {}).get("SAMPLE_ID", ""),
     }
 
 
@@ -255,6 +260,7 @@ def load_context_from_raw_excel(excel_path: str) -> dict:
         return _empty
 
     patient_dict = patients[0].model_dump()
+    patient_dict["metastasis_sites"] = ", ".join(patient_dict.get("metastasis_sites") or [])
 
     return {
         "patient_header": _extract(patient_dict, PATIENT_HEADER_FIELDS),
@@ -275,7 +281,7 @@ def render_html_from_sources(excel_path: str, mm_export_path: str) -> str:
     ctx["provenance"] = {
         "generated_on": datetime.now().strftime("%d%b%Y"),
         "data_source": DATA_SOURCE_VERSION,
-        "sample_id": (mm_ctx.get("primary_match") or {}).get("nct_id", ""),
+        "sample_id": mm_ctx.get("sample_id", ""),
         "record_hash": "",
     }
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))

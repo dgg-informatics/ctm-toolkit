@@ -18,7 +18,7 @@ def _sheet_rows(ws) -> list[dict]:
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(v is None for v in row):
             continue
-        rows.append(dict(zip(headers, row)))
+        rows.append({k: v for k, v in zip(headers, row) if k is not None})
     return rows
 
 
