@@ -46,7 +46,7 @@ leg.column_dimensions["B"].width = 65
 legend_rows = [
     ("Column type",                          "Meaning",                                                                   None),
     ("pt_uuid / report_uuid",                "Join keys — link rows across sheets into the same MongoDB document",       "id"),
-    ("gene, variant_type, result_summary",   "Canonical normalized fields — must be consistent across ALL sources",      "canonical"),
+    ("gene, protein, nucleotide, variant_type, result_summary", "Canonical normalized fields — must be consistent across ALL sources", "canonical"),
     ("raw_*",                                "Verbatim text from the source — never edit after entry",                   "raw"),
     ("All other columns",                    "Plain structured fields",                                                   "plain"),
 ]
@@ -134,15 +134,17 @@ add_sheet(wb, "tempus_findings", [
     ("pt_uuid",                  "id"),
     ("report_uuid",              "id"),
     ("gene",                     "canonical"),
+    ("protein",                  "canonical"),
+    ("nucleotide",               "canonical"),
     ("variant_type",             "canonical"),
     ("result_summary",           "canonical"),
-    ("raw_biomarker",            "raw"),
-    ("raw_result",               "raw"),
-    ("raw_category",             "raw"),
-    ("raw_nucleotide_type",      "raw"),
-    ("raw_therapies_current_dx", "raw"),
-    ("raw_therapies_other",      "raw"),
-    ("raw_trials",               "raw"),
+    ("raw_test",                     "raw"),
+    ("raw_result",                   "raw"),
+    ("raw_category",                 "raw"),
+    ("raw_nucleotide_type",          "raw"),
+    ("raw_therapies_current_dx",     "raw"),
+    ("raw_therapies_other_indications", "raw"),
+    ("raw_trials",                   "raw"),
 ], example=[
     1, 0, "ERBB2", "somatic_mutation", "p.T733I 53.2% VAF",
     "ERBB2 (HER2) p.T733I", "53.2% VAF", "somatic - potentially actionable",
@@ -160,6 +162,8 @@ add_sheet(wb, "caris_findings", [
     ("report_uuid",                "id"),
     # ── canonical normalized ──
     ("gene",                       "canonical"),
+    ("protein",                    "canonical"),
+    ("nucleotide",                 "canonical"),
     ("variant_type",               "canonical"),
     ("result_summary",             "canonical"),
     # ── specimen info (Caris-specific, repeats per row) ──
@@ -203,6 +207,8 @@ add_sheet(wb, "ambry_findings", [
     ("pt_uuid",                        "id"),
     ("report_uuid",                    "id"),
     ("gene",                           "canonical"),
+    ("protein",                        "canonical"),
+    ("nucleotide",                     "canonical"),
     ("variant_type",                   "canonical"),
     ("result_summary",                 "canonical"),
     ("raw_pathogenic_mutations",       "raw"),
@@ -223,6 +229,8 @@ add_sheet(wb, "amc_ngs_findings", [
     ("report_uuid",                  "id"),
     # ── canonical normalized ──
     ("gene",                         "canonical"),
+    ("protein",                      "canonical"),
+    ("nucleotide",                   "canonical"),
     ("variant_type",                 "canonical"),
     ("result_summary",               "canonical"),
     # ── specimen info (AMC-specific, repeats per row) ──
@@ -254,6 +262,8 @@ add_sheet(wb, "ogm_findings", [
     ("pt_uuid",                "id"),
     ("report_uuid",            "id"),
     ("gene",                   "canonical"),
+    ("protein",                "canonical"),
+    ("nucleotide",             "canonical"),
     ("variant_type",           "canonical"),
     ("result_summary",         "canonical"),
     ("raw_selected_results",   "raw"),
@@ -273,6 +283,8 @@ add_sheet(wb, "pml_rara_findings", [
     ("pt_uuid",           "id"),
     ("report_uuid",       "id"),
     ("gene",              "canonical"),
+    ("protein",           "canonical"),
+    ("nucleotide",        "canonical"),
     ("variant_type",      "canonical"),
     ("result_summary",    "canonical"),
     ("raw_test_result",   "raw"),
@@ -309,7 +321,7 @@ add_sheet(wb, "tumor_biomarkers", [
 ])
 
 
-out = "data/patient_data_template.xlsx"
+out = "data/raw/patient_data_template_blank.xlsx"
 wb.save(out)
 print(f"Saved → {out}")
 print(f"Sheets: {wb.sheetnames}")

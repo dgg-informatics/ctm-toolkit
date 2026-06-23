@@ -1,0 +1,455 @@
+{
+  "clinical": {
+    "_id": {
+      "$oid": "6a398c06d0af5d911e2bca65"
+    },
+    "SAMPLE_ID": "7439568",
+    "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Lung Adenocarcinoma",
+    "PRIMARY_DIAGNOSIS_RAW": "primary lung adenocarcinoma",
+    "BIRTH_DATE": {
+      "$date": {
+        "$numberLong": "-534124800000"
+      }
+    },
+    "VITAL_STATUS": "alive",
+    "GENDER": "Male",
+    "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+    "REPORT_DATE": null,
+    "_updated": "2026-06-22T19:14:20.641529+00:00",
+    "BIRTH_DATE_INT": 19530128
+  },
+  "genomic": [
+    {
+      "_id": {
+        "$oid": "6a398baa111a22792735130c"
+      },
+      "SAMPLE_ID": "7439568",
+      "TRUE_HUGO_SYMBOL": "EGFR",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-22T19:14:20.641532+00:00",
+      "TRUE_PROTEIN_CHANGE": "E746_A750del",
+      "TRUE_CDNA_CHANGE": "2235_2249del",
+      "CLINICAL_ID": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398baa111a227927351314"
+      },
+      "SAMPLE_ID": "7439568",
+      "TRUE_HUGO_SYMBOL": "EGFR",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-06-22T19:14:20.641531+00:00",
+      "TRUE_PROTEIN_CHANGE": "E746_A750del",
+      "TRUE_CDNA_CHANGE": "2236_2250del",
+      "CLINICAL_ID": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      }
+    }
+  ],
+  "trial_match": [
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e17e"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "step",
+      "internal_id": 1,
+      "reason_type": "clinical",
+      "q_depth": 0,
+      "q_width": 1,
+      "code": "1",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.match",
+      "combo_coord": "114b6cfa205de8d8aeca4deb73dc3befc12c09e0",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "generic_clinical",
+      "genomic_alteration": "",
+      "sort_order": [
+        1,
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
+      "hash": "49c2245e77edd452b15b97d588450967fcd4443a",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e17f"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "step",
+      "internal_id": 1,
+      "reason_type": "clinical",
+      "q_depth": 0,
+      "q_width": 1,
+      "code": "1",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.match",
+      "combo_coord": "114b6cfa205de8d8aeca4deb73dc3befc12c09e0",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "generic_clinical",
+      "genomic_alteration": "",
+      "sort_order": [
+        1,
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
+      "hash": "49c2245e77edd452b15b97d588450967fcd4443a",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e180"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "step",
+      "internal_id": 1,
+      "reason_type": "genomic",
+      "q_depth": 0,
+      "q_width": 2,
+      "code": "1",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.match",
+      "combo_coord": "114b6cfa205de8d8aeca4deb73dc3befc12c09e0",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "gene",
+      "genomic_alteration": "EGFR E746_A750del",
+      "genomic_id": {
+        "$oid": "6a398baa111a227927351314"
+      },
+      "true_hugo_symbol": "EGFR",
+      "variant_category": "MUTATION",
+      "wildtype": false,
+      "true_protein_change": "E746_A750del",
+      "true_cdna_change": "2236_2250del",
+      "sort_order": [
+        1,
+        99,
+        1,
+        99,
+        99,
+        99
+      ],
+      "hash": "3cbf300fc3cdcb796f3906196a2d763213611824",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e181"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "step",
+      "internal_id": 1,
+      "reason_type": "genomic",
+      "q_depth": 0,
+      "q_width": 2,
+      "code": "1",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.match",
+      "combo_coord": "114b6cfa205de8d8aeca4deb73dc3befc12c09e0",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "gene",
+      "genomic_alteration": "EGFR E746_A750del",
+      "genomic_id": {
+        "$oid": "6a398baa111a22792735130c"
+      },
+      "true_hugo_symbol": "EGFR",
+      "variant_category": "MUTATION",
+      "wildtype": false,
+      "true_protein_change": "E746_A750del",
+      "true_cdna_change": "2235_2249del",
+      "sort_order": [
+        1,
+        99,
+        1,
+        99,
+        99,
+        99
+      ],
+      "hash": "477f44596ecea039287b7160ebeb83821137c668",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e182"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "arm",
+      "internal_id": 2,
+      "reason_type": "clinical",
+      "q_depth": 0,
+      "q_width": 1,
+      "code": "ARM B",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.arm.1.match",
+      "combo_coord": "53c50529e0127f97d2721a40131d942d9287b3d5",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "generic_clinical",
+      "genomic_alteration": "",
+      "sort_order": [
+        1,
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
+      "hash": "9fd820555229c33cd9bcbcac04084f4d3d3b7c4b",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e183"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "arm",
+      "internal_id": 2,
+      "reason_type": "clinical",
+      "q_depth": 0,
+      "q_width": 1,
+      "code": "ARM B",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.arm.1.match",
+      "combo_coord": "53c50529e0127f97d2721a40131d942d9287b3d5",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "generic_clinical",
+      "genomic_alteration": "",
+      "sort_order": [
+        1,
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
+      "hash": "9fd820555229c33cd9bcbcac04084f4d3d3b7c4b",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e184"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "arm",
+      "internal_id": 2,
+      "reason_type": "genomic",
+      "q_depth": 0,
+      "q_width": 2,
+      "code": "ARM B",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.arm.1.match",
+      "combo_coord": "53c50529e0127f97d2721a40131d942d9287b3d5",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "gene",
+      "genomic_alteration": "EGFR E746_A750del",
+      "genomic_id": {
+        "$oid": "6a398baa111a227927351314"
+      },
+      "true_hugo_symbol": "EGFR",
+      "variant_category": "MUTATION",
+      "wildtype": false,
+      "true_protein_change": "E746_A750del",
+      "true_cdna_change": "2236_2250del",
+      "sort_order": [
+        1,
+        99,
+        1,
+        99,
+        99,
+        99
+      ],
+      "hash": "842b19ea6bbc452f383ef5f4b702da7c20a93ee4",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "6a398c106c10df2229a7e185"
+      },
+      "sample_id": "7439568",
+      "oncotree_primary_diagnosis_name": "Lung Adenocarcinoma",
+      "vital_status": "alive",
+      "gender": "Male",
+      "tumor_mutational_burden_per_megabase": null,
+      "report_date": null,
+      "clinical_id": {
+        "$oid": "6a398c06d0af5d911e2bca65"
+      },
+      "match_level": "arm",
+      "internal_id": 2,
+      "reason_type": "genomic",
+      "q_depth": 0,
+      "q_width": 2,
+      "code": "ARM B",
+      "trial_curation_level_status": "open",
+      "trial_summary_status": "open",
+      "coordinating_center": "unknown",
+      "show_in_ui": true,
+      "query_hash": "4fa8c4b1f71fe266a3e4531f6737858a5d393e1e",
+      "protocol_no": "NCT02477839",
+      "nct_id": "NCT02477839",
+      "match_path": "treatment_list.step.0.arm.1.match",
+      "combo_coord": "53c50529e0127f97d2721a40131d942d9287b3d5",
+      "is_disabled": false,
+      "cancer_type_match": "specific",
+      "match_type": "gene",
+      "genomic_alteration": "EGFR E746_A750del",
+      "genomic_id": {
+        "$oid": "6a398baa111a22792735130c"
+      },
+      "true_hugo_symbol": "EGFR",
+      "variant_category": "MUTATION",
+      "wildtype": false,
+      "true_protein_change": "E746_A750del",
+      "true_cdna_change": "2235_2249del",
+      "sort_order": [
+        1,
+        99,
+        1,
+        99,
+        99,
+        99
+      ],
+      "hash": "d7ef9b1ffee486ebd1763dc40a51fac9ab547dc0",
+      "_me_id": "94f73616a1f44f279e175ddf480d48bc",
+      "_updated": {
+        "$date": "2026-06-22T15:25:04.612Z"
+      }
+    }
+  ]
+}

@@ -3,9 +3,7 @@ import pytest
 from ctm.transformers.process_ct_data import process as process_ct, __version__ as ct_version
 from ctm.transformers.process_patient_general import process as process_general, __version__ as general_version
 from ctm.transformers.process_patient_genetic import process as process_genetic, __version__ as genetic_version
-from ctm.schemas.processed.clinical_trial import ClinicalTrial
-from ctm.schemas.processed.patient_general import PatientGeneral
-from ctm.schemas.processed.patient_genetic import PatientGenetic
+from ctm.schemas.processed.models import ClinicalTrial, PatientGeneral, PatientGenetic
 
 RAW_CT = {
     "nct_id": "NCT02477839",

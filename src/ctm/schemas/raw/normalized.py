@@ -17,8 +17,10 @@ class Patient(BaseModel):
     last_name: str | None = None
     dob: date | None = None
     sex: str | None = None
+    vital_status: str | None = None
     entity: str | None = None
     primary_dx: str | None = None
+    oncotree_primary_diagnosis: str | None = None
     metastasis_sites: list[str] = []
 
 
@@ -43,6 +45,8 @@ class Finding(BaseModel):
     report_uuid: int
     source: str                           # propagated from ReportMetadata
     gene: str | None = None              # canonical HGNC symbol or biomarker name
+    protein: str | None = None           # canonical protein change e.g. p.L858R
+    nucleotide: str | None = None        # canonical cDNA change e.g. c.2573T>G
     variant_type: str | None = None      # see _conventions sheet for allowed values
     result_summary: str | None = None    # short normalized result string
     raw: dict[str, Any] = {}            # verbatim source fields, keyed by raw_* column name

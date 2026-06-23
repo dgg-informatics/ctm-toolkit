@@ -5,7 +5,7 @@ Processed output: ClinicalTrial (ctm/schemas/processed/clinical_trial.py)
 
 Word doc form is not yet implemented — JSON only.
 """
-from ctm.schemas.processed.clinical_trial import ClinicalTrial
+from ctm.schemas.processed.models import ClinicalTrial
 
 __version__ = "0.1.0"
 

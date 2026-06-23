@@ -12,20 +12,23 @@ STATIC_DIR = BASE_DIR / "static"
 
 DATA_SOURCE_VERSION = "TrialDBv0.1-jun26"
 
+MOCK_PT_PATH = DATA_DIR / "mock" / "pt-data.json"
+MOCK_MATCHES_PATH = DATA_DIR / "mock" / "mm-matches.json"
+
 PATIENT_HEADER_FIELDS = {
     "mrn": "MRN",
+    "first_name": "First Name",
+    "last_name": "Last Name",
     "sex": "Gender",
+    "dob": "Date of Birth",
     "vital_status": "Vital Status",
-    "primary_dx": "Diagnosis",
-    "tmb_per_mb": "TMB*",
+    "entity": "Institution",
+    "oncotree_primary_diagnosis": "Diagnosis (OncoTree)",
 }
 
 PATIENT_DETAIL_FIELDS = {
-    "ecog": "ECOG Performance Status",
-    "prior_lines_of_therapy": "Prior Lines of Therapy",
-    "smoking_history": "Smoking History",
-    "brain_metastases": "Brain Metastases",
-    "most_recent_imaging": "Most Recent Imaging",
+    "primary_dx": "Primary Diagnosis",
+    "metastasis_sites": "Metastasis Sites",
 }
 
 GENOMIC_FIELDS = {
@@ -85,8 +88,8 @@ def load_context(use_real: bool = False) -> dict:
         _row("Cancer Type Match", raw_match.get("cancer_type_match")),
         _row("Reason Type", raw_match.get("reason_type")),
         _row("Match Type", raw_match.get("match_type")),
-        _row("Age Eligibility", "18–75 years"),  #mock
-        _row("ECOG Status", "0–2"),  #mock
+        _row("Age Eligibility", "18-75 years"),  #mock
+        _row("ECOG Status", "0-2"),  #mock
         _row("Location", "Ann Arbor, MI"),  #mock
     ]
 
@@ -99,8 +102,17 @@ def load_context(use_real: bool = False) -> dict:
     }
 
     others = matches["others"]
-    regional_matches = [m for m in others if m.get("source") == "regional"]
-    ctg_matches = [m for m in others if m.get("source") == "clinicaltrials_gov"]
+    other_matches = [
+        {
+            "protocol_no": m.get("trial_id"),
+            "nct_id": m.get("trial_id"),
+            "match_level": None,
+            "match_type": None,
+            "genomic_alteration": "",
+            "source": m.get("source", ""),
+        }
+        for m in others
+    ]
 
     methods = _load_json(data_dir, "methods.json")["body"]  # list of paragraphs
 
@@ -108,8 +120,7 @@ def load_context(use_real: bool = False) -> dict:
         "primary_match": primary_match,
         "patient_header": patient_header,
         "patient_detail": patient_detail,
-        "regional_matches": regional_matches,
-        "ctg_matches": ctg_matches,
+        "other_matches": other_matches,
         "methods": methods,
         "provenance": {
             "generated_on": datetime.now().strftime("%d%b%Y"),
@@ -120,9 +131,219 @@ def load_context(use_real: bool = False) -> dict:
     }
 
 
-def render_html(use_real: bool = False, context_override: dict | None = None) -> str:
+# ---------------------------------------------------------------------------
+# Primary-match selection helpers
+# ---------------------------------------------------------------------------
+
+def _select_primary_match(trial_matches: list[dict]) -> dict | None:
+    if not trial_matches:
+        return None
+
+    def _priority(m: dict) -> tuple:
+        level = 0 if m.get("match_level") == "arm" else 1
+        reason = 0 if m.get("reason_type") == "genomic" else 1
+        sort = m.get("sort_order") or [99] * 6
+        return (level, reason, sort)
+
+    return min(trial_matches, key=_priority)
+
+
+def _build_other_matches(trial_matches: list[dict], primary: dict | None) -> list[dict]:
+    primary_protocol = primary.get("protocol_no") if primary else None
+    seen: set[str] = set()
+    others = []
+    for m in trial_matches:
+        protocol = m.get("protocol_no")
+        if not protocol or protocol == primary_protocol or protocol in seen:
+            continue
+        seen.add(protocol)
+        others.append({
+            "protocol_no": protocol,
+            "nct_id": m.get("nct_id"),
+            "match_level": m.get("match_level"),
+            "match_type": m.get("match_type"),
+            "genomic_alteration": m.get("genomic_alteration", ""),
+            "source": "matchminer",
+        })
+    return others
+
+
+_GENOMIC_MATCH_FIELDS = {
+    "true_hugo_symbol": "Gene",
+    "true_protein_change": "Protein Change",
+    "true_cdna_change": "cDNA Change",
+    "variant_category": "Variant Category",
+    "genomic_alteration": "Alteration",
+}
+
+
+def _build_primary_match_context(match: dict) -> dict:
+    trial_rows = [
+        _row("NCT ID", match.get("nct_id")),
+        _row("Protocol No.", match.get("protocol_no")),
+        _row("Match Level", match.get("match_level")),
+        _row("Trial Status", (match.get("trial_summary_status") or "").capitalize()),
+        _row("Match Engine", "MatchMiner-v2"),
+    ]
+    match_detail_rows = [
+        _row("Cancer Type Match", match.get("cancer_type_match")),
+        _row("Reason Type", match.get("reason_type")),
+        _row("Match Type", match.get("match_type")),
+    ]
+    if match.get("code"):
+        match_detail_rows.append(_row("Arm", match["code"]))
+
+    return {
+        "nct_id": match.get("nct_id"),
+        "trial_status": (match.get("trial_summary_status") or "").capitalize(),
+        "trial": [r for r in trial_rows if r["value"] not in (None, "")],
+        "match_detail": [r for r in match_detail_rows if r["value"] not in (None, "")],
+        "genomic": _extract(match, _GENOMIC_MATCH_FIELDS),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public loader: matchminer export
+# ---------------------------------------------------------------------------
+
+def load_context_from_mm_matches(mm_export_path: str) -> dict:
+    _empty = {"primary_match": None, "other_matches": [], "sample_id": ""}
+    try:
+        with open(mm_export_path) as f:
+            data = json.load(f)
+    except (FileNotFoundError, OSError):
+        return _empty
+
+    visible = [m for m in data.get("trial_match", []) if m.get("show_in_ui")]
+    primary = _select_primary_match(visible)
+
+    return {
+        "primary_match": _build_primary_match_context(primary) if primary else None,
+        "other_matches": _build_other_matches(visible, primary),
+        "sample_id": data.get("clinical", {}).get("SAMPLE_ID", ""),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public loader: Excel workbook
+# ---------------------------------------------------------------------------
+
+def _build_reports_context(metadata: list, findings: list) -> list[dict]:
+    findings_by_report: dict[int, list] = {}
+    for f in findings:
+        findings_by_report.setdefault(f.report_uuid, []).append({
+            "gene": f.gene,
+            "protein": f.protein,
+            "variant_type": f.variant_type,
+            "result_summary": f.result_summary,
+            "raw": f.raw,
+        })
+    return [
+        {
+            "source": m.source,
+            "test_name": m.test_name,
+            "accession_no": m.accession_no,
+            "physician": m.physician,
+            "date_completed": m.date_completed.isoformat() if m.date_completed else None,
+            "findings": findings_by_report.get(m.report_uuid, []),
+        }
+        for m in metadata
+    ]
+
+
+def load_context_from_raw_excel(excel_path: str) -> dict:
+    _empty = {"patient_header": [], "patient_detail": [], "reports": []}
+    try:
+        from ctm.transformers.excel_reader import read_and_normalize
+        patients, metadata, findings = read_and_normalize(Path(excel_path))
+    except (FileNotFoundError, OSError):
+        return _empty
+
+    if not patients:
+        return _empty
+
+    patient_dict = patients[0].model_dump()
+    patient_dict["metastasis_sites"] = ", ".join(patient_dict.get("metastasis_sites") or [])
+
+    return {
+        "patient_header": _extract(patient_dict, PATIENT_HEADER_FIELDS),
+        "patient_detail": _extract(patient_dict, PATIENT_DETAIL_FIELDS),
+        "reports": _build_reports_context(metadata, findings),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public loader: normalized JSON (output of ctm-mm raw-to-mm)
+# ---------------------------------------------------------------------------
+
+def load_context_from_normalized_json(pt_path: str) -> dict:
+    _empty = {"patient_header": [], "patient_detail": [], "reports": []}
+    try:
+        data = json.loads(Path(pt_path).read_text())
+    except (FileNotFoundError, OSError):
+        return _empty
+
+    extras = data.get("extras", {})
+    if not extras:
+        return _empty
+
+    patient = dict(extras.get("patient", {}))
+    metastasis = patient.get("metastasis_sites")
+    if isinstance(metastasis, list):
+        patient["metastasis_sites"] = ", ".join(metastasis or [])
+
+    return {
+        "patient_header": _extract(patient, PATIENT_HEADER_FIELDS),
+        "patient_detail": _extract(patient, PATIENT_DETAIL_FIELDS),
+        "reports": extras.get("reports", []),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public orchestrators
+# ---------------------------------------------------------------------------
+
+def render_html_from_pt_and_matches(pt_path: str, matches_path: str, engine: str) -> str:
+    pt_ctx = load_context_from_normalized_json(pt_path)
+    if engine == "mm":
+        mm_ctx = load_context_from_mm_matches(matches_path)
+    else:
+        raise ValueError(f"Unknown match engine: {engine!r}")
+    ctx = {**pt_ctx, **mm_ctx}
+    ctx["methods"] = []
+    ctx["provenance"] = {
+        "generated_on": datetime.now().strftime("%d%b%Y"),
+        "data_source": DATA_SOURCE_VERSION,
+        "sample_id": mm_ctx.get("sample_id", ""),
+        "record_hash": "",
+    }
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
     template = env.get_template("report.html")
     css = (STATIC_DIR / "report.css").read_text()
-    ctx = context_override if context_override is not None else load_context(use_real=use_real)
     return template.render(css=css, **ctx)
+
+
+def render_html_from_sources(excel_path: str, mm_export_path: str) -> str:
+    excel_ctx = load_context_from_raw_excel(excel_path)
+    mm_ctx = load_context_from_mm_matches(mm_export_path)
+    ctx = {**excel_ctx, **mm_ctx}
+    ctx["methods"] = []
+    ctx["provenance"] = {
+        "generated_on": datetime.now().strftime("%d%b%Y"),
+        "data_source": DATA_SOURCE_VERSION,
+        "sample_id": mm_ctx.get("sample_id", ""),
+        "record_hash": "",
+    }
+    env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+    template = env.get_template("report.html")
+    css = (STATIC_DIR / "report.css").read_text()
+    return template.render(css=css, **ctx)
+
+
+def render_html(use_real: bool = False, context_override: dict | None = None) -> str:
+    if context_override is not None:
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        template = env.get_template("report.html")
+        css = (STATIC_DIR / "report.css").read_text()
+        return template.render(css=css, **context_override)
+    return render_html_from_pt_and_matches(str(MOCK_PT_PATH), str(MOCK_MATCHES_PATH), "mm")

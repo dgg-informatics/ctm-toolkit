@@ -42,8 +42,10 @@ def normalize_patient(row: RawPatientGeneral) -> Patient:
         last_name=row.last_name,
         dob=row.dob,
         sex=row.sex,
+        vital_status=row.vital_status,
         entity=row.entity,
         primary_dx=row.primary_dx,
+        oncotree_primary_diagnosis=row.oncotree_primary_diagnosis,
         metastasis_sites=sites,
     )
 
@@ -58,6 +60,8 @@ def _finding(row: object, source: str) -> Finding:
         report_uuid=row.report_uuid,
         source=source,
         gene=row.gene,
+        protein=getattr(row, "protein", None),
+        nucleotide=getattr(row, "nucleotide", None),
         variant_type=row.variant_type,
         result_summary=row.result_summary,
         raw=_raw_fields(row),

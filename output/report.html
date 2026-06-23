@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trial Match Report</title>
+  <style>
+@page {
+  size: Letter;
+  margin: 0.6in;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #1a1a1a;
+  font-size: 10pt;
+  margin: 0;
+}
+
+.report-header {
+  border-bottom: 2px solid #2c3e50;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+}
+
+.report-header h1 {
+  margin: 0;
+  font-size: 18pt;
+  color: #2c3e50;
+}
+
+.report-meta {
+  font-size: 9pt;
+  color: #555;
+}
+
+.section {
+  margin-bottom: 18px;
+}
+
+.section h2 {
+  font-size: 12pt;
+  color: #2c3e50;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+
+.primary-columns {
+  display: flex;
+  gap: 16px;
+}
+
+.primary-col {
+  flex: 1;
+}
+
+.primary-col h3 {
+  font-size: 10pt;
+  color: #555;
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 7pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.status-badge.status-open {
+  background: #2e7d32;
+}
+
+.status-badge.status-closed {
+  background: #c62828;
+}
+
+.kv-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kv-table th, .kv-table td {
+  text-align: left;
+  padding: 2px 6px 2px 0;
+  font-size: 9pt;
+  vertical-align: top;
+}
+
+.kv-table th {
+  font-weight: 600;
+  color: #444;
+  width: 45%;
+}
+
+.section-secondary {
+  font-size: 9pt;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+  border: 1px solid #ddd;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.data-table th {
+  background: #f4f6f8;
+  font-weight: 600;
+}
+
+.data-table.compact th, .data-table.compact td {
+  font-size: 8.5pt;
+  padding: 3px 5px;
+}
+
+.section-internal {
+  background: #fafafa;
+  border: 1px dashed #bbb;
+  padding: 8px 10px;
+}
+
+.section-regional {
+  border-left: 3px solid #1565c0;
+  padding-left: 10px;
+}
+
+.section-regional h2 {
+  color: #1565c0;
+  border-bottom-color: #1565c0;
+}
+
+.section-regional .score {
+  font-weight: 700;
+  color: #1565c0;
+}
+
+.section-ctg {
+  opacity: 0.85;
+}
+
+.section-ctg h2 {
+  color: #555;
+}
+
+.section-ctg .score {
+  color: #777;
+}
+
+.section-note {
+  font-size: 8pt;
+  color: #777;
+  margin: 0 0 6px 0;
+  font-style: italic;
+}
+
+.no-results {
+  font-size: 9pt;
+  color: #999;
+  font-style: italic;
+}
+
+.badge-caution {
+  background: #e65100;
+  color: #fff;
+}
+
+.section-methods {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+}
+
+.section-methods p {
+  font-size: 8.5pt;
+  color: #444;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.section-disclaimer {
+  border: 1.5px solid #b71c1c;
+  border-radius: 3px;
+  padding: 8px 12px;
+  background: #fff8f8;
+}
+
+.section-disclaimer h2 {
+  color: #b71c1c;
+  border-bottom-color: #e57373;
+}
+
+.section-disclaimer p {
+  font-size: 8.5pt;
+  color: #555;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.trial-id {
+  font-family: monospace;
+  font-size: 8.5pt;
+  white-space: nowrap;
+}
+
+.report-footer {
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid #ccc;
+  font-size: 7.5pt;
+  color: #888;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 7pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #e0e0e0;
+  color: #555;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+  </style>
+</head>
+<body>
+  <header class="report-header">
+    <h1>Trial Match Report</h1>
+    <div class="report-meta">NCT ID: NCT02477839</div>
+  </header>
+
+  <section class="section section-primary">
+  <h2>Primary Trial Match</h2>
+
+  <div class="primary-columns">
+    <div class="primary-col">
+      <h3>Patient</h3>
+      <table class="kv-table">
+        
+        <tr><th>MRN</th><td>1036</td></tr>
+        
+        <tr><th>Gender</th><td>Female</td></tr>
+        
+        <tr><th>Vital Status</th><td>alive</td></tr>
+        
+        <tr><th>Diagnosis</th><td>Non-Small Cell Lung Cancer</td></tr>
+        
+        <tr><th>Tumor Mutational Burden (mut/Mb)</th><td>4.1</td></tr>
+        
+      </table>
+    </div>
+
+    <div class="primary-col">
+      <h3>Trial <span class="status-badge status-open">Open</span></h3>
+      <table class="kv-table">
+        
+        <tr><th>Trial Name</th><td>EGFR-TKI Resistance Combination Study</td></tr>
+        
+        <tr><th>NCT ID</th><td>NCT02477839</td></tr>
+        
+        <tr><th>Protocol No.</th><td>NCT02477839</td></tr>
+        
+        <tr><th>Trial Therapy</th><td>Osimertinib + MET inhibitor add-on</td></tr>
+        
+        <tr><th>Match Level</th><td>step</td></tr>
+        
+        <tr><th>Reason Type</th><td>genomic</td></tr>
+        
+        <tr><th>Cancer Type Match</th><td>specific</td></tr>
+        
+        <tr><th>Match Type</th><td>gene</td></tr>
+        
+        <tr><th>Match Engine</th><td>MatchMiner-v2</td></tr>
+        
+        <tr><th>Match Certainty</th><td><strong>99%</strong></td></tr>
+        
+      </table>
+      <p class="match-score-note">* Match Score is derived from algorithmic analysis of genomic and clinical criteria alignment. It does not reflect clinical validation or physician judgment.</p>
+    </div>
+
+    <div class="primary-col">
+      <h3>Genomic Match Detail</h3>
+      <table class="kv-table">
+        
+        <tr><th>Gene</th><td>EGFR</td></tr>
+        
+        <tr><th>Protein Change</th><td>p.L858G</td></tr>
+        
+        <tr><th>cDNA Change</th><td>c.2572T>G</td></tr>
+        
+        <tr><th>Variant Classification</th><td>Missense_Mutation</td></tr>
+        
+        <tr><th>Variant Category</th><td>MUTATION</td></tr>
+        
+        <tr><th>Allele Fraction</th><td>0.29</td></tr>
+        
+        <tr><th>Tier</th><td>2</td></tr>
+        
+        <tr><th>Chromosome</th><td>7</td></tr>
+        
+        <tr><th>Position</th><td>55259515</td></tr>
+        
+        <tr><th>Reference Allele</th><td>T</td></tr>
+        
+      </table>
+    </div>
+  </div>
+</section>
+  <section class="section section-regional">
+  <h2>Regional Trial Matches</h2>
+  
+  <p class="no-results">No regional trial matches found.</p>
+  
+</section>
+  <section class="section section-ctg">
+  <h2>ClinicalTrials.gov Matches <span class="badge badge-caution">May be outdated</span></h2>
+  <p class="section-note">These matches are drawn from the ClinicalTrials.gov database, which may not reflect current enrollment status. Verify trial availability before referral.</p>
+  
+  <p class="no-results">No ClinicalTrials.gov matches found.</p>
+  
+</section>
+  <section class="section section-internal">
+  <h2>Extended Patient Data</h2>
+  <p class="section-subheader">Potentially relevant other information</p>
+  <table class="kv-table">
+    
+    <tr><th>ECOG Performance Status</th><td>1</td></tr>
+    
+    <tr><th>Prior Lines of Therapy</th><td>2 (osimertinib, carboplatin/pemetrexed)</td></tr>
+    
+    <tr><th>Smoking History</th><td>Former smoker, 15 pack-years</td></tr>
+    
+    <tr><th>Brain Metastases</th><td>None observed</td></tr>
+    
+    <tr><th>Most Recent Imaging</th><td>CT chest/abdomen/pelvis, 2026-05-02 — stable disease</td></tr>
+    
+  </table>
+</section>
+  <section class="section section-methods">
+  <h2>Methods</h2>
+  <p></p>
+</section>
+  <section class="section section-disclaimer">
+  <h2>Disclaimer</h2>
+  <p></p>
+</section>
+
+  <footer class="report-footer">
+    Generated on 19Jun2026 &middot; TrialDBv0.1-jun26
+    &middot; Sample ID: 5d2799d86756630d8dd065b9
+    &middot; Record: c89456f5
+  </footer>
+</body>
+</html>

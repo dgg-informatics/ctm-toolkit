@@ -1,16 +1,22 @@
 .venv/
 __pycache__/
 *.pyc
-output/
-data/real/*
-!data/real/.gitkeep
-data/normalized/*
-!data/normalized/clinical_trials/.gitkeep
-!data/normalized/patient_general/.gitkeep
-!data/normalized/patient_genetic/.gitkeep
-data/output/
-data/test/*
-.env
 *.egg-info/
 dist/
 .pytest_cache/
+.env
+
+# data/real/ — real patient data, never commit (HIPAA)
+data/real/*
+!data/real/.gitkeep
+
+# data/dump/ — scratch/misc files, not tracked
+data/dump/*
+!data/dump/.gitkeep
+
+# data/raw/ — most files committed; xlsx contains patient data, never commit
+data/raw/patient_data_template.xlsx
+data/raw/~$*
+
+# output/ — generated preview artifacts, never commit
+output/

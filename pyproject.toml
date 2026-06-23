@@ -13,10 +13,12 @@ dependencies = [
     "pymongo",
     "pydantic>=2.0",
     "python-dotenv",
+    "openpyxl",
 ]
 
 [project.scripts]
-ctm-process = "ctm.cli:main"
+ctm-mm = "ctm.mm_cli:main"
+ctm-report = "ctm.report_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ctm"]

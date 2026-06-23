@@ -1,9 +1,9 @@
 """Patient genomic data transformer.
 
 Raw input: see ctm/schemas/raw/patient_genetic.py
-Processed output: PatientGenetic (ctm/schemas/processed/patient_genetic.py)
+Processed output: PatientGenetic (ctm/schemas/processed/models.py)
 """
-from ctm.schemas.processed.patient_genetic import PatientGenetic
+from ctm.schemas.processed.models import PatientGenetic
 
 __version__ = "0.1.0"
 
