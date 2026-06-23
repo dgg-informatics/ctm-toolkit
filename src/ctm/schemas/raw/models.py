@@ -6,7 +6,7 @@ join keys (pt_uuid, report_uuid), which must be present for the normalizer
 to link documents correctly.
 """
 from datetime import date, datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 def _to_date(v: object) -> date | None:
@@ -66,6 +66,7 @@ class RawReportMetadata(BaseModel):
 
 
 class RawTempusFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pt_uuid: int
     report_uuid: int
     gene: str | None = None
@@ -73,16 +74,17 @@ class RawTempusFinding(BaseModel):
     nucleotide: str | None = None
     variant_type: str | None = None
     result_summary: str | None = None
-    raw_biomarker: str | None = None
+    raw_test: str | None = None
     raw_result: str | None = None
     raw_category: str | None = None
     raw_nucleotide_type: str | None = None
     raw_therapies_current_dx: str | None = None
-    raw_therapies_other: str | None = None
+    raw_therapies_other_indications: str | None = None
     raw_trials: str | None = None
 
 
 class RawCarisFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pt_uuid: int
     report_uuid: int
     gene: str | None = None
@@ -124,6 +126,7 @@ class RawCarisFinding(BaseModel):
 
 
 class RawAmbryFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pt_uuid: int
     report_uuid: int
     gene: str | None = None
@@ -138,6 +141,7 @@ class RawAmbryFinding(BaseModel):
 
 
 class RawAmcNgsFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pt_uuid: int
     report_uuid: int
     gene: str | None = None
@@ -161,6 +165,7 @@ class RawAmcNgsFinding(BaseModel):
 
 
 class RawOgmFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pt_uuid: int
     report_uuid: int
     gene: str | None = None
@@ -175,6 +180,7 @@ class RawOgmFinding(BaseModel):
 
 
 class RawPmlRaraFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pt_uuid: int
     report_uuid: int
     gene: str | None = None
@@ -187,6 +193,7 @@ class RawPmlRaraFinding(BaseModel):
 
 
 class RawTumorBiomarker(BaseModel):
+    model_config = ConfigDict(extra='allow')
     pt_uuid: int
     report_uuid: int
     gene: str | None = None           # biomarker name: TMB, MSI, PD-L1, etc.

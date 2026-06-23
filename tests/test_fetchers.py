@@ -2,7 +2,7 @@
 import pytest
 from ctm.db.store import insert_processed_document
 from ctm.fetchers.fetch_similar_patients import fetch
-from ctm.schemas.processed.similar_patients import SimilarPatients
+from ctm.schemas.processed.models import SimilarPatients
 
 RUN_ID = "17Jun2026-fetchtest"
 

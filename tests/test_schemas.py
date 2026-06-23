@@ -1,9 +1,6 @@
 """Schema validation tests — no MongoDB required."""
 import pytest
-from ctm.schemas.processed.clinical_trial import ClinicalTrial
-from ctm.schemas.processed.patient_general import PatientGeneral
-from ctm.schemas.processed.patient_genetic import PatientGenetic
-from ctm.schemas.processed.similar_patients import SimilarPatients, SimilarPatientMatch
+from ctm.schemas.processed.models import ClinicalTrial, PatientGeneral, PatientGenetic, SimilarPatients, SimilarPatientMatch
 
 
 def test_clinical_trial_empty():

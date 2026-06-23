@@ -7,7 +7,7 @@ Similarity algorithm: placeholder — returns stub scores until a real
 similarity metric (e.g. cosine on genomic vectors) is implemented.
 """
 from ctm.db.store import get_db
-from ctm.schemas.processed.similar_patients import SimilarPatients, SimilarPatientMatch
+from ctm.schemas.processed.models import SimilarPatients, SimilarPatientMatch
 
 __version__ = "0.1.0"
 
