@@ -1,7 +1,7 @@
 """Patient general (demographics / clinical) transformer.
 
 Raw input: see ctm/schemas/raw/patient_general.py
-Processed output: PatientGeneral (ctm/schemas/processed/patient_general.py)
+Processed output: PatientGeneral (ctm/schemas/processed/models.py)
 """
 from ctm.schemas.processed.models import PatientGeneral
 
