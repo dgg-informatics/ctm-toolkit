@@ -14,7 +14,9 @@ data/real/*
 data/dump/*
 !data/dump/.gitkeep
 
-# data/raw/ and data/normalized/ are committed (example/reference files)
+# data/raw/ — most files committed; xlsx contains patient data, never commit
+data/raw/patient_data_template.xlsx
+data/raw/~$*
 
 # output/ — generated preview artifacts, never commit
 output/
