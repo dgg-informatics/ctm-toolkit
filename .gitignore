@@ -17,10 +17,12 @@ data/dump/*
 # data/raw/ — most files committed; xlsx contains patient data, never commit
 data/raw/patient_data_template.xlsx
 data/raw/~$*
+!data/raw/.gitkeep
 data/mock/*
+!data/mock/.gitkeep
 
 # output/ — generated preview artifacts, never commit
-output/
+# output/
 
 .DS_Store
 **/.DS_Store
