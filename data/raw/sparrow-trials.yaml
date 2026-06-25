@@ -1,0 +1,21 @@
+trial_location: "Sparrow"
+trial_catgory: "Cancer"
+trial_subcategory: "Lung Cancer"
+tumor_type: "Non-Small Cell Lung Cancer"
+study_name: "A Study of XYZ Therapy in Advanced NSCLC"
+status: "open"
+status_action: "recruiting"
+nct_number: "NCT01234567"
+description: "This study evaluates the safety and efficacy of XYZ therapy in patients with advanced NSCLC."
+
+eligibility_criteria:
+  - "Age 18 years or older"
+  - "Histologically confirmed NSCLC"
+  - "ECOG performance status 0-1"
+
+contact_name: "Jane Smith"
+contact_phone_number: "(555) 123-4567"
+contact_email: "jane.smith@example.com"
+pi: "Dr. John Doe"
+more_info_link: "https://clinicaltrials.gov/study/NCT01234567"
+raw_blob: "This is a raw blob of data that may contain additional information about the trial, such as detailed protocols, consent forms, or other relevant documents."

@@ -1,11 +1,12 @@
 """ctm-mm — MatchMiner import tooling CLI.
 
 Usage:
-  ctm-mm raw-to-mm PATH/TO/patient_data_template.xlsx [options]
+  ctm-mm patients PATH/TO/patient_data_template.xlsx [options]
+  ctm-mm trials [--sparrow YAML] [--amc YAML] [--west YAML] --out PATH
 
 Options:
-  --pt-uuid N    Filter to one patient by pt_uuid
-  --out PATH     Save JSON output to file (default: print to stdout)
+  --pt-uuid N    Filter to one patient by pt_uuid (patients command)
+  --out PATH     Save output to file (default: print to stdout)
 """
 import argparse
 import json
@@ -24,21 +25,33 @@ def main() -> None:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser(
-        "raw-to-mm",
+    p_patients = sub.add_parser(
+        "patients",
         help="Normalize Excel template → matchminer-compatible JSON ({clinical, genomic})",
     )
-    p.add_argument("excel", metavar="EXCEL",
-                   help="Path to patient_data_template.xlsx")
-    p.add_argument("--pt-uuid", type=int, dest="pt_uuid", metavar="N",
-                   help="Filter to one patient by pt_uuid")
-    p.add_argument("--out", metavar="PATH",
-                   help="Save JSON output to file (default: print to stdout)")
+    p_patients.add_argument("excel", metavar="EXCEL",
+                            help="Path to patient_data_template.xlsx")
+    p_patients.add_argument("--pt-uuid", type=int, dest="pt_uuid", metavar="N",
+                            help="Filter to one patient by pt_uuid")
+    p_patients.add_argument("--out", metavar="PATH",
+                            help="Save JSON output to file (default: print to stdout)")
+
+    p_trials = sub.add_parser(
+        "trials",
+        help="Normalize raw trial YAMLs → matchminer-compatible trial YAML",
+    )
+    p_trials.add_argument("--sparrow", metavar="YAML", help="Path to Sparrow trials YAML")
+    p_trials.add_argument("--amc", metavar="YAML", help="Path to AMC trials YAML")
+    p_trials.add_argument("--west", metavar="YAML", help="Path to West trials YAML")
+    p_trials.add_argument("--out", metavar="PATH", required=True,
+                          help="Save trial YAML output to file")
 
     args = parser.parse_args()
 
-    if args.command == "raw-to-mm":
+    if args.command == "patients":
         _cmd_raw_to_mm(args)
+    elif args.command == "trials":
+        _cmd_trials(args)
 
 
 def _build_extras(patients: list, metadata: list, findings: list) -> dict:
@@ -132,6 +145,10 @@ def _cmd_raw_to_mm(args) -> None:
         print(f"Saved → {args.out}", file=sys.stderr)
     else:
         print(json_str)
+
+
+def _cmd_trials(args) -> None:
+    print("success")
 
 
 if __name__ == "__main__":

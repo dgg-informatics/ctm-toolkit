@@ -1,0 +1,45 @@
+# missing contact
+trial_location: "AMC"  # this may not be needed if used in normalization
+id: 12345
+no: "2026.001"
+nct_number: "NCT01234567"
+status: "OPEN TO ACCRUAL"
+
+title: "MOCK123"
+full_title: "Mock Clinical Trial"
+summary_obj: "Brief trial description."
+
+eligibility:
+  inclusion_criteria:
+
+    # Level 1 (no nesting)
+    - text: "Age >= 18 years"
+
+    # Level 2 (one level of nesting)
+    - text: "Laboratory requirements"
+      subcriteria:
+        - text: "ANC >= 1,000/uL"
+        - text: "Platelets >= 100,000/uL"
+
+    # Level 3 (two levels of nesting)
+    - text: "Renal function requirements"
+      subcriteria:
+        - text: "Maximum serum creatinine by age"
+          subcriteria:
+            - text: "Age 3-5 years: <= 0.8 mg/dL"
+            - text: "Age 6-9 years: <= 1.0 mg/dL"
+            - text: "Age >= 10 years: <= 1.2 mg/dL"
+
+  exclusion_criteria:
+    - text: "Pregnant patients"
+    - text: "Prior chemotherapy"
+
+categorys:
+  - cat1: "Solid Tumor"
+    cat2: "Lung"
+    cat3: "NSCLC"
+    cat4:
+
+satellite_sites:
+  - "Main Campus"
+  - "Satellite Clinic"
