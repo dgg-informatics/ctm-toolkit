@@ -1,8 +1,7 @@
 """ctm-report — build a trial match report (PDF or live preview).
 
 Usage:
-  ctm-report --pt normalized.json --matches matches.json --engine mm [--preview] [--db NAME] [output]
-  ctm-report --mock [--preview]
+  ctm-report --pt normalized.json --matches matches.json --engine mm [--preview] [--db NAME] [--out PATH]
 """
 import argparse
 import json
@@ -91,45 +90,19 @@ def _run_preview(pt_path: str, matches_path: str, engine: str) -> None:
                  default_filename="report.html")
 
 
-def _run_mock_preview() -> None:
-    from livereload import Server
-    from ctm.reports.builder import (
-        BASE_DIR, MOCK_MATCHES_PATH, MOCK_PT_PATH, render_html_from_pt_and_matches,
-    )
-
-    output_dir = BASE_DIR / "output"
-    output_file = output_dir / "report.html"
-
-    def build():
-        output_dir.mkdir(exist_ok=True)
-        output_file.write_text(
-            render_html_from_pt_and_matches(str(MOCK_PT_PATH), str(MOCK_MATCHES_PATH), "mm")
-        )
-
-    build()
-    server = Server()
-    server.watch(str(BASE_DIR / "templates" / "*.html"), build)
-    server.watch(str(BASE_DIR / "static" / "*.css"), build)
-    server.watch(str(MOCK_PT_PATH), build)
-    server.watch(str(MOCK_MATCHES_PATH), build)
-    server.serve(root=str(output_dir), port=5500, open_url_delay=1,
-                 default_filename="report.html")
-
-
 def main() -> None:
     _fix_macos_weasyprint_path()
 
-    from ctm.reports.builder import BASE_DIR, render_html, render_html_from_pt_and_matches
+    from ctm.reports.builder import BASE_DIR, render_html_from_pt_and_matches
 
     parser = argparse.ArgumentParser(prog="ctm-report")
-    parser.add_argument("output", nargs="?", default=None,
+    parser.add_argument("--out", metavar="PATH", default=None,
                         help="Output PDF path (default: output/report.pdf)")
-    parser.add_argument("--mock", action="store_true", help="Use data/mock/ data")
-    parser.add_argument("--pt", dest="pt_path", metavar="PATH",
-                        help="Normalized patient JSON from ctm-mm raw-to-mm")
-    parser.add_argument("--matches", metavar="PATH",
+    parser.add_argument("--pt", dest="pt_path", metavar="PATH", required=True,
+                        help="Normalized patient JSON from ctm-mm patients")
+    parser.add_argument("--matches", metavar="PATH", required=True,
                         help="Match results JSON from the match engine")
-    parser.add_argument("--engine", metavar="ENGINE",
+    parser.add_argument("--engine", metavar="ENGINE", required=True,
                         help=f"Match engine that produced --matches (one of: {', '.join(_KNOWN_ENGINES)})")
     parser.add_argument("--preview", action="store_true",
                         help="Spin up livereload server instead of building PDF")
@@ -137,38 +110,21 @@ def main() -> None:
                         help="Also write patient + match data to MongoDB database NAME")
     args = parser.parse_args()
 
-    use_mock = args.mock or (not args.pt_path and not args.matches)
+    if args.engine not in _KNOWN_ENGINES:
+        parser.error(f"--engine must be one of: {', '.join(_KNOWN_ENGINES)}")
 
-    if not use_mock:
-        missing = [f for flag, f in [
-            (args.pt_path, "--pt"),
-            (args.matches, "--matches"),
-            (args.engine, "--engine"),
-        ] if not flag]
-        if missing:
-            parser.error(f"required: {', '.join(missing)}")
-        if args.engine not in _KNOWN_ENGINES:
-            parser.error(f"--engine must be one of: {', '.join(_KNOWN_ENGINES)}")
-
-    if args.db and not use_mock:
+    if args.db:
         print(f"Writing to MongoDB ({args.db}) ...")
         _write_to_mongo(args.pt_path, args.matches, args.db)
 
     if args.preview:
-        if use_mock:
-            _run_mock_preview()
-        else:
-            _run_preview(args.pt_path, args.matches, args.engine)
+        _run_preview(args.pt_path, args.matches, args.engine)
         return
 
     from weasyprint import HTML
 
-    if use_mock:
-        html = render_html(use_real=False)
-    else:
-        html = render_html_from_pt_and_matches(args.pt_path, args.matches, args.engine)
-
-    output_path = Path(args.output) if args.output else BASE_DIR / "output" / "report.pdf"
+    html = render_html_from_pt_and_matches(args.pt_path, args.matches, args.engine)
+    output_path = Path(args.out) if args.out else BASE_DIR / "output" / "report.pdf"
     output_path.parent.mkdir(exist_ok=True, parents=True)
     HTML(string=html).write_pdf(str(output_path))
     print(f"Wrote {output_path}")

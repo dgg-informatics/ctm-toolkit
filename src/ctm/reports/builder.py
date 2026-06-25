@@ -12,9 +12,7 @@ STATIC_DIR = BASE_DIR / "static"
 
 DATA_SOURCE_VERSION = "TrialDBv0.1-jun26"
 
-MOCK_PT_PATH = DATA_DIR / "mock" / "pt-data.json"
-MOCK_MATCHES_PATH = DATA_DIR / "mock" / "mm-matches.json"
-MOCK_METHODS_PATH = DATA_DIR / "mock" / "methods.json"
+METHODS_PATH = DATA_DIR / "content" / "methods.json"
 
 PATIENT_HEADER_FIELDS = {
     "first_name": "First Name",
@@ -311,7 +309,7 @@ def render_html_from_pt_and_matches(pt_path: str, matches_path: str, engine: str
     else:
         raise ValueError(f"Unknown match engine: {engine!r}")
     ctx = {**pt_ctx, **mm_ctx}
-    ctx["methods"] = json.loads(MOCK_METHODS_PATH.read_text())["body"]
+    ctx["methods"] = json.loads(METHODS_PATH.read_text())["body"]
     ctx["provenance"] = {
         "generated_on": datetime.now().strftime("%d%b%Y"),
         "data_source": DATA_SOURCE_VERSION,
@@ -328,7 +326,7 @@ def render_html_from_sources(excel_path: str, mm_export_path: str) -> str:
     excel_ctx = load_context_from_raw_excel(excel_path)
     mm_ctx = load_context_from_mm_matches(mm_export_path)
     ctx = {**excel_ctx, **mm_ctx}
-    ctx["methods"] = json.loads(MOCK_METHODS_PATH.read_text())["body"]
+    ctx["methods"] = json.loads(METHODS_PATH.read_text())["body"]
     ctx["provenance"] = {
         "generated_on": datetime.now().strftime("%d%b%Y"),
         "data_source": DATA_SOURCE_VERSION,
@@ -339,12 +337,3 @@ def render_html_from_sources(excel_path: str, mm_export_path: str) -> str:
     template = env.get_template("report.html")
     css = (STATIC_DIR / "report.css").read_text()
     return template.render(css=css, **ctx)
-
-
-def render_html(use_real: bool = False, context_override: dict | None = None) -> str:
-    if context_override is not None:
-        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
-        template = env.get_template("report.html")
-        css = (STATIC_DIR / "report.css").read_text()
-        return template.render(css=css, **context_override)
-    return render_html_from_pt_and_matches(str(MOCK_PT_PATH), str(MOCK_MATCHES_PATH), "mm")
