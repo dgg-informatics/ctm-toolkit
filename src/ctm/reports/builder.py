@@ -14,21 +14,22 @@ DATA_SOURCE_VERSION = "TrialDBv0.1-jun26"
 
 MOCK_PT_PATH = DATA_DIR / "mock" / "pt-data.json"
 MOCK_MATCHES_PATH = DATA_DIR / "mock" / "mm-matches.json"
+MOCK_METHODS_PATH = DATA_DIR / "mock" / "methods.json"
 
 PATIENT_HEADER_FIELDS = {
-    "mrn": "MRN",
     "first_name": "First Name",
     "last_name": "Last Name",
-    "sex": "Gender",
     "dob": "Date of Birth",
     "vital_status": "Vital Status",
-    "entity": "Institution",
     "oncotree_primary_diagnosis": "Diagnosis (OncoTree)",
 }
 
 PATIENT_DETAIL_FIELDS = {
     "primary_dx": "Primary Diagnosis",
     "metastasis_sites": "Metastasis Sites",
+    "mrn": "MRN",
+    "sex": "Gender",
+    "entity": "Institution",
 }
 
 GENOMIC_FIELDS = {
@@ -310,7 +311,7 @@ def render_html_from_pt_and_matches(pt_path: str, matches_path: str, engine: str
     else:
         raise ValueError(f"Unknown match engine: {engine!r}")
     ctx = {**pt_ctx, **mm_ctx}
-    ctx["methods"] = []
+    ctx["methods"] = json.loads(MOCK_METHODS_PATH.read_text())["body"]
     ctx["provenance"] = {
         "generated_on": datetime.now().strftime("%d%b%Y"),
         "data_source": DATA_SOURCE_VERSION,
@@ -327,7 +328,7 @@ def render_html_from_sources(excel_path: str, mm_export_path: str) -> str:
     excel_ctx = load_context_from_raw_excel(excel_path)
     mm_ctx = load_context_from_mm_matches(mm_export_path)
     ctx = {**excel_ctx, **mm_ctx}
-    ctx["methods"] = []
+    ctx["methods"] = json.loads(MOCK_METHODS_PATH.read_text())["body"]
     ctx["provenance"] = {
         "generated_on": datetime.now().strftime("%d%b%Y"),
         "data_source": DATA_SOURCE_VERSION,
