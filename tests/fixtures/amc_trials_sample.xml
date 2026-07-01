@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<PROTOCOL_SUMMARY>
+  <PROTOCOL>
+    <ID>29917</ID>
+    <NO>2021.045</NO>
+    <NCT_NUMBER>NCT03715933</NCT_NUMBER>
+    <STATUS>OPEN TO ACCRUAL</STATUS>
+    <TITLE>UMCC 2021.045, Chugh</TITLE>
+    <FULL_TITLE>An Open-Label, Multicenter, First-in-Human, Dose-Escalation Phase 1 Study of INBRX-109 in Subjects with Locally Advanced or Metastatic Solid Tumors Including Sarcomas</FULL_TITLE>
+    <SUMMARY_OBJ>This is a first-in-human, open-label, non-randomized, three-part phase 1 trial of INBRX-109.</SUMMARY_OBJ>
+    <SECONDARY_PROTOCOL_NO>HUM00202966</SECONDARY_PROTOCOL_NO>
+    <SPONSOR_TYPE>Industry</SPONSOR_TYPE>
+    <AGE_GROUP>Adults</AGE_GROUP>
+    <PHASE>I</PHASE>
+    <CANCER_PREVENTION>U</CANCER_PREVENTION>
+    <SCOPE>Unspecified</SCOPE>
+    <DISEASE_SITE>Melanoma, Skin; Pancreas; Soft Tissue; Stomach</DISEASE_SITE>
+    <LAY_DESCRIPTION/>
+    <PI>Chugh, Rashmi</PI>
+    <INSTITUTIONS/>
+    <ONCOLOGY_GROUP>Multi-tumor Experimental Therapeutics</ONCOLOGY_GROUP>
+    <MANAGEMENT_GROUP>CTSU - Oncology</MANAGEMENT_GROUP>
+    <SUMMARY4_TYPE>Interventional</SUMMARY4_TYPE>
+    <OCTSU_GENES_INTEREST>IDH1, IDH2</OCTSU_GENES_INTEREST>
+    <ELIGIBILITY>Inclusion Criteria||~Histologically confirmed advanced solid tumors refractory to standard therapy.||~Measurable disease per RECISTv1.1.||~~Modified RECIST for mesothelioma.||~ECOG performance status 0 or 1.||Exclusion Criteria||~Prior treatment with DR5 agonists.||~Anticancer therapy within 4 weeks prior to first dose.</ELIGIBILITY>
+    <CATEGORYS/>
+    <SATELLITE_SITES/>
+  </PROTOCOL>
+</PROTOCOL_SUMMARY>
