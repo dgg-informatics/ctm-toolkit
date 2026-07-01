@@ -150,9 +150,9 @@ def _make_normalized_json(tmp_path):
         "extras": {
             "patient": {
                 "pt_uuid": 0,
-                "mrn": "302939",
-                "first_name": "Larry",
-                "last_name": "Corum",
+                "mrn": "000000",
+                "first_name": "Dane",
+                "last_name": "Doe",
                 "dob": None,
                 "sex": None,
                 "vital_status": None,
