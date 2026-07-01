@@ -38,13 +38,14 @@ def main() -> None:
 
     p_trials = sub.add_parser(
         "trials",
-        help="Normalize raw trial YAMLs → matchminer-compatible trial YAML",
+        help="Normalize raw trial sources → MatchMiner CTML JSON",
     )
-    p_trials.add_argument("--sparrow", metavar="YAML", help="Path to Sparrow trials YAML")
-    p_trials.add_argument("--amc", metavar="YAML", help="Path to AMC trials YAML")
-    p_trials.add_argument("--west", metavar="YAML", help="Path to West trials YAML")
+    p_trials.add_argument("--amc", metavar="XML", help="Path to AMC trials XML export")
+    p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
+    p_trials.add_argument("--sparrow", metavar="FILE", help="Path to Sparrow trials (not yet implemented)")
+    p_trials.add_argument("--west", metavar="FILE", help="Path to West trials (not yet implemented)")
     p_trials.add_argument("--out", metavar="PATH", required=True,
-                          help="Save trial YAML output to file")
+                          help="Save MatchMiner CTML JSON output to file")
 
     args = parser.parse_args()
 
@@ -148,7 +149,54 @@ def _cmd_raw_to_mm(args) -> None:
 
 
 def _cmd_trials(args) -> None:
-    print("success")
+    from ctm.transformers.amc_xml_to_raw import load as load_amc
+    from ctm.transformers.raw_amc_to_ctml import to_ctml_dict as amc_to_ctml
+    from ctm.transformers.ctgov_to_raw import from_study, from_search_response
+    from ctm.transformers.raw_ctgov_to_ctml import to_ctml_dict as ctgov_to_ctml
+
+    trials: list[dict] = []
+
+    if args.amc:
+        amc_path = Path(args.amc)
+        if not amc_path.exists():
+            print(f"Error: file not found: {amc_path}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
+        raw_trials = load_amc(amc_path)
+        print(f"  {len(raw_trials)} AMC trial(s)", file=sys.stderr)
+        trials.extend(amc_to_ctml(t) for t in raw_trials)
+
+    if args.ct:
+        from ctm.schemas.raw.models import RawCTGovTrial
+        ct_path = Path(args.ct)
+        if not ct_path.exists():
+            print(f"Error: file not found: {ct_path}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Reading CTGov JSON {ct_path} ...", file=sys.stderr)
+        data = json.loads(ct_path.read_text())
+        # Three accepted formats:
+        #   - RawCTGovTrial dump (from ctm-fetch, has flat "nct_id" key)
+        #   - CTGov API single study response (has "protocolSection" key)
+        #   - CTGov API search response (has "studies" key)
+        if "nct_id" in data:
+            raw_ct = [RawCTGovTrial.model_validate(data)]
+        elif "studies" in data:
+            raw_ct = from_search_response(data)
+        else:
+            raw_ct = [from_study(data)]
+        print(f"  {len(raw_ct)} CTGov trial(s)", file=sys.stderr)
+        trials.extend(ctgov_to_ctml(t) for t in raw_ct)
+
+    if args.sparrow or args.west:
+        print("Warning: --sparrow and --west are not yet implemented", file=sys.stderr)
+
+    if not trials:
+        print("Error: no trial sources provided (use --amc, --ct, --sparrow, or --west)", file=sys.stderr)
+        sys.exit(1)
+
+    out_path = Path(args.out)
+    out_path.write_text(json.dumps(trials, indent=2, default=str))
+    print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":
