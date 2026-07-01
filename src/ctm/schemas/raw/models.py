@@ -5,8 +5,8 @@ passed straight in with model_validate(). All fields are optional except the
 join keys (pt_uuid, report_uuid), which must be present for the normalizer
 to link documents correctly.
 """
-from datetime import date, datetime
-from pydantic import BaseModel, ConfigDict, field_validator
+from datetime import date, datetime, timezone
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def _to_date(v: object) -> date | None:
@@ -209,3 +209,58 @@ class RawTumorBiomarker(BaseModel):
     raw_tumor_normal: str | None = None
     raw_rna_expression: str | None = None
     raw_rna_fusion: str | None = None
+
+
+class RawCTGovTrial(BaseModel):
+    """Flat capture of a single study from the ClinicalTrials.gov API v2 response.
+
+    Populated by ctgov_to_raw.from_study() which accepts the dict at
+    studies[n] (the full study object, not just protocolSection).
+    """
+    model_config = ConfigDict(extra='allow')
+    nct_id: str                             # unique key for DB upserts
+    brief_title: str | None = None          # identificationModule.briefTitle
+    official_title: str | None = None       # identificationModule.officialTitle
+    overall_status: str | None = None       # statusModule.overallStatus
+    phases: list[str] = Field(default_factory=list)   # designModule.phases (e.g. ["PHASE2"])
+    lead_sponsor: str | None = None         # sponsorCollaboratorsModule.leadSponsor.name
+    brief_summary: str | None = None        # descriptionModule.briefSummary
+    conditions: list[str] = Field(default_factory=list)  # conditionsModule.conditions
+    sex: str | None = None                  # eligibilityModule.sex: ALL|MALE|FEMALE
+    minimum_age: str | None = None          # eligibilityModule.minimumAge (e.g. "18 Years")
+    maximum_age: str | None = None          # eligibilityModule.maximumAge
+    std_ages: list[str] = Field(default_factory=list)  # CHILD|ADULT|OLDER_ADULT
+    eligibility_criteria: str | None = None # eligibilityModule.eligibilityCriteria (markdown)
+    principal_investigator: str | None = None  # first PRINCIPAL_INVESTIGATOR in overallOfficials
+    drug_interventions: list[str] = Field(default_factory=list)  # DRUG/BIOLOGICAL names
+    fetched_at: datetime = Field(          # UTC timestamp of the API pull
+        default_factory=lambda: datetime.now(tz=timezone.utc)
+    )
+
+
+class RawAMCTrial(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    amc_id: str | None = None                   # <ID>
+    protocol_no: str | None = None              # <NO>
+    nct_number: str | None = None               # <NCT_NUMBER>
+    status: str | None = None                   # <STATUS>
+    title: str | None = None                    # <TITLE> (abbreviated)
+    full_title: str | None = None               # <FULL_TITLE>
+    summary_obj: str | None = None              # <SUMMARY_OBJ>
+    secondary_protocol_no: str | None = None    # <SECONDARY_PROTOCOL_NO>
+    sponsor_type: str | None = None             # <SPONSOR_TYPE>
+    age_group: str | None = None                # <AGE_GROUP>: Adults/Children/Both/Unspecified
+    phase: str | None = None                    # <PHASE>
+    cancer_prevention: str | None = None        # <CANCER_PREVENTION>
+    scope: str | None = None                    # <SCOPE>
+    disease_site: str | None = None             # <DISEASE_SITE> (semicolon-separated)
+    lay_description: str | None = None          # <LAY_DESCRIPTION>
+    pi: str | None = None                       # <PI>
+    institutions: str | None = None             # <INSTITUTIONS>
+    oncology_group: str | None = None           # <ONCOLOGY_GROUP>
+    management_group: str | None = None         # <MANAGEMENT_GROUP>
+    summary4_type: str | None = None            # <SUMMARY4_TYPE>
+    octsu_genes_interest: str | None = None     # <OCTSU_GENES_INTEREST> (free-text gene names)
+    eligibility: str | None = None              # <ELIGIBILITY> (||~-delimited free text)
+    categorys: str | None = None                # <CATEGORYS>
+    satellite_sites: str | None = None          # <SATELLITE_SITES>
