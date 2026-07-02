@@ -238,6 +238,19 @@ class RawCTGovTrial(BaseModel):
     )
 
 
+class RawSparrowTrial(BaseModel):
+    """One row from the Sparrow marketing trials Excel sheet."""
+    study_name: str | None = None           # Study Name
+    description: str | None = None          # Description
+    contact_name: str | None = None         # Contact Name
+    contact_phone: str | None = None        # Contact Phone Number
+    trial_category: str | None = None       # Trial Category
+    trial_subcategory: str | None = None    # Trial SubCategory
+    nct_id: str | None = None              # NCT # (cleaned)
+    contact_email: str | None = None        # Contact Email
+    pi: str | None = None                   # PI
+
+
 class RawAMCTrial(BaseModel):
     model_config = ConfigDict(extra='allow')
     amc_id: str | None = None                   # <ID>
