@@ -42,7 +42,7 @@ def main() -> None:
     )
     p_trials.add_argument("--amc", metavar="XML", help="Path to AMC trials XML export")
     p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
-    p_trials.add_argument("--sparrow", metavar="FILE", help="Path to Sparrow trials (not yet implemented)")
+    p_trials.add_argument("--sparrow", metavar="XLSX", help="Path to Sparrow marketing trials Excel sheet")
     p_trials.add_argument("--west", metavar="FILE", help="Path to West trials (not yet implemented)")
     p_trials.add_argument("--out", metavar="PATH", required=True,
                           help="Save MatchMiner CTML JSON output to file")
@@ -187,8 +187,27 @@ def _cmd_trials(args) -> None:
         print(f"  {len(raw_ct)} CTGov trial(s)", file=sys.stderr)
         trials.extend(ctgov_to_ctml(t) for t in raw_ct)
 
-    if args.sparrow or args.west:
-        print("Warning: --sparrow and --west are not yet implemented", file=sys.stderr)
+    if args.sparrow:
+        from ctm.transformers.sparrow_xlsx_to_raw import load as load_sparrow
+        from ctm.transformers.raw_sparrow_to_ctml import to_ctml_dict as sparrow_to_ctml
+        sparrow_path = Path(args.sparrow)
+        if not sparrow_path.exists():
+            print(f"Error: file not found: {sparrow_path}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Reading Sparrow XLSX {sparrow_path} ...", file=sys.stderr)
+        raw_sparrow = load_sparrow(sparrow_path)
+        print(f"  {len(raw_sparrow)} valid Sparrow trial(s) — fetching from ClinicalTrials.gov ...", file=sys.stderr)
+        for t in raw_sparrow:
+            try:
+                trials.append(sparrow_to_ctml(t))
+                print(f"    fetched {t.nct_id}", file=sys.stderr)
+            except ValueError as exc:
+                print(f"  Warning: {exc} (skipping)", file=sys.stderr)
+            except Exception as exc:
+                print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
+
+    if args.west:
+        print("Warning: --west is not yet implemented", file=sys.stderr)
 
     if not trials:
         print("Error: no trial sources provided (use --amc, --ct, --sparrow, or --west)", file=sys.stderr)
