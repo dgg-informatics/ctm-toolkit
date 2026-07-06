@@ -10,6 +10,7 @@ from .models import (
     RawTumorBiomarker,
     RawCTGovTrial,
     RawAMCTrial,
+    RawWestTrial,
     RawSparrowTrial,
 )
 from .normalized import Patient, ReportMetadata, Finding
@@ -26,6 +27,7 @@ __all__ = [
     "RawTumorBiomarker",
     "RawCTGovTrial",
     "RawAMCTrial",
+    "RawWestTrial",
     "RawSparrowTrial",
     "Patient",
     "ReportMetadata",
