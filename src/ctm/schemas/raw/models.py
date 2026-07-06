@@ -238,6 +238,16 @@ class RawCTGovTrial(BaseModel):
     )
 
 
+class RawWestTrial(BaseModel):
+    """One row from the West (CRCWM) trials Excel sheet."""
+    group: str | None = None             # CRCWM Adult / COG Pediatric
+    disease_category: str | None = None
+    sponsor: str | None = None
+    title: str | None = None
+    protocol_id: str | None = None       # ID column
+    nct_id: str | None = None            # NCT Number column
+
+
 class RawSparrowTrial(BaseModel):
     """One row from the Sparrow marketing trials Excel sheet."""
     study_name: str | None = None           # Study Name

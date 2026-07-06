@@ -207,7 +207,23 @@ def _cmd_trials(args) -> None:
                 print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
 
     if args.west:
-        print("Warning: --west is not yet implemented", file=sys.stderr)
+        from ctm.transformers.west_xlsx_to_raw import load as load_west
+        from ctm.transformers.raw_west_to_ctml import to_ctml_dict as west_to_ctml
+        west_path = Path(args.west)
+        if not west_path.exists():
+            print(f"Error: file not found: {west_path}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Reading West XLSX {west_path} ...", file=sys.stderr)
+        raw_west = load_west(west_path)
+        print(f"  {len(raw_west)} West trial(s) with NCT numbers — fetching from ClinicalTrials.gov ...", file=sys.stderr)
+        for t in raw_west:
+            try:
+                trials.append(west_to_ctml(t))
+                print(f"    fetched {t.nct_id}", file=sys.stderr)
+            except ValueError as exc:
+                print(f"  Warning: {exc} (skipping)", file=sys.stderr)
+            except Exception as exc:
+                print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
 
     if not trials:
         print("Error: no trial sources provided (use --amc, --ct, --sparrow, or --west)", file=sys.stderr)
