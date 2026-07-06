@@ -20,6 +20,7 @@ dependencies = [
 ctm-mm = "ctm.mm_cli:main"
 ctm-report = "ctm.report_cli:main"
 ctm-fetch = "ctm.fetch_cli:main"
+ctm-meta = "ctm.meta_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ctm"]
