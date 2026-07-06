@@ -7,6 +7,7 @@ from .clinical_trial import (
     CtmlTreatmentList,
     ClinicalTrialNormalized,
 )
+from .trial_match import MMTrialMatch, MMPatientRef, MMTrialMatchExport
 
 __all__ = [
     "MMClinical",
@@ -17,4 +18,7 @@ __all__ = [
     "CtmlStep",
     "CtmlTreatmentList",
     "ClinicalTrialNormalized",
+    "MMTrialMatch",
+    "MMPatientRef",
+    "MMTrialMatchExport",
 ]
