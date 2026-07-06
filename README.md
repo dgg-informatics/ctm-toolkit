@@ -1,37 +1,44 @@
-# Clinical Trial Match Integration Toolkit ⚒️
+# Michigan Medicine Clinical Trial Integration Toolkit ⚒️
 
-This repo prepares data from various sources to integrate with popular open-source clinical trial matching software (MatchMiner supported, TrialMatchAI at some point). Once clinical trial matching has completed, it interfaces with the structured output (from MatchMiner) to provide a report for the patient. See example workflow:
+This repo prepares data from various sources to integrate with popular open-source clinical trial matching software (MatchMiner supported, TrialMatchAI at some point). Beyond providing input sources for popular clinical trial matching software, this repo also provides post-matching processing scripts to generate reports. For instance, once clinical trial matching has completed, it interfaces with the structured output (from MatchMiner) to provide a report for the patient.
+
+## Quick Start
 
 ```bash
-# Normalize patient data from Excel template
+# Step 1: Normalize patient data from Excel template
 ctm-mm patients <patient_data_template.xlsx> --pt-uuid 1234 --out pt_1234.json
 
-# Normalize trial data from AMC XML or ClinicalTrials.gov
-ctm-mm trials --amc <amc_trials.xml> --out trials.json
-ctm-mm trials --ct <ctgov.json> --out trials.json
+# Step 2: Normalize trial data from AMC XML or ClinicalTrials.gov
+ctm-mm trials --amc <amc_trials.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out trials.json
 
-# Fetch a single trial from ClinicalTrials.gov (raw or normalized)
+# Note - We can also fetch trials directly from ClinicalTrials.gov without any template:
+# Step 2 (alternate): Fetch a single trial from ClinicalTrials.gov (raw or normalized)
 ctm-fetch --nct NCT03067181 --output nct-raw.json
+# Step 2.5 (alternate): Normalize clinicaltrials.gov data to matchminer (mm)
 ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm
 
+# Step 3
 # Ensure you do the MANUAL PROCESSING from the normalized format to MATCHMINER!!!
+# This involves translating text eligiblity criteria into MatcherMiner format
 
-# Load trial data into MatchMiner
+# Step 4: Load trial data into MatchMiner
 python -m matchengine.main load -t trials.json --trial-format json --db test
 
-# Run MatchMiner
+# Step 5: Run MatchMiner
 python -m Matcher.main --config source/Matcher/config/config.json
 
-# Export match results
+# Step 6: Export match results from MatchMiner's Mongo database
 SECRETS_JSON=SECRETS_JSON.json python export_matches.py --patient 7439568 --output export/ --db v1
 
-# Build report from match results
+# Step 7: Build report from match results
 ctm-report --pt data/patient.json --matches data/matchminer_export.json --engine mm --out output.pdf
 ```
 
-## Warning for Patient and Clinical Trial Data
+### Warning for Patient and Clinical Trial Data
 
-### Patient Data
+#### Patient Data
+
+Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See example at */data/raw/pt_template.xlsx*.
 
 After you fill out the template excel sheet, please be careful of:
 
@@ -39,9 +46,13 @@ After you fill out the template excel sheet, please be careful of:
 - TRUE_HUGO_SYMBOL passes through from the gene column as-is - no validation against HGNC so be careful to use a HUGO symbol
 - variant_type in the Excel drives VARIANT_CATEGORY mapping - if someone enters an unrecognized value it gets skipped with a warning
 
-### Clinical Trial Data
+#### Clinical Trial Data
 
-The automation from AMC and ClinicalTrials.gov clinical trials requires some manual massaging of the data:
+Clinical trial data comes from automated sources for AMC and Sparrow. For AMC, an export of the OnCORE database is retreived in the form of an XML file (see *data/raw/amc_trails_raw.xml*). For Sparrow, an Excel document is emailed each month (see *data/sparrow_trials_raw.xlsx*).
+
+For UMH-West, an Excel sheet is emailed is a format that is incomplete and requires manual processing immediately. Thus, this repo holds a template for recording West trial data instead of the raw data file we receive. See the template for West's trial data at *data/raw/west_trial_template.xlsx* --> note the *_template.xlsx instead of *_raw.xlsx ;-)
+
+The automation from AMC, Sparrow, West, and ClinicalTrials.gov clinical trial data requires some manual massaging of the data before it can be put into MatchMiner:
 
 - treatment_list.step[0].match is auto-populated with age constraints only (AMC) or age + gender for sex-restricted trials (CTGov) - all genomic and oncotree criteria must be filled in manually
 - Eligibility criteria are parsed and preserved structurally (inclusion/exclusion with nesting) but are not converted into MatchMiner and/or match nodes automatically
@@ -51,19 +62,19 @@ The automation from AMC and ClinicalTrials.gov clinical trials requires some man
 - protocol_no is only populated for AMC trials; CTGov trials will have null there unless manually set
 
 
-# start here / justification
+# Background
 
 Creating a clinical trial match involves two key categories of data:
 1. patient information (query)
 2. clinical trial information (reference)
 
-Patient data must match up to trial eligibility requirements to make a match. Trial eligibility often relies on some combination of patient demographics, diagnoses, prior treatments, as well as molecular and genetic data. Combining all of this information into one spot can be difficult and the purpose of this toolkit is to make it easier to combine all the data sources needed into the formats required for popular clinical trial engines and report building.
+Patient data must match up to trial eligibility requirements to make a match. Trial eligibility often relies on some combination of patient demographics, diagnoses, prior treatments, as well as molecular and genetic data. Combining all of this information into one spot can be difficult, thus the purpose of this toolkit is to make it easier to combine all the data sources needed into the formats required for popular clinical trial engines and report building.
 
 For matching a patient to trials, we define 2 categories of patient data:
 1. clinical data
 2. genomic data
 
-Clinical data is kind of an overloaded term, but it refers to general patient demographics as well as diagnoses. Examples include Age, Sex, Primary Diagnosis, Weight, etc. Genomic data comes from molecular testing, which is either performed in-house (AMC's Division of Diagnostic Genetics and Genomics) or from an external company (Tempus, Caris, Foundation, to name a few).
+**Clinical data** is kind of an overloaded term, but it refers to general patient demographics as well as diagnoses. Examples include Age, Sex, Primary Diagnosis, Weight, etc. **Genomic data** comes from molecular testing, which is either performed in-house (AMC's Division of Diagnostic Genetics and Genomics) or from an external company (Tempus, Caris, Foundation, to name a few).
 
 
 ## Data pipeline
@@ -76,24 +87,29 @@ Clinical data is kind of an overloaded term, but it refers to general patient de
       1. `$ ctm-mm trials --amc nct-raw.json --out to-normalized.json`
       2. Above produces a .JSON file that needs a little bit of manual curation to be ingested by MatchMiner
    2. For ClinicalTrials.gov data, you can fetch a particular trial by NCT number and then normalize to the same format as AMC
-      1. Run `$ ctm-fetch --nct NCT03067181 --output nct-raw.json --fmt-mm`
-      2. You can also run `$ ctm-mm trials --ct <raw-ctgov.json> --out to-normalized.json`
-   3. Ensure you finish **manually curating** for (1) and (2)
-3. Load in the new data to MatchMiner
+      1. Run `$ ctm-fetch --nct NCT03067181 --output nct-raw.json --fmt-mm`  # fetch clinical trials and normalize output to matchminer format
+      2. You can also run `$ ctm-mm trials --ct <raw-ctgov.json> --out to-normalized.json`  # given a JSON of unnormalized clinicaltrials.gov trials, this will normalize it to matchminer format
+      3. Please note 2.1 and 2.2 have overlapping functionality. the --ct <raw-ctgov.json> in 2.2 would come from running `ctm-fetch --nct NCT03067181 --output nct-raw.json`, which omitting the `--fmt-mm`, stored the data in a non-normalized way (raw from ct.gov api).
+   3. Ensure you finish **manually curating eligibility criteria** for (1) and (2)
+3. **Read MatchMiner docs to prepare for the next 2 steps!**
+4. Load in the new data to MatchMiner
    1. `$ python -m matchengine.main load ...`
-4. Execute the match!
+5. Execute the match!
    1. `$ python -m Matcher.main ...`
-5. Export match data from MatchMiner database
+6. Export match data from MatchMiner database
    1. `$ python export_matches.py ...`
-6. Build the report from a combination of patient and match data
+7. Build the report from a combination of patient and match data
    1. `$ ctm-report ...`
 
 
 ## Schemas
 
 **Schema levels:**
-- `schemas/raw/` - Source-faithful models: one per data source (Excel sheets, AMC XML, CTGov API). Fields mirror source column names exactly.
-- `schemas/matchminer/` - MatchMiner-ready models. Patient data (`MMClinical`, `MMGenomic`) and normalized trial data (`ClinicalTrialNormalized`). Trial documents require manual curation of the match tree before loading into MatchMiner.
+- `schemas/raw/` - Source-faithful models: one per data source (PT Excel sheets, AMC XML, Sparrow XLSX, West XLSX, and CTGov API). Fields mirror source column names exactly.
+- `schemas/matchminer/` - MatchMiner-ready models.
+  - Patient data (`MMClinical`, `MMGenomic`)
+  - Normalized trial data (`ClinicalTrialNormalized`. Trial documents require manual curation of the match tree before loading into MatchMiner.
+  - Trial match data (`MMTrialMatchExport`). This is the output generated after MatchMiner matches a patient to a trial and the data is exported out of MongoDB.
 - `schemas/trialmatchai/` - Placeholder for future TrialMatchAI integration.
 
 ## Setup
@@ -134,6 +150,11 @@ To build a PDF report from the mock data:
 $ ctm-report --pt data/mock/pt-data.json --matches data/mock/mm-matches.json --engine mm --out output.pdf
 ```
 
+The data/mock/pt-data.json file follows the same format that is output from `ctm-mm patients <patient_data_template.xlsx> --out pt-data.json`. This is MatchMiner-normalized data that is in JSON with 3 high-level keys: i) clinical ii) genomic iii) extras. The schema can be found at *src/ctm/schemas/matchminer/patient.py* in `MMClinical` and `MMGenomic`. The report actually only ever touches the *extras* sub-key, since all the rest of the data can come from the MatchMiner match output.
+
+The data/mock/mm-matches.json file follows the schema found in *src/ctm/schemas/matchminer/trial_match.py*, specifically in the model `MMTrialMatchExport`. It is the JSON export produced by MatchMiner after running the matching engine against a patient. It has 3 top-level keys: i) pt_uuid ii) clinical (a minimal patient reference with SAMPLE_ID, MRN, etc.) and iii) trial_match (a list of match records). The primary match is selected by preferring match_level: arm over step, then reason_type: genomic over clinical, then sort_order. All remaining unique trials appear as secondary matches.
+
+
 For a live preview in your browser:
 
 ```bash
@@ -171,10 +192,8 @@ We have some example data we store in this repo as a nice reference.
 
 # TODO
 
-As it stands, the pipeline takes 6 steps, with the initial step starting from manually transcribed data from various sources into the i) patient_data_template.xlsx and various <entity>.yaml files. The goal is to incrementally reduce the number of steps. Ideally, we can automatically integrate from the raw data sources and take it all the way to matching and report building.
+As it stands, the pipeline has multiple manual processing steps. Ideally, we can automatically integrate from the raw data sources and take it all the way to matching and report building.
 
-- [ ] west-trials.yaml has no schema and needs one
-- [ ] sparrow and west trial source transformers (`--sparrow`, `--west` stubs exist in CLI but are not implemented)
 - [ ] make a pipeline that points to raw patient+trial info and spits out match report
 - [ ] docker-ize this process
 - [ ] deploy this onto PS1A server
