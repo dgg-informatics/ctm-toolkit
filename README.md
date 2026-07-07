@@ -112,6 +112,46 @@ For matching a patient to trials, we define 2 categories of patient data:
   - Trial match data (`MMTrialMatchExport`). This is the output generated after MatchMiner matches a patient to a trial and the data is exported out of MongoDB.
 - `schemas/trialmatchai/` - Placeholder for future TrialMatchAI integration.
 
+## Normalized Trials and CTML Curation
+
+`ctm-mm trials` outputs a list of `ClinicalTrialNormalized` documents (schema: `src/ctm/schemas/matchminer/clinical_trial.py`). Each document has the following top-level keys:
+
+| Key | Description |
+|-----|-------------|
+| `protocol_no` | Internal protocol number. Populated for AMC trials only; null for CTGov-sourced trials unless set manually. |
+| `nct_id` | ClinicalTrials.gov identifier. |
+| `status` | Normalized status string: `open to accrual`, `closed to accrual`, or `suspended`. |
+| `entity` | Source tag: `amc`, `ctgov`, `sparrow`, or `west`. |
+| `treatment_list` | CTML match tree. Contains `step → arm → match` nodes. This is what MatchMiner queries against. |
+| `eligibility` | Parsed inclusion/exclusion criteria with full nesting preserved. For reference only — not automatically wired into the match tree. |
+| `_summary` | Display-friendly summary fields: phase, age group, sponsor, drugs, conditions, PI, etc. |
+| `_raw` | Complete source dump for zero data loss. Pattern B sources (Sparrow, West) also include a `_raw._sparrow` or `_raw._west` sub-key with the original Excel row. |
+
+### Integration patterns
+
+- **Pattern A (AMC):** XML → raw schema → `ClinicalTrialNormalized` directly. No CTGov lookup.
+- **Pattern B (Sparrow, West):** Excel provides NCT IDs → each trial is fetched from CTGov → normalized via the CTGov pipeline → source metadata merged into `_raw`.
+
+### What is auto-populated vs. what needs manual curation
+
+`ctm-mm trials` gets you most of the way there, but the match tree requires manual work before MatchMiner can use it:
+
+- `treatment_list.step[0].match` is seeded with age constraints only (AMC), or age + gender for sex-restricted CTGov trials
+- All genomic criteria (Hugo symbol, protein change, variant category, etc.) must be added manually as `genomic` match nodes
+- All oncotree/cancer type criteria must be added manually as `clinical` match nodes
+- Eligibility free text is parsed and stored in `eligibility` as a reference, but is **not** automatically converted into match nodes
+- AMC trials have no arm structure — a single stub arm (`ARM 1`) is generated; multi-arm or dose-escalation trials must be expanded manually
+
+### Loading into MatchMiner
+
+Once the match tree is curated, load the trial documents:
+
+```bash
+python -m matchengine.main load -t trials.json --trial-format json --db <your-db>
+```
+
+MatchMiner expects each document to conform to CTML format. See the [MatchMiner docs](https://matchminer.gitbook.io) for the full field reference.
+
 ## Setup
 
 ### Installation
@@ -189,6 +229,124 @@ We have some example data we store in this repo as a nice reference.
 | `data/mock/` | Synthetic data that shows the format of patient, trial, and match data and is used to build a mock report to show the report format. Patient and trial data are normalized, while match data is exported from the match engine (MatchMiner only for now)|
 | `data/raw/` | Templates for manually creating initial patient and clinical trial data. This is the input for the normalization step |
 
+
+# Extensions
+
+MatchMiner's matching fields are config-driven, making it straightforward to add new matchable fields without touching the core engine. The config lives at `matchengine/config/dfci_config.json` in the matchengine-V2 repo.
+
+## Adding a new genomic field
+
+To add a boolean or freeform string field, add an entry to `ctml_collection_mappings.genomic.trial_key_mappings`, add the field to `projections.genomic`, and add it to `indices.genomic`. Use `"nomap"` when the trial and patient values should match exactly with no transformation.
+
+**Example — boolean field:**
+```json
+"ALIEN_MUTATION": {
+  "sample_key": "ALIEN_MUTATION",
+  "sample_value": "nomap"
+}
+```
+
+A trial requiring this field would include in its match node:
+```json
+{ "genomic": { "alien_mutation": true } }
+```
+
+And the patient's genomic document would need:
+```json
+{ "ALIEN_MUTATION": true }
+```
+
+`nomap` works equally well for freeform strings — the trial value and patient value must simply match exactly. If you control both sides (i.e. you populate the patient data and curate the trial CTML), consistency is easy to maintain.
+
+## Adding a new clinical field
+
+Same pattern, but under `ctml_collection_mappings.clinical.trial_key_mappings`. MatchMiner will query the `clinical` collection instead of `genomic`. Also add the field to `MMClinical` in `src/ctm/schemas/matchminer/patient.py` and populate it from the patient Excel template.
+
+**Example — patient stage:**
+```json
+"STAGE": {
+  "sample_key": "STAGE",
+  "sample_value": "nomap"
+}
+```
+
+## Adding a field with a custom value transform
+
+When source data uses inconsistent representations of the same value, use a named transform function instead of `"nomap"`. The function is defined in `matchengine/plugins/DFCIQueryTransformers.py` and translates the trial's criterion value into the MongoDB query before matching.
+
+**Example — `REVERSE_KEY` field that reverses a string before matching:**
+
+In `dfci_config.json`:
+```json
+"REVERSE_KEY": {
+  "sample_key": "REVERSE_KEY",
+  "sample_value": "reverse_map"
+}
+```
+
+In `DFCIQueryTransformers.py`, add a method to the transformers class:
+```python
+def reverse_map(self, sample_value, trial_value):
+    return {"REVERSE_KEY": trial_value[::-1]}
+```
+
+A trial with `"reverse_key": "olleh"` would then match a patient whose `REVERSE_KEY` field is `"hello"`. In practice, transforms are used to normalize value variants — e.g. `"MSI-High"`, `"MSI_H"`, and `"MSI-H"` all resolving to the same canonical match — rather than to reverse strings, but the mechanism is identical.
+
+## How patient data enters the match
+
+Patient data never flows through the Python transform layer. The actual match works in three steps:
+
+1. **Transform function** — receives only the trial's criterion value and returns a MongoDB query object, e.g. `{ MMR_STATUS: "Deficient (MMR-D / MSI-H)" }`
+2. **Engine** — appends a `$in: [clinical_ids]` filter to that query and fires it directly at MongoDB
+3. **MongoDB** — executes the comparison against stored patient documents and returns matching IDs
+
+The transform function has no knowledge of any specific patient. It only translates trial language into MongoDB query syntax. The patient document is a MongoDB concern exclusively.
+
+## Current limitations of the transform layer
+
+Because transform functions only receive the trial's criterion value and never see the patient document, any eligibility criterion whose threshold depends on other patient fields cannot be expressed in CTML and must be flagged for manual clinician review.
+
+**Examples of criteria that cannot be automated:**
+
+- *Serum creatinine by age/gender table* — the acceptable creatinine threshold varies by both age and gender. Evaluating this requires knowing the patient's age and gender at query time, which the transform function cannot access.
+- *Lab value ≤ 1.5x ULN* — the upper limit of normal (ULN) is age-dependent, so `1.5x ULN` is not a fixed number. A fixed approximation (e.g. adult ULN) will be wrong for pediatric patients.
+
+The general pattern: any criterion of the form *"threshold depends on [other patient attribute]"* falls outside what the plugin layer can handle without custom engine-level code. These criteria are preserved in `eligibility.inclusion` and `eligibility.exclusion` for human review, which is why that field is kept even though it is not wired into the match tree.
+
+**Exception — age/gender-conditional thresholds can be expressed as a large `or` block:**
+
+Rather than requiring a custom transform, each row of a lookup table (e.g. serum creatinine by age and gender) becomes one `and` branch inside an `or`. No new engine code is needed — only a new clinical field (e.g. `CREATININE`) with a range transform, and verbose but correct CTML curation:
+
+```json
+{
+  "match": [
+    {
+      "or": [
+        {
+          "and": [
+            { "clinical": { "age_numerical": ">=1", "age_numerical": "<6" } },
+            { "clinical": { "creatinine": "<=0.8" } }
+          ]
+        },
+        {
+          "and": [
+            { "clinical": { "age_numerical": ">=6", "age_numerical": "<10" } },
+            { "clinical": { "creatinine": "<=1.0" } }
+          ]
+        },
+        {
+          "and": [
+            { "clinical": { "age_numerical": ">=16", "gender": "Male" } },
+            { "clinical": { "creatinine": "<=1.7" } }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+8 age bands × 2 genders = up to 16 `and` branches, but it is fully correct and requires no engine changes — just verbose curation.
 
 # TODO
 
