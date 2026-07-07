@@ -16,8 +16,6 @@ from pathlib import Path
 
 
 def main() -> None:
-    from dotenv import load_dotenv
-    load_dotenv()
 
     parser = argparse.ArgumentParser(
         prog="ctm-mm",
