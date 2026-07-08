@@ -154,23 +154,54 @@ MatchMiner expects each document to conform to CTML format. See the [MatchMiner 
 
 ## Setup
 
-### Installation
+### Docker (recommended)
+
+The easiest way to run the full stack (app + MongoDB) is Docker Compose:
 
 ```bash
-uv pip install -r requirements.txt --python .venv/bin/python
+# Build and start app + MongoDB
+docker-compose up --build
+
+# Open a shell in the app container
+docker-compose exec app bash
+
+# Run a command directly
+docker-compose exec app ctm-mm --help
+
+# Stop containers (data persists)
+docker-compose down
+
+# Stop and wipe MongoDB data
+docker-compose down -v
+```
+
+MongoDB data is stored in a named Docker volume (`ctm-report-preview_mongo_data`) and survives container restarts. To inspect it:
+
+```bash
+docker volume ls
+docker volume inspect ctm-report-preview_mongo_data
+
+# Open a mongo shell
+docker-compose exec mongo mongosh
+```
+
+### Local installation
+
+```bash
+uv pip install "ctm-toolkit[report]"
+uv pip install "git+https://github.com/wintermutant/matchengine-V2"
+```
+
+On macOS, WeasyPrint also needs the native Pango library:
+
+```bash
+brew install pango
 ```
 
 ### Running tests
 
 ```bash
 .venv/bin/python -m pytest
-```
-
-On macOS, WeasyPrint also needs the native Pango library, which isn't installed
-by default:
-
-```bash
-brew install pango
 ```
 
 ### Disclaimer about MatchMiner and MongoDB

@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app        # mount repo so changes reflect without rebuilding
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_HOST=mongo
+      - MONGO_PORT=27017
+    stdin_open: true
+    tty: true
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"  # expose to host for local inspection
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
