@@ -8,7 +8,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 # Step 1: Normalize patient data from Excel template
 ctm-mm patients <patient_data_template.xlsx> --pt-uuid 1234 --out pt_1234.json
 
-# Step 2: Normalize trial data from AMC XML or ClinicalTrials.gov
+# Step 2: Normalize trial data from AMC's XML, Sparrow/West's XLSX, or ClinicalTrials.gov JSON
 ctm-mm trials --amc <amc_trials.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out trials.json
 
 # Note - We can also fetch trials directly from ClinicalTrials.gov without any template:
@@ -17,20 +17,24 @@ ctm-fetch --nct NCT03067181 --output nct-raw.json
 # Step 2.5 (alternate): Normalize clinicaltrials.gov data to matchminer (mm)
 ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm
 
-# Step 3
-# Ensure you do the MANUAL PROCESSING from the normalized format to MATCHMINER!!!
+# Step 3: Run the LLM to help match MatchMiner's Clinical Trial Markup Language (CTML) format
+# Below, ensure you have .env with UMGPT_API_KEY=, UMGPT_BASE_URL=, and UMGPT_MODEL=
+ctm-ctml --trials nct-normalized.json --out ctml-draft.json --limit 2
+
+# Step 4: **Manual Processing**
+# Ensure you do the **manual processing** from the normalized format to MATCHMINER!!!
 # This involves translating text eligiblity criteria into MatcherMiner format
 
-# Step 4: Load trial data into MatchMiner
-python -m matchengine.main load -t trials.json --trial-format json --db test
+# Step 5: Load trial data into MatchMiner
+python -m matchengine.main load -t ctml-draft-manually-edited.json --trial-format json --db test
 
-# Step 5: Run MatchMiner
+# Step 6: Run MatchMiner
 python -m Matcher.main --config source/Matcher/config/config.json
 
-# Step 6: Export match results from MatchMiner's Mongo database
+# Step 7: Export match results from MatchMiner's Mongo database
 SECRETS_JSON=SECRETS_JSON.json python export_matches.py --patient 7439568 --output export/ --db v1
 
-# Step 7: Build report from match results
+# Step 8: Build report from match results
 ctm-report --pt data/patient.json --matches data/matchminer_export.json --engine mm --out output.pdf
 ```
 
