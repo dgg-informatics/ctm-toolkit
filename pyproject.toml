@@ -37,9 +37,15 @@ preview = [
     "weasyprint",
     "livereload",
 ]
+llm = [
+    "openai",
+    "python-dotenv",
+]
 all = [
     "weasyprint",
     "livereload",
+    "openai",
+    "python-dotenv",
 ]
 
 [project.scripts]
@@ -47,6 +53,7 @@ ctm-mm = "ctm.mm_cli:main"
 ctm-report = "ctm.report_cli:main"
 ctm-fetch = "ctm.fetch_cli:main"
 ctm-meta = "ctm.meta_cli:main"
+ctm-ctml = "ctm.ctml_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ctm"]
