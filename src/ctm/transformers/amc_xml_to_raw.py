@@ -42,11 +42,23 @@ def _text(element: ET.Element, tag: str) -> str | None:
     return cleaned or None
 
 
+def _parse_categories(proto: ET.Element) -> list[dict]:
+    cats = []
+    for cat_el in proto.findall("CATEGORYS/CATEGORY"):
+        c1 = (cat_el.findtext("CAT1") or "").strip()
+        c2 = (cat_el.findtext("CAT2") or "").strip()
+        c3 = (cat_el.findtext("CAT3") or "").strip()
+        if c1:
+            cats.append({"cat1": c1, "cat2": c2, "cat3": c3})
+    return cats
+
+
 def load(path: str | Path) -> list[RawAMCTrial]:
     """Parse *path* and return one RawAMCTrial per <PROTOCOL> element."""
     root = ET.parse(path).getroot()
     trials: list[RawAMCTrial] = []
     for proto in root.findall("PROTOCOL"):
-        raw = {field: _text(proto, xml_tag) for field, xml_tag in _TAG_MAP.items()}
+        raw = {field: _text(proto, xml_tag) for field, xml_tag in _TAG_MAP.items() if field != "categorys"}
+        raw["categorys"] = _parse_categories(proto)
         trials.append(RawAMCTrial.model_validate(raw))
     return trials

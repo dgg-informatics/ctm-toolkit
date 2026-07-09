@@ -285,5 +285,5 @@ class RawAMCTrial(BaseModel):
     summary4_type: str | None = None            # <SUMMARY4_TYPE>
     octsu_genes_interest: str | None = None     # <OCTSU_GENES_INTEREST> (free-text gene names)
     eligibility: str | None = None              # <ELIGIBILITY> (||~-delimited free text)
-    categorys: str | None = None                # <CATEGORYS>
+    categorys: list[dict] = Field(default_factory=list)  # <CATEGORYS> parsed as [{cat1,cat2,cat3}]
     satellite_sites: str | None = None          # <SATELLITE_SITES>
