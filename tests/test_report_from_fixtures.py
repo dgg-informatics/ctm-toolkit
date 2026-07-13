@@ -65,9 +65,9 @@ def test_primary_match_trial_data_from_trials_fixture(patient_matches, trials_by
     assert trial_rows["Phase"] == expected["phase"]
 
 
-def test_render_html_from_fixture_bundle_smoke():
-    from ctm.reports.builder import render_html_from_fixture_bundle
-    html = render_html_from_fixture_bundle(
+def test_render_html_from_pt_trials_matches_smoke():
+    from ctm.reports.builder import render_html_from_pt_trials_matches
+    html = render_html_from_pt_trials_matches(
         str(FIXTURES / "test-pts-v0.0.1.json"),
         str(FIXTURES / "test-trials-v0.0.1.json"),
         str(FIXTURES / "test-matches-v0.0.1.json"),
