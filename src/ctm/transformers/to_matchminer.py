@@ -112,7 +112,7 @@ def to_clinical(
         "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": patient.oncotree_primary_diagnosis,
         "PRIMARY_DIAGNOSIS_RAW": patient.primary_dx,
         "BIRTH_DATE": patient.dob.isoformat() if patient.dob else None,
-        "VITAL_STATUS": patient.vital_status or "Alive",
+        "VITAL_STATUS": patient.vital_status or "alive",
         "GENDER": _normalize_gender(patient.sex),
         "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": tmb,
         "REPORT_DATE": report_date,

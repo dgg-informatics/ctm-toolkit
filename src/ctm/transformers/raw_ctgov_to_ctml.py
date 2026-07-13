@@ -154,26 +154,31 @@ def _parse_eligibility(criteria: str | None) -> CtmlEligibility:
     return CtmlEligibility(inclusion=inclusion, exclusion=exclusion)
 
 
-def _age_match_criteria(minimum_age: str | None, gender: str | None) -> list[dict]:
-    """Build clinical match node from age and gender where available."""
+def _age_match_criteria(minimum_age: str | None, gender: str | None, conditions: list[str]) -> list[dict]:
+    """Build clinical match nodes from age, gender, and conditions where available."""
+    from .oncotree_mapping import ctgov_conditions_to_oncotree, diagnoses_to_match_node
+    nodes: list[dict] = []
     clinical: dict = {}
     age_constraint = _parse_minimum_age(minimum_age)
     if age_constraint:
         clinical["age_numerical"] = age_constraint
     if gender and gender != "All":
         clinical["gender"] = gender
-    if not clinical:
-        return []
-    return [{"clinical": clinical}]
+    if clinical:
+        nodes.append({"clinical": clinical})
+    diagnosis_node = diagnoses_to_match_node(ctgov_conditions_to_oncotree(conditions))
+    if diagnosis_node:
+        nodes.append(diagnosis_node)
+    return nodes
 
 
-def _build_treatment_list(minimum_age: str | None, gender: str | None) -> CtmlTreatmentList:
+def _build_treatment_list(minimum_age: str | None, gender: str | None, conditions: list[str]) -> CtmlTreatmentList:
     return CtmlTreatmentList(
         step=[CtmlStep(
             step_internal_id=1,
             step_code="1",
             step_type="Registration",
-            match=_age_match_criteria(minimum_age, gender),
+            match=_age_match_criteria(minimum_age, gender, conditions),
             arm=[CtmlArm(
                 arm_internal_id=1,
                 arm_code="ARM 1",
@@ -219,7 +224,7 @@ def to_ctml(trial: RawCTGovTrial) -> ClinicalTrialNormalized:
         nct_id=trial.nct_id,
         status=status,
         entity="ctgov",
-        treatment_list=_build_treatment_list(trial.minimum_age, gender),
+        treatment_list=_build_treatment_list(trial.minimum_age, gender, trial.conditions),
         eligibility=_parse_eligibility(trial.eligibility_criteria),
         summary=_build_summary(trial, status, phase, age_group, gender),
         raw=trial.model_dump(),
