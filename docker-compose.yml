@@ -14,7 +14,7 @@ services:
   mongo:
     image: mongo:7
     ports:
-      - "27017:27017"  # expose to host for local inspection
+      - "27018:27017"  # expose to host for local inspection
     volumes:
       - mongo_data:/data/db
 
