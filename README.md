@@ -34,8 +34,8 @@ python -m Matcher.main --config source/Matcher/config/config.json
 # Step 7: Export match results from MatchMiner's Mongo database
 SECRETS_JSON=SECRETS_JSON.json python export_matches.py --patient 7439568 --output export/ --db v1
 
-# Step 8: Build report from match results
-ctm-report --pt data/patient.json --matches data/matchminer_export.json --engine mm --out output.pdf
+# Step 8: Build report from patient, trial, and match collections
+ctm-report --pts data/patient.json --trials trials.json --matches data/matchminer_export.json --sample-id 7439568 --out output.pdf
 ```
 
 ### Warning for Patient and Clinical Trial Data
@@ -219,27 +219,51 @@ When we run `$ python -m Matcher.main ...`, this connects to the database and ma
 
 ## Build a report
 
-To build a PDF report from the mock data:
+There is exactly one way to build a report: from a patient collection, a
+trial collection, and a flat `trial_match` collection, for one `--sample-id`
+at a time. To build a PDF report from the versioned test fixtures:
 
 ```bash
-$ ctm-report --pt data/mock/pt-data.json --matches data/mock/mm-matches.json --engine mm --out output.pdf
+$ ctm-report \
+    --pts tests/fixtures/test-pts-v0.0.1.json \
+    --trials tests/fixtures/test-trials-v0.0.1.json \
+    --matches tests/fixtures/test-matches-v0.0.1.json \
+    --sample-id 8 \
+    --out output.pdf
 ```
 
-The data/mock/pt-data.json file follows the same format that is output from `ctm-mm patients <patient_data_template.xlsx> --out pt-data.json`. This is MatchMiner-normalized data that is in JSON with 3 high-level keys: i) clinical ii) genomic iii) extras. The schema can be found at *src/ctm/schemas/matchminer/patient.py* in `MMClinical` and `MMGenomic`. The report actually only ever touches the *extras* sub-key, since all the rest of the data can come from the MatchMiner match output.
+`--pts` follows the same format output by `ctm-mm patients <xlsx> --out pts.json`
+— MatchMiner-normalized JSON with 3 top-level keys: i) `clinical` ii) `genomic`
+iii) `extras`. The report only ever reads `extras.patients[SAMPLE_ID]` for
+name/MRN/entity/metastasis-site fields; everything else comes from the trial
+and match collections.
 
-The data/mock/mm-matches.json file follows the schema found in *src/ctm/schemas/matchminer/trial_match.py*, specifically in the model `MMTrialMatchExport`. It is the JSON export produced by MatchMiner after running the matching engine against a patient. It has 3 top-level keys: i) pt_uuid ii) clinical (a minimal patient reference with SAMPLE_ID, MRN, etc.) and iii) trial_match (a list of match records). The primary match is selected by preferring match_level: arm over step, then reason_type: genomic over clinical, then sort_order. All remaining unique trials appear as secondary matches.
+`--trials` is the output of `ctm-mm trials` (see `ClinicalTrialNormalized` in
+*src/ctm/schemas/matchminer/clinical_trial.py*) — a flat list of trial
+documents, keyed by `protocol_no`.
 
+`--matches` is a flat list of `trial_match` documents (the real MatchMiner
+`trial_match` Mongo collection, or an export of it) — one entry per
+patient/trial/reason combination, filtered internally to the given
+`--sample-id`. The primary match is selected by preferring `match_level: arm`
+over `step`, then `reason_type: genomic` over `clinical`, then `sort_order`.
+All other trials referenced by that patient's matches appear as secondary
+matches.
 
 For a live preview in your browser:
 
 ```bash
-$ ctm-report --pt data/mock/pt-data.json --matches data/mock/mm-matches.json --engine mm --preview
+$ ctm-report \
+    --pts tests/fixtures/test-pts-v0.0.1.json \
+    --trials tests/fixtures/test-trials-v0.0.1.json \
+    --matches tests/fixtures/test-matches-v0.0.1.json \
+    --sample-id 8 \
+    --preview
 ```
 
 This opens a browser tab at `http://localhost:5500/report.html`. Any edit to a
-template in `templates/`, the stylesheet in `static/report.css`, or the active
-data directory (`data/mock/` or `data/real/`, depending on the flag)
-automatically re-renders the report and refreshes the page.
+template in `templates/`, the stylesheet in `static/report.css`, or any of the
+three input files automatically re-renders the report and refreshes the page.
 
 
 # Project layout
@@ -250,8 +274,7 @@ automatically re-renders the report and refreshes the page.
 - `templates/` - `report.html` is the base page, `_*.html` are the per-section includes
 - `static/report.css` - shared styling, including the `@page` rule for PDF page size/margins
 - `src/ctm/reports/builder.py` - loads JSON data and renders the Jinja2 template to HTML
-- `preview.py` - live-reload dev server
-- `build_pdf.py` - renders the HTML and exports it to PDF via WeasyPrint
+- `src/ctm/report_cli.py` - the `ctm-report` CLI; builds a PDF or serves a live-reload preview
 
 ## Data directories
 

@@ -1,0 +1,323 @@
+{
+  "clinical": [
+    {
+      "SAMPLE_ID": "1",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Seminoma",
+      "PRIMARY_DIAGNOSIS_RAW": "seminoma",
+      "BIRTH_DATE": "1950-02-28",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Male",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066747+00:00"
+    },
+    {
+      "SAMPLE_ID": "2",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "B-Lymphoblastic Leukemia/Lymphoma",
+      "PRIMARY_DIAGNOSIS_RAW": "BLL",
+      "BIRTH_DATE": "1972-12-14",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Male",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066771+00:00"
+    },
+    {
+      "SAMPLE_ID": "3",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Neuroblastoma",
+      "PRIMARY_DIAGNOSIS_RAW": "neuroblastoma",
+      "BIRTH_DATE": "2015-02-19",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Male",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066778+00:00"
+    },
+    {
+      "SAMPLE_ID": "4",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Breast",
+      "PRIMARY_DIAGNOSIS_RAW": "breast",
+      "BIRTH_DATE": "1951-01-25",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Male",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066787+00:00"
+    },
+    {
+      "SAMPLE_ID": "5",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Liver",
+      "PRIMARY_DIAGNOSIS_RAW": "liver",
+      "BIRTH_DATE": "1982-07-14",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Male",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066794+00:00"
+    },
+    {
+      "SAMPLE_ID": "6",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Thyroid",
+      "PRIMARY_DIAGNOSIS_RAW": "thyroid",
+      "BIRTH_DATE": "1992-02-19",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Female",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066799+00:00"
+    },
+    {
+      "SAMPLE_ID": "7",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Acute Myeloid Leukemia",
+      "PRIMARY_DIAGNOSIS_RAW": "aml",
+      "BIRTH_DATE": "2015-10-10",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Female",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066807+00:00"
+    },
+    {
+      "SAMPLE_ID": "8",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Pancreatic Adenocarcinoma",
+      "PRIMARY_DIAGNOSIS_RAW": "pancreatic adenocarcinoma",
+      "BIRTH_DATE": "2000-08-14",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Female",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066817+00:00"
+    },
+    {
+      "SAMPLE_ID": "9",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Pancreatic Adenocarcinoma",
+      "PRIMARY_DIAGNOSIS_RAW": "pancreatic adenocarcinoma",
+      "BIRTH_DATE": "1988-11-29",
+      "VITAL_STATUS": "alive",
+      "GENDER": "Female",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+      "REPORT_DATE": null,
+      "_updated": "2026-07-13T17:14:37.066824+00:00"
+    }
+  ],
+  "genomic": [
+    {
+      "SAMPLE_ID": "7",
+      "TRUE_HUGO_SYMBOL": "FLT3",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-07-13T17:14:37.066809+00:00"
+    },
+    {
+      "SAMPLE_ID": "8",
+      "TRUE_HUGO_SYMBOL": "BRCA2",
+      "VARIANT_CATEGORY": "MUTATION",
+      "WILDTYPE": false,
+      "_updated": "2026-07-13T17:14:37.066819+00:00"
+    }
+  ],
+  "extras": {
+    "patients": {
+      "1": {
+        "patient": {
+          "pt_uuid": 111,
+          "mrn": "1",
+          "first_name": "Spider",
+          "last_name": "Man",
+          "dob": "1950-02-28",
+          "sex": "male",
+          "vital_status": null,
+          "entity": "AMC",
+          "primary_dx": "seminoma",
+          "oncotree_primary_diagnosis": "Seminoma",
+          "metastasis_sites": [
+            "bone",
+            "liver",
+            "breast"
+          ]
+        },
+        "reports": []
+      },
+      "2": {
+        "patient": {
+          "pt_uuid": 112,
+          "mrn": "2",
+          "first_name": "Karl",
+          "last_name": "Marx",
+          "dob": "1972-12-14",
+          "sex": "male",
+          "vital_status": null,
+          "entity": "AMC",
+          "primary_dx": "BLL",
+          "oncotree_primary_diagnosis": "B-Lymphoblastic Leukemia/Lymphoma",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": []
+      },
+      "3": {
+        "patient": {
+          "pt_uuid": 113,
+          "mrn": "3",
+          "first_name": "Donald",
+          "last_name": "Trump",
+          "dob": "2015-02-19",
+          "sex": "male",
+          "vital_status": null,
+          "entity": "West",
+          "primary_dx": "neuroblastoma",
+          "oncotree_primary_diagnosis": "Neuroblastoma",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": []
+      },
+      "4": {
+        "patient": {
+          "pt_uuid": 114,
+          "mrn": "4",
+          "first_name": "Harry",
+          "last_name": "Houdini",
+          "dob": "1951-01-25",
+          "sex": "male",
+          "vital_status": null,
+          "entity": "Sparrow",
+          "primary_dx": "breast",
+          "oncotree_primary_diagnosis": "Breast",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": []
+      },
+      "5": {
+        "patient": {
+          "pt_uuid": 115,
+          "mrn": "5",
+          "first_name": "Chris",
+          "last_name": "Angel",
+          "dob": "1982-07-14",
+          "sex": "male",
+          "vital_status": null,
+          "entity": "Sparrow",
+          "primary_dx": "liver",
+          "oncotree_primary_diagnosis": "Liver",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": []
+      },
+      "6": {
+        "patient": {
+          "pt_uuid": 116,
+          "mrn": "6",
+          "first_name": "Kobe",
+          "last_name": "Beef",
+          "dob": "1992-02-19",
+          "sex": "female",
+          "vital_status": null,
+          "entity": "AMC",
+          "primary_dx": "thyroid",
+          "oncotree_primary_diagnosis": "Thyroid",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": []
+      },
+      "7": {
+        "patient": {
+          "pt_uuid": 117,
+          "mrn": "7",
+          "first_name": "Jenny",
+          "last_name": "Bloomers",
+          "dob": "2015-10-10",
+          "sex": "female",
+          "vital_status": null,
+          "entity": "West",
+          "primary_dx": "aml",
+          "oncotree_primary_diagnosis": "Acute Myeloid Leukemia",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": [
+          {
+            "source": "x",
+            "test_name": "x",
+            "accession_no": "x",
+            "physician": "x",
+            "date_completed": null,
+            "findings": [
+              {
+                "gene": "FLT3",
+                "protein": null,
+                "nucleotide": null,
+                "variant_type": "mutation",
+                "result_summary": null,
+                "raw": {}
+              }
+            ]
+          }
+        ]
+      },
+      "8": {
+        "patient": {
+          "pt_uuid": 118,
+          "mrn": "8",
+          "first_name": "Maria",
+          "last_name": "Emo",
+          "dob": "2000-08-14",
+          "sex": "female",
+          "vital_status": null,
+          "entity": "AMC",
+          "primary_dx": "pancreatic adenocarcinoma",
+          "oncotree_primary_diagnosis": "Pancreatic Adenocarcinoma",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": [
+          {
+            "source": "y",
+            "test_name": "y",
+            "accession_no": "y",
+            "physician": "y",
+            "date_completed": null,
+            "findings": [
+              {
+                "gene": "BRCA2",
+                "protein": null,
+                "nucleotide": null,
+                "variant_type": "mutation",
+                "result_summary": null,
+                "raw": {}
+              }
+            ]
+          }
+        ]
+      },
+      "9": {
+        "patient": {
+          "pt_uuid": 119,
+          "mrn": "9",
+          "first_name": "Monkey",
+          "last_name": "Bananabones",
+          "dob": "1988-11-29",
+          "sex": "female",
+          "vital_status": null,
+          "entity": "Sparrow",
+          "primary_dx": "pancreatic adenocarcinoma",
+          "oncotree_primary_diagnosis": "Pancreatic Adenocarcinoma",
+          "metastasis_sites": [
+            "NA"
+          ]
+        },
+        "reports": []
+      }
+    }
+  }
+}
