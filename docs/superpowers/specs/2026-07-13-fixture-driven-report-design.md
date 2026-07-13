@@ -60,10 +60,11 @@ existing single-patient callers, which never pass one).
 
 Then regenerate `tests/fixtures/test-pts-v0.0.1.json` by rerunning `ctm-mm
 patients` against `data/dump/08Jul26/test-pts-v0.0.1.xlsx` with the fixed
-code, and merge in the hand-added `SAMPLE_ID "10"` all-null edge-case row
-(not present in the source xlsx, used only for null-handling shape tests —
-not referenced by any match, so dropping it isn't a matching-behavior risk,
-but it's kept to preserve existing test coverage).
+code. (At implementation time the on-disk fixture had already been
+regenerated from the same xlsx outside this session and no longer had the
+`SAMPLE_ID "10"` all-null edge-case row seen earlier in this file's history —
+so there was nothing to merge back in; the regenerated fixture is a clean,
+direct rerun.)
 
 ### Trimming
 
@@ -94,16 +95,24 @@ load_context_from_flat_matches(matches: list[dict], sample_id: str, trials_by_pr
     Reuses existing _select_primary_match / _build_other_matches /
     _build_primary_match_context — their field expectations already match
     test-matches-v0.0.1.json's shape.
-    NEW: _build_primary_match_context and _build_other_matches take an
-    optional trial lookup (protocol_no -> trial dict) and pull
-    short_title/phase/investigator/disease_keywords from trial["_summary"]
-    to replace the hardcoded mock trial-name/therapy strings.
+    NEW: _build_primary_match_context takes an optional trial dict and pulls
+    long_title/phase/investigator from trial["_summary"] into the primary
+    match's trial rows (the template renders these generically, no template
+    change needed). _build_other_matches is untouched — its table has no
+    column for trial-name data and the "other matches" list isn't part of
+    what this round validates, so threading trial data through it is
+    deferred rather than adding an unused field.
 
 render_html_from_fixture_bundle(pts_path: str, trials_path: str, matches_path: str, sample_id: str) -> str
     Loads all three files, trims to sample_id, builds full context via the
     two functions above, renders through the existing Jinja template/CSS
     (same pattern as the other render_html_from_* orchestrators).
 ```
+
+Adding a third near-identical Jinja-render block prompted pulling the
+env/template/css boilerplate shared by all three `render_html_from_*`
+functions into one `_render_report(ctx, sample_id)` helper — a small,
+targeted dedup rather than a third copy-paste.
 
 ### Primary-match selection worked example (patient `"8"`)
 

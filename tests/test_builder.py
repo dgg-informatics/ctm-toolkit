@@ -148,38 +148,42 @@ def _make_normalized_json(tmp_path):
             {"SAMPLE_ID": "302939", "TRUE_HUGO_SYMBOL": "ERBB2", "VARIANT_CATEGORY": "MUTATION"}
         ],
         "extras": {
-            "patient": {
-                "pt_uuid": 0,
-                "mrn": "000000",
-                "first_name": "Dane",
-                "last_name": "Doe",
-                "dob": None,
-                "sex": None,
-                "vital_status": None,
-                "entity": "AMC",
-                "primary_dx": "mid-rectal adenocarcinoma",
-                "oncotree_primary_diagnosis": "READ",
-                "metastasis_sites": ["liver", "bone"],
-            },
-            "reports": [
-                {
-                    "source": "tempus",
-                    "test_name": "xT CDx",
-                    "accession_no": "TL-26-001",
-                    "physician": "Dr. Smith",
-                    "date_completed": "2026-03-07",
-                    "findings": [
+            "patients": {
+                "000000": {
+                    "patient": {
+                        "pt_uuid": 0,
+                        "mrn": "000000",
+                        "first_name": "Dane",
+                        "last_name": "Doe",
+                        "dob": None,
+                        "sex": None,
+                        "vital_status": None,
+                        "entity": "AMC",
+                        "primary_dx": "mid-rectal adenocarcinoma",
+                        "oncotree_primary_diagnosis": "READ",
+                        "metastasis_sites": ["liver", "bone"],
+                    },
+                    "reports": [
                         {
-                            "gene": "ERBB2",
-                            "protein": "p.T733I",
-                            "nucleotide": None,
-                            "variant_type": "somatic_mutation",
-                            "result_summary": "53.2% VAF",
-                            "raw": {"raw_test": "ERBB2 (HER2) p.T733I", "raw_result": "53.2% VAF"},
+                            "source": "tempus",
+                            "test_name": "xT CDx",
+                            "accession_no": "TL-26-001",
+                            "physician": "Dr. Smith",
+                            "date_completed": "2026-03-07",
+                            "findings": [
+                                {
+                                    "gene": "ERBB2",
+                                    "protein": "p.T733I",
+                                    "nucleotide": None,
+                                    "variant_type": "somatic_mutation",
+                                    "result_summary": "53.2% VAF",
+                                    "raw": {"raw_test": "ERBB2 (HER2) p.T733I", "raw_result": "53.2% VAF"},
+                                }
+                            ],
                         }
                     ],
-                }
-            ],
+                },
+            },
         },
     }
     path = tmp_path / "normalized_pt.json"

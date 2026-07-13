@@ -54,36 +54,38 @@ def main() -> None:
 
 
 def _build_extras(patients: list, metadata: list, findings: list) -> dict:
-    if not patients:
-        return {}
-    patient = patients[0]
-    pt_uuid = patient.pt_uuid
+    patients_out = {}
+    for patient in patients:
+        pt_uuid = patient.pt_uuid
+        sample_id = patient.mrn or str(patient.pt_uuid)
 
-    findings_by_report: dict[int, list] = {}
-    for f in [f for f in findings if f.pt_uuid == pt_uuid]:
-        findings_by_report.setdefault(f.report_uuid, []).append({
-            "gene": f.gene,
-            "protein": f.protein,
-            "nucleotide": f.nucleotide,
-            "variant_type": f.variant_type,
-            "result_summary": f.result_summary,
-            "raw": f.raw,
-        })
+        findings_by_report: dict[int, list] = {}
+        for f in [f for f in findings if f.pt_uuid == pt_uuid]:
+            findings_by_report.setdefault(f.report_uuid, []).append({
+                "gene": f.gene,
+                "protein": f.protein,
+                "nucleotide": f.nucleotide,
+                "variant_type": f.variant_type,
+                "result_summary": f.result_summary,
+                "raw": f.raw,
+            })
 
-    pt_metadata = [m for m in metadata if m.pt_uuid == pt_uuid]
-    reports = [
-        {
-            "source": m.source,
-            "test_name": m.test_name,
-            "accession_no": m.accession_no,
-            "physician": m.physician,
-            "date_completed": m.date_completed.isoformat() if m.date_completed else None,
-            "findings": findings_by_report.get(m.report_uuid, []),
-        }
-        for m in pt_metadata
-    ]
+        pt_metadata = [m for m in metadata if m.pt_uuid == pt_uuid]
+        reports = [
+            {
+                "source": m.source,
+                "test_name": m.test_name,
+                "accession_no": m.accession_no,
+                "physician": m.physician,
+                "date_completed": m.date_completed.isoformat() if m.date_completed else None,
+                "findings": findings_by_report.get(m.report_uuid, []),
+            }
+            for m in pt_metadata
+        ]
 
-    return {"patient": patient.model_dump(), "reports": reports}
+        patients_out[sample_id] = {"patient": patient.model_dump(), "reports": reports}
+
+    return {"patients": patients_out}
 
 
 def _cmd_raw_to_mm(args) -> None:

@@ -1,0 +1,1762 @@
+[
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f041"
+    },
+    "sample_id": "1",
+    "oncotree_primary_diagnosis_name": "Seminoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76126fbf56b37094347"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 2,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "072828fae14bf9a16c79a6145b72999b24a87eb0",
+    "protocol_no": "2017.130",
+    "nct_id": "NCT03067181",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "482f404da5d3a06d2728ec4a820215966caf6398",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "053789ba314469f7d15828ac407385d8675eb7cd",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.847Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f04c"
+    },
+    "sample_id": "2",
+    "oncotree_primary_diagnosis_name": "B-Lymphoblastic Leukemia/Lymphoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76227535ba01e063b1a"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "4f7dbe8f25f3dc7f636a8ef0a5e4bd6beaa9032e",
+    "protocol_no": "2017.115",
+    "nct_id": "NCT02981628",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "70737f14e49c4c97c253a3d3d2f4364f21d2b5b0",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "7bb8609ec0ae0668d9baa3bd3c3ad36ddff3ca76",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.860Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f04e"
+    },
+    "sample_id": "3",
+    "oncotree_primary_diagnosis_name": "Neuroblastoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e762723d334fc55be568"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 2,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "38d7bea27b93c276a6a66340d4cee1089be83097",
+    "protocol_no": "2018.117",
+    "nct_id": "NCT03126916",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "234a1a819f7c6ac0951cea37135b1149aa492f90",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "9f58584b7bbf57f827353bd685092274a07ab1a0",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.863Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f04f"
+    },
+    "sample_id": "3",
+    "oncotree_primary_diagnosis_name": "Neuroblastoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e762723d334fc55be568"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "38d7bea27b93c276a6a66340d4cee1089be83097",
+    "protocol_no": "2018.117",
+    "nct_id": "NCT03126916",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "234a1a819f7c6ac0951cea37135b1149aa492f90",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "1f3e41e98f84e59b69a2b798dbb3cee073b969be",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.863Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f052"
+    },
+    "sample_id": "4",
+    "oncotree_primary_diagnosis_name": "Breast",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76305af6a7ddf260c55"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2015.063",
+    "nct_id": "NCT02445222",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "90cb49cf6fd0b9c7889f59328fc88cbd552ae340",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "670bbc743f15162822267091ad822ec433df0c46",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.867Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f053"
+    },
+    "sample_id": "6",
+    "oncotree_primary_diagnosis_name": "Thyroid",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76407200c6b0ccd84a9"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2015.063",
+    "nct_id": "NCT02445222",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "90cb49cf6fd0b9c7889f59328fc88cbd552ae340",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "d714abf34ec731e1be6a3e13fcf64df6545b2226",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.867Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f054"
+    },
+    "sample_id": "8",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766d3ae38ba1f118718"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2015.063",
+    "nct_id": "NCT02445222",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "90cb49cf6fd0b9c7889f59328fc88cbd552ae340",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "1ee481c6289385b8d98e7419033dae7c44fa239d",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.867Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f055"
+    },
+    "sample_id": "5",
+    "oncotree_primary_diagnosis_name": "Liver",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76439fad494cfbf5d95"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2015.063",
+    "nct_id": "NCT02445222",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "90cb49cf6fd0b9c7889f59328fc88cbd552ae340",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "36781957b6f49569a91dc8b46053adea5e42e9bb",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.867Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f056"
+    },
+    "sample_id": "1",
+    "oncotree_primary_diagnosis_name": "Seminoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76126fbf56b37094347"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2015.063",
+    "nct_id": "NCT02445222",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "90cb49cf6fd0b9c7889f59328fc88cbd552ae340",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "105397f483deed436b94f4f346582711f2b2393d",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.867Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f057"
+    },
+    "sample_id": "2",
+    "oncotree_primary_diagnosis_name": "B-Lymphoblastic Leukemia/Lymphoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76227535ba01e063b1a"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2015.063",
+    "nct_id": "NCT02445222",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "90cb49cf6fd0b9c7889f59328fc88cbd552ae340",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "3441ac2d246cf60403c7855084c76bb3fe3a16a8",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.867Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f058"
+    },
+    "sample_id": "9",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766c3a09764060209d8"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2015.063",
+    "nct_id": "NCT02445222",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "90cb49cf6fd0b9c7889f59328fc88cbd552ae340",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "fc55d81b7fe032d472108b5dfb3de6aec561f67a",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.867Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f05b"
+    },
+    "sample_id": "4",
+    "oncotree_primary_diagnosis_name": "Breast",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76305af6a7ddf260c55"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d25ce2715bcd92d3e8afb9652af215efea2016c4",
+    "protocol_no": "2017.153",
+    "nct_id": "NCT03418961",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "22398ea231ec6e3780357267f93ac78d7405b602",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "a9cc71893c65e6f3c45648ae428a94895865a3eb",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.875Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f05c"
+    },
+    "sample_id": "4",
+    "oncotree_primary_diagnosis_name": "Breast",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76305af6a7ddf260c55"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d25ce2715bcd92d3e8afb9652af215efea2016c4",
+    "protocol_no": "2017.153",
+    "nct_id": "NCT03418961",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "22398ea231ec6e3780357267f93ac78d7405b602",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "a9cc71893c65e6f3c45648ae428a94895865a3eb",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.875Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f05e"
+    },
+    "sample_id": "5",
+    "oncotree_primary_diagnosis_name": "Liver",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76439fad494cfbf5d95"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "ea4c658a4d2630774ec1712d563454e78c81515a",
+    "protocol_no": "2018.160",
+    "nct_id": "NCT03533582",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "12da5b0dc019f10d9c0edc2fac00482ee98f0d81",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "51f9a6c115db537bf5743e70356db7e933a8f2d1",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.878Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f060"
+    },
+    "sample_id": "3",
+    "oncotree_primary_diagnosis_name": "Neuroblastoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e762723d334fc55be568"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "083ffce48cb7a4478dd386b63b22dc218a9e93e5",
+    "protocol_no": "2015.191",
+    "nct_id": "NCT02402244",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "0ad0e9ae059d07555e8f19b42472ac9207bf9305",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "b2a122b9b6b895a8ec2edd1d7622eb35e38e66c9",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.880Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f061"
+    },
+    "sample_id": "7",
+    "oncotree_primary_diagnosis_name": "Acute Myeloid Leukemia",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76502751743eaff2dff"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "083ffce48cb7a4478dd386b63b22dc218a9e93e5",
+    "protocol_no": "2015.191",
+    "nct_id": "NCT02402244",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "0ad0e9ae059d07555e8f19b42472ac9207bf9305",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "db6d7c088aa1682d0e62d3253f0730d496dde58c",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.880Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f063"
+    },
+    "sample_id": "6",
+    "oncotree_primary_diagnosis_name": "Thyroid",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76407200c6b0ccd84a9"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "05617ded107acccfbc5c2beb24c1fe77ef6f3c9f",
+    "protocol_no": "2017.013",
+    "nct_id": "NCT03099356",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "aa2e947f172537e7a84f03b765c2378449467598",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "361f06e32faf0e94a473bb415abdb05a30c85017",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.883Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f064"
+    },
+    "sample_id": "6",
+    "oncotree_primary_diagnosis_name": "Thyroid",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76407200c6b0ccd84a9"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "05617ded107acccfbc5c2beb24c1fe77ef6f3c9f",
+    "protocol_no": "2017.013",
+    "nct_id": "NCT03099356",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "aa2e947f172537e7a84f03b765c2378449467598",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "361f06e32faf0e94a473bb415abdb05a30c85017",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.883Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f066"
+    },
+    "sample_id": "4",
+    "oncotree_primary_diagnosis_name": "Breast",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76305af6a7ddf260c55"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2019.058",
+    "nct_id": "NCT03435796",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cee8647e8339709a2cc92b036a6954f11a39a61c",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "963164e91bde43c517af85a224b49607cf445eb7",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.886Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f067"
+    },
+    "sample_id": "6",
+    "oncotree_primary_diagnosis_name": "Thyroid",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76407200c6b0ccd84a9"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2019.058",
+    "nct_id": "NCT03435796",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cee8647e8339709a2cc92b036a6954f11a39a61c",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "506c8a3231c47f791ca20090fca14fda5d2964cd",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.886Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f068"
+    },
+    "sample_id": "8",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766d3ae38ba1f118718"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2019.058",
+    "nct_id": "NCT03435796",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cee8647e8339709a2cc92b036a6954f11a39a61c",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "28ba99e162161552a524f60c8ea8d3806194252b",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.886Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f069"
+    },
+    "sample_id": "5",
+    "oncotree_primary_diagnosis_name": "Liver",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76439fad494cfbf5d95"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2019.058",
+    "nct_id": "NCT03435796",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cee8647e8339709a2cc92b036a6954f11a39a61c",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "fd49cc32d31c35d12903308df9896f0088918309",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.886Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f06a"
+    },
+    "sample_id": "1",
+    "oncotree_primary_diagnosis_name": "Seminoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76126fbf56b37094347"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2019.058",
+    "nct_id": "NCT03435796",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cee8647e8339709a2cc92b036a6954f11a39a61c",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "bb64039d254cd437475ecccae8ef88addd000a0e",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.886Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f06b"
+    },
+    "sample_id": "2",
+    "oncotree_primary_diagnosis_name": "B-Lymphoblastic Leukemia/Lymphoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76227535ba01e063b1a"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2019.058",
+    "nct_id": "NCT03435796",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cee8647e8339709a2cc92b036a6954f11a39a61c",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "cb3fa7aa64783662971efae8b1ba43cfd8c029d0",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.886Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f06c"
+    },
+    "sample_id": "9",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766c3a09764060209d8"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2019.058",
+    "nct_id": "NCT03435796",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cee8647e8339709a2cc92b036a6954f11a39a61c",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "1a5981388024cab4d3d0dd0a05aa53b246c905a5",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.886Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f06f"
+    },
+    "sample_id": "4",
+    "oncotree_primary_diagnosis_name": "Breast",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76305af6a7ddf260c55"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2021.045",
+    "nct_id": "NCT03715933",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cc27e9a5f1af107da4ec54297b0febd9452b5ce8",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "cc60bbff811664de4ee750a2393fb94af4766990",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.896Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f070"
+    },
+    "sample_id": "6",
+    "oncotree_primary_diagnosis_name": "Thyroid",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76407200c6b0ccd84a9"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2021.045",
+    "nct_id": "NCT03715933",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cc27e9a5f1af107da4ec54297b0febd9452b5ce8",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "e1e08dca6dc6786b9d4a8d6904bebe9113d00477",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.896Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f071"
+    },
+    "sample_id": "8",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766d3ae38ba1f118718"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2021.045",
+    "nct_id": "NCT03715933",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cc27e9a5f1af107da4ec54297b0febd9452b5ce8",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "c2114ef11b4d78018304f1b04330e33327e2fd6a",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.896Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f072"
+    },
+    "sample_id": "5",
+    "oncotree_primary_diagnosis_name": "Liver",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76439fad494cfbf5d95"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2021.045",
+    "nct_id": "NCT03715933",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cc27e9a5f1af107da4ec54297b0febd9452b5ce8",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "2f7dec63f53013a4b8b8fd59e5105c1f67d0c59d",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.896Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f073"
+    },
+    "sample_id": "1",
+    "oncotree_primary_diagnosis_name": "Seminoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76126fbf56b37094347"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2021.045",
+    "nct_id": "NCT03715933",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cc27e9a5f1af107da4ec54297b0febd9452b5ce8",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "617c84c9af82145379b37fcf7493df66d5f31a38",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.896Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f074"
+    },
+    "sample_id": "2",
+    "oncotree_primary_diagnosis_name": "B-Lymphoblastic Leukemia/Lymphoma",
+    "vital_status": "alive",
+    "gender": "Male",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76227535ba01e063b1a"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2021.045",
+    "nct_id": "NCT03715933",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cc27e9a5f1af107da4ec54297b0febd9452b5ce8",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "aee44a5edc894741251d04e0b81f172edbb9a82f",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.896Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f075"
+    },
+    "sample_id": "9",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766c3a09764060209d8"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "d2f55f92ba5524cc20eba645ea46f5bc3848e190",
+    "protocol_no": "2021.045",
+    "nct_id": "NCT03715933",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "cc27e9a5f1af107da4ec54297b0febd9452b5ce8",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "9117c0aad0f0253479d42552935d9a962dfc2630",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.896Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f077"
+    },
+    "sample_id": "7",
+    "oncotree_primary_diagnosis_name": "Acute Myeloid Leukemia",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76502751743eaff2dff"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "closed",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "8579f0fade56d4f15d83e96cc948017db59316c0",
+    "protocol_no": "2020.153",
+    "nct_id": "NCT04293562",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "43c23b0ff2d16c3c7122ed520665270387ff65e0",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "2bf865251c1c495d8e8474ffca5d9305cbbacb24",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.904Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f078"
+    },
+    "sample_id": "7",
+    "oncotree_primary_diagnosis_name": "Acute Myeloid Leukemia",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76502751743eaff2dff"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "closed",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "8579f0fade56d4f15d83e96cc948017db59316c0",
+    "protocol_no": "2020.153",
+    "nct_id": "NCT04293562",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "43c23b0ff2d16c3c7122ed520665270387ff65e0",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "2bf865251c1c495d8e8474ffca5d9305cbbacb24",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.904Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f079"
+    },
+    "sample_id": "7",
+    "oncotree_primary_diagnosis_name": "Acute Myeloid Leukemia",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e76502751743eaff2dff"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "genomic",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "closed",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "8579f0fade56d4f15d83e96cc948017db59316c0",
+    "protocol_no": "2020.153",
+    "nct_id": "NCT04293562",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "43c23b0ff2d16c3c7122ed520665270387ff65e0",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "gene",
+    "genomic_alteration": "FLT3",
+    "genomic_id": {
+      "$oid": "6a54e7eaf22b6996519bee47"
+    },
+    "true_hugo_symbol": "FLT3",
+    "variant_category": "MUTATION",
+    "wildtype": false,
+    "sort_order": [
+      1,
+      99,
+      1,
+      99,
+      99,
+      99
+    ],
+    "hash": "239b84cf6509762a7db95e8e63549dbbec1a66e8",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.904Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f07b"
+    },
+    "sample_id": "8",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766d3ae38ba1f118718"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "7d3fd74bf287553bdda45e22a007c8e96fc71a22",
+    "protocol_no": "2021.070",
+    "nct_id": "NCT04858334",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "137481e09defccdf3dc1379c862a4bc9dc7a1268",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "079e57d25acbee5bba41532dc1d5816b988290b3",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.906Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f07c"
+    },
+    "sample_id": "8",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766d3ae38ba1f118718"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "clinical",
+    "q_depth": 0,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "7d3fd74bf287553bdda45e22a007c8e96fc71a22",
+    "protocol_no": "2021.070",
+    "nct_id": "NCT04858334",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "137481e09defccdf3dc1379c862a4bc9dc7a1268",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "generic_clinical",
+    "genomic_alteration": "",
+    "sort_order": [
+      1,
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "hash": "079e57d25acbee5bba41532dc1d5816b988290b3",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.906Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "6a54e863c60eb7fc69f7f07d"
+    },
+    "sample_id": "8",
+    "oncotree_primary_diagnosis_name": "Pancreatic Adenocarcinoma",
+    "vital_status": "alive",
+    "gender": "Female",
+    "tumor_mutational_burden_per_megabase": null,
+    "report_date": null,
+    "clinical_id": {
+      "$oid": "6a54e766d3ae38ba1f118718"
+    },
+    "match_level": "step",
+    "internal_id": 1,
+    "reason_type": "genomic",
+    "q_depth": 2,
+    "q_width": 1,
+    "code": "1",
+    "trial_curation_level_status": "open",
+    "trial_summary_status": "open",
+    "coordinating_center": "unknown",
+    "show_in_ui": true,
+    "query_hash": "7d3fd74bf287553bdda45e22a007c8e96fc71a22",
+    "protocol_no": "2021.070",
+    "nct_id": "NCT04858334",
+    "match_path": "treatment_list.step.0.match",
+    "combo_coord": "137481e09defccdf3dc1379c862a4bc9dc7a1268",
+    "is_disabled": false,
+    "cancer_type_match": "specific",
+    "match_type": "gene",
+    "genomic_alteration": "BRCA2",
+    "genomic_id": {
+      "$oid": "6a54e7ea7660f3375af1e35c"
+    },
+    "true_hugo_symbol": "BRCA2",
+    "variant_category": "MUTATION",
+    "wildtype": false,
+    "sort_order": [
+      1,
+      99,
+      1,
+      99,
+      99,
+      99
+    ],
+    "hash": "ad362a6f4ff4f706194634cda4fb590319e61605",
+    "_me_id": "3db4a53624344eef9493c31cd07f2c56",
+    "_updated": {
+      "$date": "2026-07-13T09:30:11.906Z"
+    }
+  }
+]
