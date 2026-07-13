@@ -19,6 +19,8 @@ import json
 import sys
 from pathlib import Path
 
+_DEFAULT_CACHE = ".ctml_cache.json"
+
 
 def main() -> None:
     from dotenv import load_dotenv
@@ -27,26 +29,40 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="ctm-ctml", description="Draft CTML match nodes from eligibility text")
     parser.add_argument("--trials", required=True, metavar="JSON", help="Normalized trials JSON from ctm-mm trials")
     parser.add_argument("--out",    required=True, metavar="JSON", help="Output draft JSON")
+    parser.add_argument("--cache",  default=_DEFAULT_CACHE, metavar="JSON", help=f"Cache file path (default: {_DEFAULT_CACHE})")
     parser.add_argument("--limit",  type=int, default=None, metavar="N", help="Process only first N trials (for testing)")
+    parser.add_argument("--nct",    default=None, metavar="ID", nargs="+", help="Process only trials matching these NCT or protocol numbers")
     args = parser.parse_args()
 
-    from ctm.transformers.eligibility_to_ctml import build_client, load_cache, process_trial, save_cache
+    from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names, load_cache, process_trial, save_cache
+
+    cache_path = Path(args.cache)
 
     with open(args.trials) as f:
         trials = json.load(f)
 
-    if args.limit:
+    if args.nct:
+        ids = set(args.nct)
+        trials = [t for t in trials if t.get("nct_id") in ids or t.get("protocol_no") in ids]
+        if not trials:
+            print(f"No trials found matching: {', '.join(ids)}", file=sys.stderr)
+            sys.exit(1)
+    elif args.limit:
         trials = trials[:args.limit]
 
     client = build_client()
-    cache = load_cache()
+    cache = load_cache(cache_path)
+
+    print("Fetching OncoTree names...", file=sys.stderr)
+    valid_oncotree = fetch_oncotree_names()
+    print(f"  {len(valid_oncotree)} valid tumor types loaded", file=sys.stderr)
 
     results = []
     for i, trial in enumerate(trials):
         protocol = trial.get("protocol_no") or trial.get("nct_id") or f"trial-{i}"
         print(f"[{i+1}/{len(trials)}] {protocol}", file=sys.stderr)
-        results.append(process_trial(trial, cache, client))
-        save_cache(cache)  # save after each trial so progress survives interruption
+        results.append(process_trial(trial, cache, client, valid_oncotree))
+        save_cache(cache, cache_path)  # save after each trial so progress survives interruption
 
     Path(args.out).write_text(json.dumps(results, indent=2))
     print(f"Saved → {args.out}", file=sys.stderr)
