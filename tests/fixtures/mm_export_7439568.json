@@ -26,7 +26,14 @@
       "match_type": "generic_clinical",
       "genomic_alteration": "",
       "trial_summary_status": "open",
-      "sort_order": [1, 99, 99, 99, 99, 99],
+      "sort_order": [
+        1,
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
       "hash": "abc123"
     },
     {
@@ -43,7 +50,14 @@
       "code": "ARM B",
       "true_hugo_symbol": "EGFR",
       "true_protein_change": "E746_A750del",
-      "sort_order": [1, 99, 1, 99, 99, 99],
+      "sort_order": [
+        1,
+        99,
+        1,
+        99,
+        99,
+        99
+      ],
       "hash": "def456"
     },
     {
@@ -57,7 +71,14 @@
       "match_type": "generic_clinical",
       "genomic_alteration": "",
       "trial_summary_status": "open",
-      "sort_order": [2, 99, 99, 99, 99, 99],
+      "sort_order": [
+        2,
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
       "hash": "ghi789"
     }
   ]
