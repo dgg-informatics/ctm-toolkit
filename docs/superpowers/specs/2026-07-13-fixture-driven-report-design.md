@@ -12,38 +12,66 @@ patients × ~100 trials) that exercises real, manually-validated match data.
 
 Two things block this today:
 
-1. **No multi-patient patient source.** `load_context_from_normalized_json`
-   reads `extras.patient` — a single-object field. It's populated by
-   `mm_cli.py`'s `_build_extras()`, which is hardcoded to `patients[0]` from an
-   Excel import. `test-pts-v0.0.1.json` only has one `extras.patient` entry
-   (`SAMPLE_ID "1"`) even though its `clinical` list has 10 patients — the
-   generator was never multi-patient. Patient `"8"` (the one we're targeting
-   here — see below) has no `extras.patient` at all.
+1. **`extras` is single-patient, but not because the data is missing.**
+   `load_context_from_normalized_json` reads `extras.patient` — a single
+   object. It's populated by `mm_cli.py`'s `_build_extras()`, which does
+   `patient = patients[0]` — hardcoded to the first row — before building
+   `extras`. The source Excel this fixture was generated from
+   (`data/dump/08Jul26/test-pts-v0.0.1.xlsx`, gitignored) has a `pt_general`
+   sheet with full name/entity/metastasis-site data for all 9 patients (e.g.
+   `SAMPLE_ID "8"` is "Maria Emo", AMC, pancreatic adenocarcinoma). The
+   `clinical`/`genomic` collections in `test-pts-v0.0.1.json` correctly loop
+   over all patients when generated; `extras` doesn't, and silently drops
+   everyone but patient `"1"` ("Spider Man"). This is a real bug in
+   `_build_extras()`, not a fixture gap — fixed and regenerated below.
 2. **No trial-record input.** `render_html_from_pt_and_matches` never reads a
    trials file. Trial name/therapy in the rendered report are hardcoded mock
    strings (`_row("Trial Name", "EGFR-TKI Resistance Combination Study")`).
-   `test-trials-v0.0.1.json` has real `_summary` data (`short_title`, `phase`,
-   `investigator`, `disease_keywords`) that should replace those mocks.
+   `test-trials-v0.0.1.json` has real `_summary` data per trial (e.g. for
+   `2021.070`/`NCT04858334`: `long_title` "APOLLO: A Randomized Phase II
+   Double-Blind Study of Olaparib versus Placebo...", `phase` "Phase II",
+   `investigator.full_name` "Enzler, Thomas") that should replace those mocks.
 
 ## Approach
 
 Add a new, parallel code path in `builder.py` for the fixture-driven case.
 Existing paths (`load_context`, `load_context_from_raw_excel`,
 `load_context_from_mm_matches`, `render_html_from_sources`,
-`render_html_from_pt_and_matches`) are untouched.
+`render_html_from_pt_and_matches`) are untouched in behavior, aside from the
+`_build_extras`/`extras` shape fix below (which they consume unchanged, via a
+new optional parameter with a backward-compatible default).
 
-Drop the `extras.patient` dependency for this path entirely. Build patient
-header/detail straight from the `clinical`/`genomic` list entries in
-`test-pts` (the MatchMiner-shaped fields), which is the correct source for
-data meant to look like real MatchMiner collections.
+### Fix `_build_extras()` and regenerate the pts fixture
+
+`_build_extras(patients, metadata, findings)` in `mm_cli.py` currently
+returns `{"patient": {...}, "reports": [...]}` for `patients[0]` only. Change
+it to loop over every patient and key by `SAMPLE_ID` (`patient.mrn or
+str(patient.pt_uuid)`, the same join key documented in the June 23 pipeline
+spec):
+
+```
+{"patients": {"<SAMPLE_ID>": {"patient": {...}, "reports": [...]}, ...}}
+```
+
+`load_context_from_normalized_json(pt_path, sample_id=None)` gains an
+optional `sample_id` param: if given, look up `extras["patients"][sample_id]`;
+if omitted, fall back to the first entry (preserves today's behavior for the
+existing single-patient callers, which never pass one).
+
+Then regenerate `tests/fixtures/test-pts-v0.0.1.json` by rerunning `ctm-mm
+patients` against `data/dump/08Jul26/test-pts-v0.0.1.xlsx` with the fixed
+code, and merge in the hand-added `SAMPLE_ID "10"` all-null edge-case row
+(not present in the source xlsx, used only for null-handling shape tests —
+not referenced by any match, so dropping it isn't a matching-behavior risk,
+but it's kept to preserve existing test coverage).
 
 ### Trimming
 
 Given a `sample_id`, the report is built from a bundle trimmed to just that
 patient's data:
 
-- **Patient**: the one `clinical` entry + its `genomic` entries matching
-  `sample_id`.
+- **Patient**: `extras.patients[sample_id]` (name, entity, diagnosis,
+  metastasis sites, reports) via the fixed `load_context_from_normalized_json`.
 - **Matches**: every match doc in `test-matches` for that `sample_id` — no
   pre-dedup. (`test-matches` can contain genuine duplicate docs, e.g. patient
   `"8"`/trial `2021.070` has two byte-identical `clinical` match docs plus one
@@ -54,13 +82,12 @@ patient's data:
 
 ## Architecture
 
-### New functions in `builder.py`
+### New/changed functions in `builder.py`
 
 ```
-load_patient_from_pts(pts_data: dict, sample_id: str) -> dict
-    Pulls the clinical entry + genomic entries for sample_id.
-    Returns partial context: patient_header, patient_detail (new field
-    map keyed on MMClinical/MMGenomic field names, not the extras shape).
+load_context_from_normalized_json(pt_path: str, sample_id: str | None = None) -> dict
+    CHANGED: new optional sample_id param, reads extras["patients"][sample_id]
+    (falls back to the first patient if omitted — existing callers unaffected).
 
 load_context_from_flat_matches(matches: list[dict], sample_id: str, trials_by_protocol: dict) -> dict
     Filters test-matches to sample_id + show_in_ui=True.
@@ -112,8 +139,6 @@ New file `tests/test_report_from_fixtures.py`, scoped to `sample_id "8"`:
 
 ## Out of scope
 
-- Filling in `extras.patient` for patients 2–10 — no longer needed since this
-  path doesn't use `extras`.
 - The `render_html` import in `build_pdf.py`/`preview.py` pointing at a
   function that no longer exists in `builder.py` — pre-existing dead code,
   unrelated to this change.
