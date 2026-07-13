@@ -141,7 +141,7 @@ def _make_normalized_json(tmp_path):
     data = {
         "clinical": {
             "SAMPLE_ID": "302939",
-            "VITAL_STATUS": "Alive",
+            "VITAL_STATUS": "alive",
             "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "READ",
         },
         "genomic": [
