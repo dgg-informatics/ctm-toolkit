@@ -14,7 +14,7 @@ class MMClinical(BaseModel):
     SAMPLE_ID: str
     ONCOTREE_PRIMARY_DIAGNOSIS_NAME: str | None = None
     BIRTH_DATE: str | None = None           # ISO date string: "1972-03-14"
-    VITAL_STATUS: str = "Alive"             # "Alive" | "Deceased"
+    VITAL_STATUS: str = "alive"             # "alive" | "Deceased"
     GENDER: str | None = None              # "Male" | "Female"
     TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE: float | None = None
     REPORT_DATE: str | None = None         # ISO date string of most recent report

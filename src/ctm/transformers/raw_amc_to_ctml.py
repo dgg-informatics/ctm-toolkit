@@ -92,11 +92,11 @@ def _parse_eligibility(raw: str | None) -> CtmlEligibility:
         stripped = segment.strip()
         lower = stripped.lower()
 
-        if re.search(r"inclusion criteria", lower):
+        if re.match(r"^inclusion criteria\s*:?\s*$", lower):
             depth_stack.clear()
             section = "inclusion"
             continue
-        if re.search(r"exclusion criteria", lower):
+        if re.match(r"^exclusion criteria\s*:?\s*$", lower):
             depth_stack.clear()
             section = "exclusion"
             continue
@@ -105,6 +105,11 @@ def _parse_eligibility(raw: str | None) -> CtmlEligibility:
 
         depth = len(stripped) - len(stripped.lstrip("~"))
         text = stripped.lstrip("~").strip()
+        if not text:
+            continue
+
+        # Some trials prefix each criterion with "Inclusion/Exclusion Criteria: " — strip it
+        text = re.sub(r"^(?:inclusion|exclusion) criteria\s*:\s*", "", text, flags=re.IGNORECASE)
         if not text:
             continue
 
@@ -130,20 +135,25 @@ def _parse_eligibility(raw: str | None) -> CtmlEligibility:
     return CtmlEligibility(inclusion=inclusion, exclusion=exclusion)
 
 
-def _age_match_criteria(age_group: str | None) -> list[dict]:
+def _age_match_criteria(age_group: str | None, categories: list[dict]) -> list[dict]:
+    from .oncotree_mapping import amc_categories_to_oncotree, diagnoses_to_match_node
+    nodes: list[dict] = []
     constraint = _AGE_MATCH.get((age_group or "").strip().lower())
-    if constraint is None:
-        return []
-    return [{"clinical": {"age_numerical": constraint}}]
+    if constraint is not None:
+        nodes.append({"clinical": {"age_numerical": constraint}})
+    diagnosis_node = diagnoses_to_match_node(amc_categories_to_oncotree(categories))
+    if diagnosis_node:
+        nodes.append(diagnosis_node)
+    return nodes
 
 
-def _build_treatment_list(age_group: str | None) -> CtmlTreatmentList:
+def _build_treatment_list(age_group: str | None, categories: list[dict]) -> CtmlTreatmentList:
     return CtmlTreatmentList(
         step=[CtmlStep(
             step_internal_id=1,
             step_code="1",
             step_type="Registration",
-            match=_age_match_criteria(age_group),
+            match=_age_match_criteria(age_group, categories),
             arm=[CtmlArm(
                 arm_internal_id=1,
                 arm_code="ARM 1",
@@ -187,7 +197,7 @@ def to_ctml(trial: RawAMCTrial) -> ClinicalTrialNormalized:
         nct_id=trial.nct_number,
         status=status,
         entity="amc",
-        treatment_list=_build_treatment_list(trial.age_group),
+        treatment_list=_build_treatment_list(trial.age_group, trial.categorys),
         eligibility=_parse_eligibility(trial.eligibility),
         summary=_build_summary(trial, status, phase, age_group),
         raw=trial.model_dump(),
