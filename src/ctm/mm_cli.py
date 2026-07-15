@@ -229,6 +229,10 @@ def _cmd_trials(args) -> None:
         print("Error: no trial sources provided (use --amc, --ct, --sparrow, or --west)", file=sys.stderr)
         sys.exit(1)
 
+    from ctm.trials_lifecycle import compute_trial_hash
+    for t in trials:
+        t["trial_hash"] = compute_trial_hash(t)
+
     out_path = Path(args.out)
     out_path.write_text(json.dumps(trials, indent=2, default=str))
     print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
