@@ -85,3 +85,22 @@ def test_cmd_trials_diff_missing_master_treats_everything_as_changed(tmp_path):
 
     changed = json.loads((tmp_path / "2026-07-14-changed.json").read_text())
     assert [t["protocol_no"] for t in changed] == ["2021.070"]
+
+
+def test_cmd_trials_merge_concatenates_to_out(tmp_path):
+    from ctm.mm_cli import _cmd_trials_merge
+
+    unchanged = [{"entity": "amc", "protocol_no": "2015.063"}]
+    changed = [{"entity": "amc", "protocol_no": "2021.070"}]
+
+    unchanged_path = tmp_path / "unchanged.json"
+    unchanged_path.write_text(json.dumps(unchanged))
+    changed_path = tmp_path / "changed.json"
+    changed_path.write_text(json.dumps(changed))
+    out_path = tmp_path / "2026-07-14-trials.json"
+
+    args = argparse.Namespace(unchanged=str(unchanged_path), changed=str(changed_path), out=str(out_path))
+    _cmd_trials_merge(args)
+
+    master = json.loads(out_path.read_text())
+    assert [t["protocol_no"] for t in master] == ["2015.063", "2021.070"]

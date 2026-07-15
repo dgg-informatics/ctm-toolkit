@@ -285,5 +285,18 @@ def _cmd_trials_diff(args) -> None:
     print(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json", file=sys.stderr)
 
 
+def _cmd_trials_merge(args) -> None:
+    from ctm.trials_lifecycle import merge_master
+
+    unchanged = json.loads(Path(args.unchanged).read_text())
+    changed = json.loads(Path(args.changed).read_text())
+
+    master = merge_master(unchanged, changed)
+
+    out_path = Path(args.out)
+    out_path.write_text(json.dumps(master, indent=2, default=str))
+    print(f"Saved {len(master)} trial(s) → {out_path}", file=sys.stderr)
+
+
 if __name__ == "__main__":
     main()
