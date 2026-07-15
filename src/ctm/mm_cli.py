@@ -3,6 +3,8 @@
 Usage:
   ctm-mm patients PATH/TO/patient_data_template.xlsx [options]
   ctm-mm trials [--sparrow YAML] [--amc YAML] [--west YAML] --out PATH
+  ctm-mm trials-diff --new JSON --master JSON --out-prefix PREFIX
+  ctm-mm trials-merge --unchanged JSON --changed JSON --out JSON
 
 Options:
   --pt-uuid N    Filter to one patient by pt_uuid (patients command)
@@ -45,12 +47,38 @@ def main() -> None:
     p_trials.add_argument("--out", metavar="PATH", required=True,
                           help="Save MatchMiner CTML JSON output to file")
 
+    p_trials_diff = sub.add_parser(
+        "trials-diff",
+        help="Split a fresh trial normalization into unchanged/changed/deleted vs. the previous master",
+    )
+    p_trials_diff.add_argument("--new", required=True, metavar="JSON",
+                               help="Fresh normalized trials JSON from ctm-mm trials")
+    p_trials_diff.add_argument("--master", required=True, metavar="JSON",
+                               help="Previous dated master trials JSON (missing/empty is fine on the first-ever run)")
+    p_trials_diff.add_argument("--out-prefix", required=True, metavar="PREFIX",
+                               help="Output path prefix; writes PREFIX-unchanged.json, PREFIX-changed.json, PREFIX-deleted.json")
+
+    p_trials_merge = sub.add_parser(
+        "trials-merge",
+        help="Merge carried-forward and freshly-curated trials into a new dated master",
+    )
+    p_trials_merge.add_argument("--unchanged", required=True, metavar="JSON",
+                                help="Unchanged trials JSON from trials-diff")
+    p_trials_merge.add_argument("--changed", required=True, metavar="JSON",
+                                help="Curated changed trials JSON (after ctm-ctml + manual review)")
+    p_trials_merge.add_argument("--out", required=True, metavar="JSON",
+                                help="Output path for the new master trials JSON")
+
     args = parser.parse_args()
 
     if args.command == "patients":
         _cmd_raw_to_mm(args)
     elif args.command == "trials":
         _cmd_trials(args)
+    elif args.command == "trials-diff":
+        _cmd_trials_diff(args)
+    elif args.command == "trials-merge":
+        _cmd_trials_merge(args)
 
 
 def _build_extras(patients: list, metadata: list, findings: list) -> dict:
@@ -236,6 +264,25 @@ def _cmd_trials(args) -> None:
     out_path = Path(args.out)
     out_path.write_text(json.dumps(trials, indent=2, default=str))
     print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
+
+
+def _cmd_trials_diff(args) -> None:
+    from ctm.trials_lifecycle import split_by_eligibility
+
+    new_trials = json.loads(Path(args.new).read_text())
+
+    master_path = Path(args.master)
+    master_trials = json.loads(master_path.read_text()) if master_path.exists() else []
+
+    unchanged, changed, deleted = split_by_eligibility(new_trials, master_trials)
+
+    prefix = args.out_prefix
+    Path(f"{prefix}-unchanged.json").write_text(json.dumps(unchanged, indent=2, default=str))
+    Path(f"{prefix}-changed.json").write_text(json.dumps(changed, indent=2, default=str))
+    Path(f"{prefix}-deleted.json").write_text(json.dumps(deleted, indent=2, default=str))
+
+    print(f"{len(unchanged)} unchanged, {len(changed)} changed, {len(deleted)} deleted", file=sys.stderr)
+    print(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json", file=sys.stderr)
 
 
 if __name__ == "__main__":
