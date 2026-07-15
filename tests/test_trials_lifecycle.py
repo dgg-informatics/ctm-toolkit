@@ -109,3 +109,46 @@ def test_merge_master_concatenates_unchanged_and_curated_changed():
     result = merge_master(unchanged, curated_changed)
 
     assert result == unchanged + curated_changed
+
+
+def test_end_to_end_weekly_update_flow():
+    """Simulates one full weekly cycle: diff a fresh normalization against
+    last week's master, pretend to curate the changed trials, merge, and
+    check every one of the four routing outcomes landed correctly."""
+    from ctm.trials_lifecycle import split_by_eligibility, merge_master
+
+    same_eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}
+    old_eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}
+    new_eligibility = {"inclusion": [{"text": "Age >= 21", "sub_criteria": []}], "exclusion": []}
+    curated_treatment_list = {"step": [{"step_internal_id": 1, "match": [{"clinical": {"age_numerical": ">=18"}}]}]}
+
+    last_week_master = [
+        _trial("amc", "2015.063", same_eligibility, treatment_list=curated_treatment_list),  # will be unchanged
+        _trial("amc", "2019.058", old_eligibility, treatment_list={"step": []}),              # will be changed
+        _trial("west", "NCT99999999", {"inclusion": [], "exclusion": []}),                     # will be deleted
+    ]
+
+    this_week_normalized = [
+        _trial("amc", "2015.063", same_eligibility, treatment_list={"step": []}, status="closed"),
+        _trial("amc", "2019.058", new_eligibility, treatment_list={"step": []}),
+        _trial("amc", "2021.070", {"inclusion": [], "exclusion": []}, treatment_list={"step": []}),  # brand new
+        # NCT99999999 absent -> deleted
+    ]
+
+    unchanged, changed, deleted = split_by_eligibility(this_week_normalized, last_week_master)
+
+    assert [t["protocol_no"] for t in unchanged] == ["2015.063"]
+    assert unchanged[0]["treatment_list"] == curated_treatment_list  # curated match carried forward
+    assert unchanged[0]["status"] == "closed"                         # fresh metadata carried through
+
+    assert {t["protocol_no"] for t in changed} == {"2019.058", "2021.070"}
+
+    assert [t["nct_id"] for t in deleted] == ["NCT99999999"]
+
+    # Pretend ctm-ctml + manual curation happened on `changed`, adding suggestions:
+    curated_changed = [{**t, "_ctml_suggestions": []} for t in changed]
+
+    new_master = merge_master(unchanged, curated_changed)
+
+    assert {t["protocol_no"] for t in new_master} == {"2015.063", "2019.058", "2021.070"}
+    assert len(new_master) == 3
