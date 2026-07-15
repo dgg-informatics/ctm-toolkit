@@ -38,3 +38,13 @@ def test_amc_xml_to_normalized():
     assert d["_raw"]["octsu_genes_interest"] == "IDH1, IDH2"
     assert d["_raw"]["secondary_protocol_no"] == "HUM00202966"
     assert d["_raw"]["management_group"] == "CTSU - Oncology"
+
+
+def test_clinical_trial_normalized_has_trial_hash_field():
+    from ctm.schemas.matchminer.clinical_trial import ClinicalTrialNormalized
+
+    trial = ClinicalTrialNormalized(protocol_no="2021.070", entity="amc")
+    assert trial.trial_hash is None
+
+    trial2 = ClinicalTrialNormalized(protocol_no="2021.070", entity="amc", trial_hash="abc123")
+    assert trial2.trial_hash == "abc123"

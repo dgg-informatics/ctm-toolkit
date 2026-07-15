@@ -80,3 +80,4 @@ class ClinicalTrialNormalized(BaseModel):
     eligibility: CtmlEligibility = Field(default_factory=CtmlEligibility)
     summary: dict = Field(default_factory=dict)  # serialized as "_summary" by to_ctml_dict()
     raw: dict = Field(default_factory=dict)       # serialized as "_raw" by to_ctml_dict()
+    trial_hash: str | None = None      # sha256 of _raw, stamped by `ctm-mm trials`
