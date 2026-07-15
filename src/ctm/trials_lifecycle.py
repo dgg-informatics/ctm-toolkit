@@ -67,3 +67,12 @@ def split_by_eligibility(
     deleted = [t for t in master_trials if trial_key(t) not in new_keys]
 
     return unchanged, changed, deleted
+
+
+def merge_master(unchanged: list[dict], curated_changed: list[dict]) -> list[dict]:
+    """Combine carried-forward and freshly-curated trials into a new master.
+
+    Plain concatenation — split_by_eligibility already partitions by
+    identity key with no overlap, so there's nothing to deduplicate.
+    """
+    return unchanged + curated_changed

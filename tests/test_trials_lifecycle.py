@@ -99,3 +99,13 @@ def test_split_master_trial_absent_from_new_is_deleted():
     assert unchanged == []
     assert changed == []
     assert deleted == master
+
+
+def test_merge_master_concatenates_unchanged_and_curated_changed():
+    from ctm.trials_lifecycle import merge_master
+    unchanged = [_trial("amc", "2015.063", {"inclusion": [], "exclusion": []})]
+    curated_changed = [_trial("amc", "2021.070", {"inclusion": [], "exclusion": []})]
+
+    result = merge_master(unchanged, curated_changed)
+
+    assert result == unchanged + curated_changed
