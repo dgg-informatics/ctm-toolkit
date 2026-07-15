@@ -30,3 +30,40 @@ def compute_trial_hash(trial: dict) -> str:
     raw = trial.get("_raw", {})
     serialized = json.dumps(raw, sort_keys=True, default=str)
     return hashlib.sha256(serialized.encode()).hexdigest()
+
+
+def split_by_eligibility(
+    new_trials: list[dict], master_trials: list[dict]
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Partition new_trials into (unchanged, changed, deleted) vs. master_trials.
+
+    unchanged: eligibility identical to the master's copy. treatment_list is
+      replaced with the master's (carrying forward curated match nodes);
+      every other field comes from the fresh new_trials entry.
+    changed: no master entry for this key (new trial), or eligibility
+      differs from the master's copy. Untouched — ready for ctm-ctml.
+    deleted: trials present in master_trials but absent from new_trials.
+
+    An empty master_trials (e.g. first-ever run) routes everything to
+    changed, which is correct: nothing has been curated yet.
+    """
+    master_by_key = {trial_key(t): t for t in master_trials}
+    new_keys = set()
+
+    unchanged = []
+    changed = []
+
+    for trial in new_trials:
+        key = trial_key(trial)
+        new_keys.add(key)
+        master_trial = master_by_key.get(key)
+
+        if master_trial is None or trial["eligibility"] != master_trial["eligibility"]:
+            changed.append(trial)
+        else:
+            carried = {**trial, "treatment_list": master_trial["treatment_list"]}
+            unchanged.append(carried)
+
+    deleted = [t for t in master_trials if trial_key(t) not in new_keys]
+
+    return unchanged, changed, deleted
