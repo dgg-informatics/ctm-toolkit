@@ -16,7 +16,7 @@ import json
 import os
 from pathlib import Path
 
-from .eligibility_to_ctml import _criterion_full_text
+from .eligibility_to_ctml import _criterion_full_text, suggest_node
 
 BIOMARKER_SYSTEM_PROMPT = """You are scanning clinical trial eligibility criteria for genetic and molecular biomarker requirements.
 
@@ -134,3 +134,32 @@ def scan_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> 
             "in_kb": biomarker.upper() in known_genes,
         })
     return results
+
+
+def curate_trial(trial: dict, client, cache: dict, known_genes: set[str], valid_oncotree: set[str]) -> dict:
+    """Restructure one ctm-ctml-drafted trial into the _llm_curation shape:
+    adds a summary-sourced suggestion to _ctml_suggestions, scans for
+    biomarker references, moves _ctml_suggestions under _llm_curation, and
+    unions everything into final_suggested_ctml. Mutates and returns trial.
+    """
+    suggestions = trial.get("_ctml_suggestions", [])
+
+    long_title = trial.get("_summary", {}).get("long_title")
+    if long_title:
+        summary_node = suggest_node(long_title, "summary", cache, client, valid_oncotree)
+        suggestions.append({
+            "source": "summary",
+            "text": long_title,
+            "suggested_node": summary_node,
+            "transferred_to_match": False,
+        })
+
+    biomarker_hits = scan_biomarkers(trial, client, cache, known_genes)
+
+    trial.pop("_ctml_suggestions", None)
+    trial["_llm_curation"] = {
+        "_ctml_suggestions": suggestions,
+        "biomarker_references": biomarker_hits,
+        "final_suggested_ctml": union_match_nodes(suggestions),
+    }
+    return trial

@@ -159,3 +159,86 @@ def test_scan_biomarkers_marks_unknown_gene_not_in_kb():
     hits = scan_biomarkers(trial, client, {}, known_genes={"BRCA1"})
 
     assert hits[0]["in_kb"] is False
+
+
+def _full_trial(nct_id="NCT00000003"):
+    return {
+        "nct_id": nct_id,
+        "protocol_no": None,
+        "eligibility": {
+            "inclusion": [{"text": "Patients must be >= 18 years old", "sub_criteria": []}],
+            "exclusion": [],
+        },
+        "_summary": {"long_title": "A Study of Olaparib in Patients with a BRCA1 Mutation"},
+        "_ctml_suggestions": [
+            {"source": "inclusion", "text": "Patients must be >= 18 years old",
+             "suggested_node": {"clinical": {"age_numerical": ">=18"}}, "transferred_to_match": False},
+        ],
+    }
+
+
+def test_curate_trial_builds_llm_curation_with_all_three_subfields():
+    from ctm.transformers.trials_curate import curate_trial
+
+    trial = _full_trial()
+    # curate_trial calls suggest_node (summary) first, then scan_biomarkers —
+    # two responses queued in that order.
+    client = _FakeClient([
+        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
+        '[]',
+    ])
+
+    result = curate_trial(trial, client, cache={}, known_genes={"BRCA1"}, valid_oncotree=set())
+
+    assert "_llm_curation" in result
+    curation = result["_llm_curation"]
+    assert "_ctml_suggestions" in curation
+    assert "biomarker_references" in curation
+    assert "final_suggested_ctml" in curation
+
+
+def test_curate_trial_removes_top_level_ctml_suggestions():
+    from ctm.transformers.trials_curate import curate_trial
+
+    trial = _full_trial()
+    client = _FakeClient(['null', '[]'])
+
+    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
+
+    assert "_ctml_suggestions" not in result
+
+
+def test_curate_trial_summary_source_labeled_correctly():
+    from ctm.transformers.trials_curate import curate_trial
+
+    trial = _full_trial()
+    client = _FakeClient([
+        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
+        '[]',
+    ])
+
+    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
+
+    suggestions = result["_llm_curation"]["_ctml_suggestions"]
+    summary_entries = [s for s in suggestions if s["source"] == "summary"]
+    assert len(summary_entries) == 1
+    assert summary_entries[0]["text"] == "A Study of Olaparib in Patients with a BRCA1 Mutation"
+    assert summary_entries[0]["suggested_node"] == {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}
+    assert summary_entries[0]["transferred_to_match"] is False
+
+
+def test_curate_trial_final_suggested_ctml_unions_criterion_and_summary():
+    from ctm.transformers.trials_curate import curate_trial
+
+    trial = _full_trial()
+    client = _FakeClient([
+        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
+        '[]',
+    ])
+
+    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
+
+    final = result["_llm_curation"]["final_suggested_ctml"]
+    assert {"clinical": {"age_numerical": ">=18"}} in final
+    assert {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}} in final
+    assert len(final) == 2
