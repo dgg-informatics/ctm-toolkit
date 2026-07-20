@@ -104,3 +104,48 @@ def test_cmd_trials_merge_concatenates_to_out(tmp_path):
 
     master = json.loads(out_path.read_text())
     assert [t["protocol_no"] for t in master] == ["2015.063", "2021.070"]
+
+
+def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch):
+    from ctm import mm_cli
+
+    trials = [{
+        "nct_id": "NCT00000009",
+        "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
+        "_summary": {"long_title": "A Study in Patients with a BRCA1 Mutation"},
+        "_ctml_suggestions": [
+            {"source": "inclusion", "text": "Age >= 18",
+             "suggested_node": {"clinical": {"age_numerical": ">=18"}}, "transferred_to_match": False},
+        ],
+    }]
+    trials_path = tmp_path / "draft.json"
+    trials_path.write_text(json.dumps(trials))
+
+    kb_path = tmp_path / "kb.json"
+    kb_path.write_text(json.dumps([{"name": "BRCA1"}]))
+
+    out_path = tmp_path / "curated.json"
+    cache_path = tmp_path / "cache.json"
+
+    class _FakeClient:
+        def __init__(self):
+            self.chat = self
+            self.completions = self
+
+        def create(self, **kwargs):
+            from types import SimpleNamespace
+            return SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content='{"genomic": {"hugo_symbol": "BRCA1"}}')
+            )])
+
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client", lambda: _FakeClient())
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.fetch_oncotree_names", lambda: set())
+
+    args = argparse.Namespace(trials=str(trials_path), out=str(out_path), cache=str(cache_path), kb=str(kb_path))
+    mm_cli._cmd_trials_curate(args)
+
+    result = json.loads(out_path.read_text())
+    assert len(result) == 1
+    assert "_llm_curation" in result[0]
+    assert "_ctml_suggestions" not in result[0]

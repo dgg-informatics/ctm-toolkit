@@ -4,6 +4,7 @@ Usage:
   ctm-mm patients PATH/TO/patient_data_template.xlsx [options]
   ctm-mm trials [--sparrow YAML] [--amc YAML] [--west YAML] --out PATH
   ctm-mm trials-diff --new JSON --master JSON --out-prefix PREFIX
+  ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-merge --unchanged JSON --changed JSON --out JSON
 
 Options:
@@ -58,6 +59,19 @@ def main() -> None:
     p_trials_diff.add_argument("--out-prefix", required=True, metavar="PREFIX",
                                help="Output path prefix; writes PREFIX-unchanged.json, PREFIX-changed.json, PREFIX-deleted.json")
 
+    p_trials_curate = sub.add_parser(
+        "trials-curate",
+        help="Add LLM biomarker-reference scan + title-derived suggestion + union to a ctm-ctml draft",
+    )
+    p_trials_curate.add_argument("--trials", required=True, metavar="JSON",
+                                 help="ctm-ctml draft trials JSON (has _ctml_suggestions per trial)")
+    p_trials_curate.add_argument("--out", required=True, metavar="JSON",
+                                 help="Output path for the curated trials JSON")
+    p_trials_curate.add_argument("--cache", default=".trials_curate_cache.json", metavar="JSON",
+                                 help="Shared cache file for biomarker-scan and summary-suggestion LLM calls")
+    p_trials_curate.add_argument("--kb", default="data/gene_variant_descriptions_v2.json", metavar="JSON",
+                                 help="Known gene/variant knowledge base")
+
     p_trials_merge = sub.add_parser(
         "trials-merge",
         help="Merge carried-forward and freshly-curated trials into a new dated master",
@@ -77,6 +91,8 @@ def main() -> None:
         _cmd_trials(args)
     elif args.command == "trials-diff":
         _cmd_trials_diff(args)
+    elif args.command == "trials-curate":
+        _cmd_trials_curate(args)
     elif args.command == "trials-merge":
         _cmd_trials_merge(args)
 
@@ -283,6 +299,33 @@ def _cmd_trials_diff(args) -> None:
 
     print(f"{len(unchanged)} unchanged, {len(changed)} changed, {len(deleted)} deleted", file=sys.stderr)
     print(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json", file=sys.stderr)
+
+
+def _cmd_trials_curate(args) -> None:
+    from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names
+    from ctm.transformers.trials_curate import curate_trial, load_cache, load_known_genes, save_cache
+
+    trials = json.loads(Path(args.trials).read_text())
+
+    known_genes = load_known_genes(Path(args.kb))
+    print(f"{len(known_genes)} known genes loaded from {args.kb}", file=sys.stderr)
+
+    print("Fetching OncoTree names...", file=sys.stderr)
+    valid_oncotree = fetch_oncotree_names()
+    print(f"  {len(valid_oncotree)} valid tumor types loaded", file=sys.stderr)
+
+    client = build_client()
+    cache_path = Path(args.cache)
+    cache = load_cache(cache_path)
+
+    for i, trial in enumerate(trials, 1):
+        trial_id = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
+        print(f"[{i}/{len(trials)}] {trial_id}", file=sys.stderr)
+        curate_trial(trial, client, cache, known_genes, valid_oncotree)
+        save_cache(cache, cache_path)  # save after each trial so progress survives interruption
+
+    Path(args.out).write_text(json.dumps(trials, indent=2, default=str))
+    print(f"Saved {len(trials)} trial(s) → {args.out}", file=sys.stderr)
 
 
 def _cmd_trials_merge(args) -> None:
