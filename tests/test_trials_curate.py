@@ -2,6 +2,7 @@
 after ctm-ctml, adding biomarker-reference scanning, a title-derived
 suggestion, and a unioned final_suggested_ctml to each trial."""
 import json
+from types import SimpleNamespace
 
 
 def test_parse_json_array_valid_json():
@@ -76,3 +77,85 @@ def test_save_and_load_cache_roundtrip(tmp_path):
     cache_path = tmp_path / "cache.json"
     save_cache({"key1": ["hit1"]}, cache_path)
     assert load_cache(cache_path) == {"key1": ["hit1"]}
+
+
+class _FakeClient:
+    """Stub OpenAI-compatible client: returns queued chat-completion responses
+    in call order, so a test can control exactly what "the LLM said" without
+    hitting a real API."""
+
+    def __init__(self, responses: list[str]):
+        self._responses = list(responses)
+        self.call_count = 0
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, **kwargs):
+        self.call_count += 1
+        content = self._responses.pop(0)
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
+
+
+def _trial_with_eligibility(nct_id="NCT00000001", text="Patients must have BRCA1 mutation"):
+    return {
+        "nct_id": nct_id,
+        "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": text, "sub_criteria": []}], "exclusion": []},
+    }
+
+
+def test_scan_biomarkers_cache_miss_calls_client_and_caches():
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    trial = _trial_with_eligibility()
+    client = _FakeClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1 mutation"}]'])
+    cache = {}
+
+    hits = scan_biomarkers(trial, client, cache, known_genes={"BRCA1"})
+
+    assert client.call_count == 1
+    assert hits == [{
+        "trial_nct": "NCT00000001",
+        "reference": "BRCA1 mutation",
+        "biomarker": "BRCA1",
+        "type": "snv",
+        "in_kb": True,
+    }]
+    assert len(cache) == 1
+
+
+def test_scan_biomarkers_cache_hit_skips_client():
+    from ctm.transformers.trials_curate import scan_biomarkers, _cache_key, _trial_full_eligibility_text
+
+    trial = _trial_with_eligibility()
+    text = _trial_full_eligibility_text(trial)
+    key = _cache_key("NCT00000001", text)
+    cache = {key: [{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1 mutation"}]}
+    client = _FakeClient([])  # no responses queued — a call would raise IndexError
+
+    hits = scan_biomarkers(trial, client, cache, known_genes={"BRCA1"})
+
+    assert client.call_count == 0
+    assert hits[0]["biomarker"] == "BRCA1"
+
+
+def test_scan_biomarkers_empty_eligibility_returns_empty_no_call():
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    trial = {"nct_id": "NCT00000002", "protocol_no": None, "eligibility": {"inclusion": [], "exclusion": []}}
+    client = _FakeClient([])
+
+    hits = scan_biomarkers(trial, client, {}, known_genes=set())
+
+    assert hits == []
+    assert client.call_count == 0
+
+
+def test_scan_biomarkers_marks_unknown_gene_not_in_kb():
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    trial = _trial_with_eligibility(text="Must have CD22 expression")
+    client = _FakeClient(['[{"biomarker": "CD22", "type": "ihc", "reference": "CD22 expression"}]'])
+
+    hits = scan_biomarkers(trial, client, {}, known_genes={"BRCA1"})
+
+    assert hits[0]["in_kb"] is False

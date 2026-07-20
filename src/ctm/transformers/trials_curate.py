@@ -96,3 +96,41 @@ def load_known_genes(kb_path: Path) -> set[str]:
 def union_match_nodes(ctml_suggestions: list[dict]) -> list[dict]:
     """Every non-null suggested_node across all sources, flattened. No dedup."""
     return [s["suggested_node"] for s in ctml_suggestions if s.get("suggested_node")]
+
+
+def scan_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> list[dict]:
+    """One LLM call per trial (cache-checked first) scanning the full
+    eligibility text for genetic/molecular biomarker mentions."""
+    text = _trial_full_eligibility_text(trial)
+    if not text.strip():
+        return []
+
+    trial_id = _trial_id(trial)
+    key = _cache_key(trial_id, text)
+    if key in cache:
+        hits = cache[key]
+    else:
+        model = os.environ.get("UMGPT_MODEL", "gpt-4o")
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": BIOMARKER_SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            temperature=0,
+            max_tokens=2000,
+        )
+        hits = _parse_json_array(response.choices[0].message.content)
+        cache[key] = hits
+
+    results = []
+    for hit in hits:
+        biomarker = (hit.get("biomarker") or "").strip()
+        results.append({
+            "trial_nct": trial_id,
+            "reference": hit.get("reference", ""),
+            "biomarker": biomarker,
+            "type": hit.get("type", "other"),
+            "in_kb": biomarker.upper() in known_genes,
+        })
+    return results
