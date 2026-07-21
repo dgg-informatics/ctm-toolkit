@@ -182,6 +182,10 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
    2. `--nct`/`--limit` aren't needed here — the file is already scoped to just the changed trials.
    3. `$ ctm-mm trials-curate --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json --cache .trials_curate_cache.json`  # cross-checks biomarker mentions against the known-gene KB and adds a title-only LLM pass, then collects everything into an `_llm_curation` field for the reviewer to work from.
    4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field written by `trials-curate` as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
+
+> [!WARNING]
+> **`ctm-mm trials-confidence-split` is a beta/experimental command.** It tries to split a `trials-curate` output into a "safe to auto-pass" bucket and a "needs a human curator" bucket, based on whether the trial already has a diagnosis in its match clause and whether its `biomarker_references` are all of caller-specified low-actionability types (`--allowed-biomarker-types`). The optional `--recover-diagnosis` flag makes a further LLM pass over `_raw.full_title`/`_raw.summary_obj` for trials missing a diagnosis. The thresholds and prompt are still being tuned by hand against real trial batches — don't treat its output as a substitute for the manual review step above yet. The intent is to eventually fold this logic directly into `trials-curate` itself rather than keep it a separate pass.
+
 4. Merge the carried-forward and freshly-curated trials into the new master:
    1. `$ ctm-mm trials-merge --unchanged 2026-07-14-unchanged.json --changed 2026-07-14-changed-curated.json --out 2026-07-14-trials.json`
 5. Load `2026-07-14-trials.json` into MatchMiner, same as the "MatchMiner Preparation and Running" step below — a date-named collection is a reasonable choice so you retain a Mongo-side historical record too.
