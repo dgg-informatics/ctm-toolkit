@@ -200,10 +200,17 @@ def _render_report(ctx: dict, sample_id: str) -> str:
 
 def render_html_from_pt_trials_matches(pts_path: str, trials_path: str, matches_path: str, sample_id: str) -> str:
     """Build a report for one patient from a patient collection, a trial
-    collection, and a flat trial_match collection — the one report-building
+    collection, and a trial_match collection — the one report-building
     path. Trims trials to only those referenced by the patient's own matches.
+
+    --matches accepts either shape of the trial_match collection: a flat
+    list (e.g. a raw Mongo trial_match dump spanning multiple patients), or
+    the single-patient {"clinical": ..., "genomic": ..., "trial_match": [...]}
+    envelope that matchengine-V2's export_matches.py actually produces.
+    Both represent the same underlying documents, just packaged differently.
     """
-    matches = json.loads(Path(matches_path).read_text())
+    matches_data = json.loads(Path(matches_path).read_text())
+    matches = matches_data["trial_match"] if isinstance(matches_data, dict) else matches_data
     trials = json.loads(Path(trials_path).read_text())
 
     patient_matches = [m for m in matches if m.get("sample_id") == sample_id]

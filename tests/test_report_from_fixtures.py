@@ -77,3 +77,28 @@ def test_render_html_from_pt_trials_matches_smoke():
     assert "Trial Match Report" in html
     assert "NCT04858334" in html
     assert "Pancreatic Adenocarcinoma" in html
+
+
+def test_render_html_from_pt_trials_matches_accepts_export_matches_envelope(patient_matches, tmp_path):
+    """matchengine-V2's export_matches.py outputs a single-patient
+    {"clinical": ..., "genomic": ..., "trial_match": [...]} envelope, not a
+    flat list. render_html_from_pt_trials_matches must accept both shapes.
+    """
+    from ctm.reports.builder import render_html_from_pt_trials_matches
+
+    envelope = {
+        "clinical": {"SAMPLE_ID": SAMPLE_ID},
+        "genomic": [],
+        "trial_match": patient_matches,
+    }
+    envelope_path = tmp_path / "export_matches_output.json"
+    envelope_path.write_text(json.dumps(envelope))
+
+    html = render_html_from_pt_trials_matches(
+        str(FIXTURES / "test-pts-v0.0.1.json"),
+        str(FIXTURES / "test-trials-v0.0.1.json"),
+        str(envelope_path),
+        SAMPLE_ID,
+    )
+    assert "<html" in html
+    assert "NCT04858334" in html

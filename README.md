@@ -43,19 +43,25 @@ Step 4: **Manual Processing**
 
 ```bash
 # Step 5: Load trial data into MatchMiner
-python -m matchengine.main load -t ctml-draft-manually-edited.json --trial-format json --db test
+matchengine load -t ctml-draft-manually-edited.json --trial-format json --db test
 
-# Step 6: Run MatchMiner
-python -m Matcher.main --config source/Matcher/config/config.json
+# Step 6: Load Patient clinical data
+matchengine load -t ctml-draft-manually-edited.json --trial-format json --db test
 
-# Step 7: Export match results from MatchMiner's Mongo database
+# Step 7: Load Patient genomic data
+matchengine load -t ctml-draft-manually-edited.json --trial-format json --db test
+
+# Step 8: Run MatchMiner
+matchengine match --config path/to/dfci_config.json
+
+# Step 9: Export match results from MatchMiner's Mongo database
 SECRETS_JSON=SECRETS_JSON.json python export_matches.py --patient 7439568 --output export/ --db v1
 ```
 
 #### Build a Report
 
 ```bash
-# Step 8: Build report from patient, trial, and match collections
+# Step 10: Build report from patient, trial, and match collections
 ctm-report --pts data/patient.json --trials trials.json --matches data/matchminer_export.json --sample-id 7439568 --out output.pdf
 ```
 
@@ -151,6 +157,42 @@ This process is much more complex since we have 4 data sources (Sparrow, West, A
 > If you have a raw JSON doc from clinicaltrials.gov, you can normalize it with the same command as you'd normalize AMC/Sparrow/West trials:
 > `$ ctm-mm trials --ct <raw-ctgov.json> --out to-normalized.json`
 
+### Updating Trials
+
+AMC, Sparrow, and West each send a refreshed trial sheet roughly weekly. Re-running the full LLM + manual-curation pass on every trial every week is wasteful — most trials haven't changed. `ctm-mm trials-diff` / `ctm-mm trials-merge` let you skip that work for anything whose eligibility criteria are unchanged, while keeping a permanent dated record of every trial set.
+
+Starting input: a fresh combined normalization + the previous dated **master** trials file (e.g. `2026-07-13-trials.json` — the curated output from last week's run, already loaded into MatchMiner).
+Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
+
+1. Normalize the new raw sheets, same as the first-time flow:
+   1. `$ ctm-mm trials --amc <amc.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out normalized-2026-07-14.json`
+2. Diff the fresh normalization against last week's master:
+   1. `$ ctm-mm trials-diff --new normalized-2026-07-14.json --master 2026-07-13-trials.json --out-prefix 2026-07-14`  # --new is the normalized data and --master is the most recent manually curated data
+   2. Writes three files:
+      - `2026-07-14-unchanged.json` — eligibility identical to the master's copy. Already has curated match nodes carried forward from `2026-07-13-trials.json` untouched; every other field (status, title, etc.) is refreshed. **No LLM call, no manual review needed for these.**
+      - `2026-07-14-changed.json` — eligibility differs, or the trial is brand new. Not yet curated — this is the only file that needs the next two steps.
+      - `2026-07-14-deleted.json` — trials present in last week's master but absent from this week's sheets. Kept as a permanent record; nothing automated acts on it.
+   3. On the very first run there's no master yet — point `--master` at a nonexistent or empty-list file and everything routes to `2026-07-14-changed.json`.
+
+> [!NOTE]
+> **Fringe case — a trial changes source (`entity`) between cycles.** The identity key used to match a trial across cycles depends on `entity`: `protocol_no` for AMC, `nct_id` for everything else. If a trial moves from AMC to being tracked via West/Sparrow (or vice versa) — e.g. AMC drops it from their sheet and it starts showing up via ClinicalTrials.gov instead — its key changes basis even if the trial itself hasn't meaningfully changed. It'll show up as both `deleted` (under its old key) and `changed` (under its new key), even if `eligibility` is byte-identical to before. This is intentional, not a bug: a source migration is a real event worth a quick human glance rather than being silently absorbed as "unchanged." (The already-curated match tree isn't lost — it's just sitting in the previous dated master, so it's a quick copy-paste during the manual review of the "new" entry rather than starting from scratch.)
+
+3. Run the LLM + manual curation, same as the first-time flow, but only on the changed file:
+   1. `$ ctm-ctml --trials 2026-07-14-changed.json --out 2026-07-14-changed-draft.json`
+   2. `--nct`/`--limit` aren't needed here — the file is already scoped to just the changed trials.
+   3. `$ ctm-mm trials-curate --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json --cache .trials_curate_cache.json`  # cross-checks biomarker mentions against the known-gene KB and adds a title-only LLM pass, then collects everything into an `_llm_curation` field for the reviewer to work from.
+   4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field written by `trials-curate` as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
+
+> [!WARNING]
+> **`ctm-mm trials-confidence-split` is a beta/experimental command.** It tries to split a `trials-curate` output into a "safe to auto-pass" bucket and a "needs a human curator" bucket, based on whether the trial already has a diagnosis in its match clause and whether its `biomarker_references` are all of caller-specified low-actionability types (`--allowed-biomarker-types`). The optional `--recover-diagnosis` flag makes a further LLM pass over `_raw.full_title`/`_raw.summary_obj` for trials missing a diagnosis. The thresholds and prompt are still being tuned by hand against real trial batches — don't treat its output as a substitute for the manual review step above yet. The intent is to eventually fold this logic directly into `trials-curate` itself rather than keep it a separate pass.
+
+4. Merge the carried-forward and freshly-curated trials into the new master:
+   1. `$ ctm-mm trials-merge --unchanged 2026-07-14-unchanged.json --changed 2026-07-14-changed-curated.json --out 2026-07-14-trials.json`
+5. Load `2026-07-14-trials.json` into MatchMiner, same as the "MatchMiner Preparation and Running" step below — a date-named collection is a reasonable choice so you retain a Mongo-side historical record too.
+
+> [!NOTE]
+> Keep every dated master (`2026-07-13-trials.json`, `2026-07-14-trials.json`, ...) around rather than overwriting one file in place — the dated masters *are* the historical record. Each trial also carries a `trial_hash` field (a fingerprint of its raw source data, stamped automatically by `ctm-mm trials`) for later audit: it lets you notice a trial's metadata quietly changed under an `unchanged` routing, without forcing a real-time review of every such change.
+
 ### MatchMiner Preparation and Running
 
 1. **Read MatchMiner docs to prepare for the next 2 steps!**
@@ -205,6 +247,9 @@ This process is much more complex since we have 4 data sources (Sparrow, West, A
 - All oncotree/cancer type criteria must be added manually as `clinical` match nodes
 - Eligibility free text is parsed and stored in `eligibility` as a reference, but is **not** automatically converted into match nodes
 - AMC trials have no arm structure — a single stub arm (`ARM 1`) is generated; multi-arm or dose-escalation trials must be expanded manually
+
+> [!NOTE]
+> An empty `match: []` array fails closed, not open — it matches **zero** patients, not every patient. MatchMiner only records a patient as matched when an actual clinical/genomic query runs and returns a reason for that patient; with no criteria in the match node, no query runs and no reasons are ever recorded, so the trial gets no matches until curation adds real criteria. So a stub arm/step you haven't gotten to yet is safe by default — it just won't show up in results, rather than accidentally matching everyone.
 
 ### Loading into MatchMiner
 

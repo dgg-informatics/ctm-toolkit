@@ -3,6 +3,10 @@
 Usage:
   ctm-mm patients PATH/TO/patient_data_template.xlsx [options]
   ctm-mm trials [--sparrow YAML] [--amc YAML] [--west YAML] --out PATH
+  ctm-mm trials-diff --new JSON --master JSON --out-prefix PREFIX
+  ctm-mm trials-curate --trials JSON --out JSON --cache JSON
+  ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
+  ctm-mm trials-merge --unchanged JSON --changed JSON --out JSON
 
 Options:
   --pt-uuid N    Filter to one patient by pt_uuid (patients command)
@@ -45,12 +49,77 @@ def main() -> None:
     p_trials.add_argument("--out", metavar="PATH", required=True,
                           help="Save MatchMiner CTML JSON output to file")
 
+    p_trials_diff = sub.add_parser(
+        "trials-diff",
+        help="Split a fresh trial normalization into unchanged/changed/deleted vs. the previous master",
+    )
+    p_trials_diff.add_argument("--new", required=True, metavar="JSON",
+                               help="Fresh normalized trials JSON from ctm-mm trials")
+    p_trials_diff.add_argument("--master", required=True, metavar="JSON",
+                               help="Previous dated master trials JSON (missing/empty is fine on the first-ever run)")
+    p_trials_diff.add_argument("--out-prefix", required=True, metavar="PREFIX",
+                               help="Output path prefix; writes PREFIX-unchanged.json, PREFIX-changed.json, PREFIX-deleted.json")
+
+    p_trials_curate = sub.add_parser(
+        "trials-curate",
+        help="Add LLM biomarker-reference scan + title-derived suggestion + union to a ctm-ctml draft",
+    )
+    p_trials_curate.add_argument("--trials", required=True, metavar="JSON",
+                                 help="ctm-ctml draft trials JSON (has _ctml_suggestions per trial)")
+    p_trials_curate.add_argument("--out", required=True, metavar="JSON",
+                                 help="Output path for the curated trials JSON")
+    p_trials_curate.add_argument("--cache", default=".trials_curate_cache.json", metavar="JSON",
+                                 help="Shared cache file for biomarker-scan and summary-suggestion LLM calls")
+    p_trials_curate.add_argument("--kb", default="data/gene_variant_descriptions_v2.json", metavar="JSON",
+                                 help="Known gene/variant knowledge base")
+
+    p_trials_confidence_split = sub.add_parser(
+        "trials-confidence-split",
+        help="[BETA] Split a trials-curate output into high-confidence / needs-curation buckets "
+             "— experimental, thresholds still being tuned; likely to be folded into trials-curate later",
+    )
+    p_trials_confidence_split.add_argument("--trials", required=True, metavar="JSON",
+                                           help="trials-curate output JSON (has _llm_curation.biomarker_references)")
+    p_trials_confidence_split.add_argument("--high-confidence-out", required=True, metavar="JSON",
+                                           help="Output path for trials safe to auto-pass")
+    p_trials_confidence_split.add_argument("--needs-curation-out", required=True, metavar="JSON",
+                                           help="Output path for trials still needing a human curator")
+    p_trials_confidence_split.add_argument("--allowed-biomarker-types", default="", metavar="TYPES",
+                                           help="Comma-separated biomarker_references types considered safe to "
+                                                "auto-pass (e.g. ihc,other). A trial with no biomarker_references "
+                                                "always passes this check; one is still needed for a diagnosis.")
+    p_trials_confidence_split.add_argument("--recover-diagnosis", action="store_true",
+                                           help="For trials missing an oncotree diagnosis in match, attempt LLM "
+                                                "extraction from _raw.full_title/_raw.summary_obj")
+    p_trials_confidence_split.add_argument("--cache", default=".confidence_split_cache.json", metavar="JSON",
+                                           help="Cache file for diagnosis-recovery LLM calls (only used with "
+                                                "--recover-diagnosis)")
+
+    p_trials_merge = sub.add_parser(
+        "trials-merge",
+        help="Merge carried-forward and freshly-curated trials into a new dated master",
+    )
+    p_trials_merge.add_argument("--unchanged", required=True, metavar="JSON",
+                                help="Unchanged trials JSON from trials-diff")
+    p_trials_merge.add_argument("--changed", required=True, metavar="JSON",
+                                help="Curated changed trials JSON (after ctm-ctml + manual review)")
+    p_trials_merge.add_argument("--out", required=True, metavar="JSON",
+                                help="Output path for the new master trials JSON")
+
     args = parser.parse_args()
 
     if args.command == "patients":
         _cmd_raw_to_mm(args)
     elif args.command == "trials":
         _cmd_trials(args)
+    elif args.command == "trials-diff":
+        _cmd_trials_diff(args)
+    elif args.command == "trials-curate":
+        _cmd_trials_curate(args)
+    elif args.command == "trials-confidence-split":
+        _cmd_trials_confidence_split(args)
+    elif args.command == "trials-merge":
+        _cmd_trials_merge(args)
 
 
 def _build_extras(patients: list, metadata: list, findings: list) -> dict:
@@ -229,9 +298,102 @@ def _cmd_trials(args) -> None:
         print("Error: no trial sources provided (use --amc, --ct, --sparrow, or --west)", file=sys.stderr)
         sys.exit(1)
 
+    from ctm.trials_lifecycle import compute_trial_hash
+    for t in trials:
+        t["trial_hash"] = compute_trial_hash(t)
+
     out_path = Path(args.out)
     out_path.write_text(json.dumps(trials, indent=2, default=str))
     print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
+
+
+def _cmd_trials_diff(args) -> None:
+    from ctm.trials_lifecycle import split_by_eligibility
+
+    new_trials = json.loads(Path(args.new).read_text())
+
+    master_path = Path(args.master)
+    master_trials = json.loads(master_path.read_text()) if master_path.exists() else []
+
+    unchanged, changed, deleted = split_by_eligibility(new_trials, master_trials)
+
+    prefix = args.out_prefix
+    Path(f"{prefix}-unchanged.json").write_text(json.dumps(unchanged, indent=2, default=str))
+    Path(f"{prefix}-changed.json").write_text(json.dumps(changed, indent=2, default=str))
+    Path(f"{prefix}-deleted.json").write_text(json.dumps(deleted, indent=2, default=str))
+
+    print(f"{len(unchanged)} unchanged, {len(changed)} changed, {len(deleted)} deleted", file=sys.stderr)
+    print(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json", file=sys.stderr)
+
+
+def _cmd_trials_curate(args) -> None:
+    from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names
+    from ctm.transformers.trials_curate import curate_trial, load_cache, load_known_genes, save_cache
+
+    trials = json.loads(Path(args.trials).read_text())
+
+    known_genes = load_known_genes(Path(args.kb))
+    print(f"{len(known_genes)} known genes loaded from {args.kb}", file=sys.stderr)
+
+    print("Fetching OncoTree names...", file=sys.stderr)
+    valid_oncotree = fetch_oncotree_names()
+    print(f"  {len(valid_oncotree)} valid tumor types loaded", file=sys.stderr)
+
+    client = build_client()
+    cache_path = Path(args.cache)
+    cache = load_cache(cache_path)
+
+    for i, trial in enumerate(trials, 1):
+        trial_id = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
+        print(f"[{i}/{len(trials)}] {trial_id}", file=sys.stderr)
+        curate_trial(trial, client, cache, known_genes, valid_oncotree)
+        save_cache(cache, cache_path)  # save after each trial so progress survives interruption
+
+    Path(args.out).write_text(json.dumps(trials, indent=2, default=str))
+    print(f"Saved {len(trials)} trial(s) → {args.out}", file=sys.stderr)
+
+
+def _cmd_trials_confidence_split(args) -> None:
+    from ctm.transformers.confidence_split import load_cache, save_cache, split_by_confidence
+
+    trials = json.loads(Path(args.trials).read_text())
+    allowed_types = {t.strip() for t in args.allowed_biomarker_types.split(",") if t.strip()}
+
+    client = cache = valid_oncotree = None
+    cache_path = Path(args.cache)
+
+    if args.recover_diagnosis:
+        from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names
+        client = build_client()
+        valid_oncotree = fetch_oncotree_names()
+        cache = load_cache(cache_path)
+
+    high_confidence, needs_curation = split_by_confidence(
+        trials, allowed_types,
+        recover_diagnosis=args.recover_diagnosis,
+        client=client, cache=cache, valid_oncotree=valid_oncotree,
+    )
+
+    if args.recover_diagnosis:
+        save_cache(cache, cache_path)
+
+    Path(args.high_confidence_out).write_text(json.dumps(high_confidence, indent=2, default=str))
+    Path(args.needs_curation_out).write_text(json.dumps(needs_curation, indent=2, default=str))
+    print(f"{len(high_confidence)} high-confidence, {len(needs_curation)} needs curation", file=sys.stderr)
+    print(f"Saved → {args.high_confidence_out}, {args.needs_curation_out}", file=sys.stderr)
+
+
+def _cmd_trials_merge(args) -> None:
+    from ctm.trials_lifecycle import merge_master
+
+    unchanged = json.loads(Path(args.unchanged).read_text())
+    changed = json.loads(Path(args.changed).read_text())
+
+    master = merge_master(unchanged, changed)
+
+    out_path = Path(args.out)
+    out_path.write_text(json.dumps(master, indent=2, default=str))
+    print(f"Saved {len(master)} trial(s) → {out_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":
