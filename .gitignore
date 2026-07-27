@@ -6,6 +6,12 @@ dist/
 .pytest_cache/
 .env
 
+# uv
+uv.lock
+
+# hidden modules
+ai.py
+
 # data/real/ — real patient data, never commit (HIPAA)
 data/real/*
 !data/real/.gitkeep
@@ -23,6 +29,12 @@ data/mock/*
 
 # output/ — generated preview artifacts, never commit
 # output/
+
+# superpowers
+docs/superpowers/*
+
+# general docs not used
+docs/state-of-ctm.md
 
 .DS_Store
 **/.DS_Store
