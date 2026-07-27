@@ -22,6 +22,7 @@ _VARIANT_CATEGORY: dict[str, str | None] = {
     "fusion": "SV",
     "cnv": "CNV",
     "pertinent_negative": "MUTATION",
+    "fusion_negative": "SV",
     "tumor_biomarker": "SIGNATURE",
     "germline": "MUTATION",
     "hla": None,
@@ -43,7 +44,7 @@ _VARIANT_CATEGORY: dict[str, str | None] = {
 }
 
 # variant_types that represent absence of a finding (WILDTYPE)
-_WILDTYPE_TYPES = {"pertinent_negative", "negative"}
+_WILDTYPE_TYPES = {"pertinent_negative", "negative", "fusion_negative"}
 
 # CNV call overrides for legacy variant_type values
 _CNV_CALL_OVERRIDE: dict[str, str] = {

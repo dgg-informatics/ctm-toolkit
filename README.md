@@ -124,6 +124,30 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
 
 1. Fill out patient_data_template.xlsx sheets
    1. pt_general: look up patient general information and manually record here. You can add as many columns as you want and later update the report generation script so you can include other patient information.
+   2. `*_findings` sheets (`tempus_findings`, `caris_findings`, `ambry_findings`, `amc_ngs_findings`, `ogm_findings`, `pml_rara_findings`): one row per genomic finding. Every findings sheet shares the same 5 core columns:
+
+      | Column | Meaning |
+      |---|---|
+      | `gene` | HGNC gene symbol. For a fusion with a known partner, use `GENE1::GENE2` (`/` or `-` also accepted) — e.g. `EML4::ALK`. For a fusion with an unknown partner, just the one gene name. |
+      | `protein` | HGVS protein change, e.g. `p.E545K`. Leave blank for fusions and for negative/wildtype findings — there's no variant to describe. |
+      | `nucleotide` | HGVS cDNA change, e.g. `c.2573T>G`. Optional; leave blank if not available. |
+      | `variant_type` | Controlled vocabulary — see table below. This is the field that determines everything else about how the row gets translated. |
+      | `result_summary` | Only consumed for CNV findings (populates `CNV_CALL`, unless a legacy override applies), signature findings (MMR/POLE/APOBEC/tobacco status), and TMB rows. For plain SNV/INDEL/fusion/negative findings it is **not stored anywhere** — free text here (e.g. `"46.8% VAF"`) is discarded during normalization, so don't rely on it for anything the match engine needs to see. |
+
+      `variant_type` values and what they produce (case-sensitive — `MUTATION` is not a recognized value, use `SNV`):
+
+      | `variant_type` | Example `gene` | Produces |
+      |---|---|---|
+      | `SNV` / `INDEL` | `PIK3CA`, `protein: p.E545K` | `{TRUE_HUGO_SYMBOL, VARIANT_CATEGORY: "MUTATION", WILDTYPE: false, TRUE_PROTEIN_CHANGE}` |
+      | `pertinent_negative` / `negative` | `PIK3CA` (protein/nucleotide blank) | `{TRUE_HUGO_SYMBOL, VARIANT_CATEGORY: "MUTATION", WILDTYPE: true}` — gene tested, no mutation found |
+      | `fusion` / `structural_variant` | `EML4::ALK` | `{TRUE_HUGO_SYMBOL: "EML4", VARIANT_CATEGORY: "SV", WILDTYPE: false, LEFT_PARTNER_GENE: "EML4", RIGHT_PARTNER_GENE: "ALK"}` |
+      | `fusion_negative` | `ALK` (protein/nucleotide blank) | `{TRUE_HUGO_SYMBOL: "ALK", VARIANT_CATEGORY: "SV", WILDTYPE: true}` — no partner-gene fields, since none was found |
+      | `cnv` | gene name; `result_summary` holds the call | `{..., VARIANT_CATEGORY: "CNV", CNV_CALL: <parsed from result_summary>}` |
+
+      > [!NOTE]
+      > For fusions, `LEFT_PARTNER_GENE`/`RIGHT_PARTNER_GENE` are derived automatically by splitting the `gene` column on `::`, `/`, or `-` — no separate columns needed per partner gene. Which gene ends up "left" vs "right" doesn't matter for trial matching: a trial clause like `{"hugo_symbol": "ALK", "variant_category": "Structural Variation"}` checks both fields, not just one side.
+      >
+      > For a wildtype/negative fusion result, use `fusion_negative`, not `negative` — `negative` would produce `VARIANT_CATEGORY: "MUTATION"` instead of `"SV"`. When writing the corresponding trial-side match clause for a negative fusion, omit `variant_category` entirely (`{"hugo_symbol": "ALK", "wildtype": true}`) — including `variant_category: "Structural Variation"` on that clause triggers matchengine's structured-SV query rewrite, which searches `LEFT_PARTNER_GENE`/`RIGHT_PARTNER_GENE` fields that a wildtype fusion record never populates, so the clause would silently match nothing.
 2. Run the script to convert manual excel format into MatchMiner-compatible JSON
    1. `$ ctm-mm patients patients-raw.xlsx --out patients-normalized.json`
       1. This writes a JSON with 3 top-level fields consisting of arrays: clinical, genomic, and _extras
