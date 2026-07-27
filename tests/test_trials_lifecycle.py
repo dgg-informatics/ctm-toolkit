@@ -101,6 +101,38 @@ def test_split_master_trial_absent_from_new_is_deleted():
     assert deleted == master
 
 
+def test_split_unchanged_carries_forward_llm_curation_from_master():
+    from ctm.trials_lifecycle import split_by_eligibility
+    eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}
+    llm_curation = {
+        "_ctml_suggestions": [{"source": "inclusion", "text": "Age >= 18",
+                               "suggested_node": {"clinical": {"age_numerical": ">=18"}},
+                               "transferred_to_match": True}],
+        "biomarker_references": [{"trial_nct": "NCT1", "reference": "BRAF V600E",
+                                  "biomarker": "BRAF", "type": "snv", "in_kb": True}],
+        "final_suggested_ctml": [{"clinical": {"age_numerical": ">=18"}}],
+    }
+    master = [_trial("amc", "2021.070", eligibility, _llm_curation=llm_curation)]
+    new = [_trial("amc", "2021.070", eligibility, treatment_list={"step": []})]
+
+    unchanged, changed, deleted = split_by_eligibility(new, master)
+
+    assert len(unchanged) == 1
+    assert unchanged[0]["_llm_curation"] == llm_curation
+
+
+def test_split_unchanged_omits_llm_curation_when_master_has_none():
+    from ctm.trials_lifecycle import split_by_eligibility
+    eligibility = {"inclusion": [], "exclusion": []}
+    master = [_trial("amc", "2021.070", eligibility)]
+    new = [_trial("amc", "2021.070", eligibility, treatment_list={"step": []})]
+
+    unchanged, changed, deleted = split_by_eligibility(new, master)
+
+    assert len(unchanged) == 1
+    assert "_llm_curation" not in unchanged[0]
+
+
 def test_merge_master_concatenates_unchanged_and_curated_changed():
     from ctm.trials_lifecycle import merge_master
     unchanged = [_trial("amc", "2015.063", {"inclusion": [], "exclusion": []})]

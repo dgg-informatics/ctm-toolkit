@@ -37,9 +37,11 @@ def split_by_eligibility(
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """Partition new_trials into (unchanged, changed, deleted) vs. master_trials.
 
-    unchanged: eligibility identical to the master's copy. treatment_list is
-      replaced with the master's (carrying forward curated match nodes);
-      every other field comes from the fresh new_trials entry.
+    unchanged: eligibility identical to the master's copy. treatment_list and
+      _llm_curation (if present on the master) are replaced with the
+      master's — carrying forward curated match nodes and the LLM
+      suggestions/biomarker references behind them; every other field comes
+      from the fresh new_trials entry.
     changed: no master entry for this key (new trial), or eligibility
       differs from the master's copy. Untouched — ready for ctm-ctml.
     deleted: trials present in master_trials but absent from new_trials.
@@ -62,6 +64,8 @@ def split_by_eligibility(
             changed.append(trial)
         else:
             carried = {**trial, "treatment_list": master_trial["treatment_list"]}
+            if "_llm_curation" in master_trial:
+                carried["_llm_curation"] = master_trial["_llm_curation"]
             unchanged.append(carried)
 
     deleted = [t for t in master_trials if trial_key(t) not in new_keys]
