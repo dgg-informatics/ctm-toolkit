@@ -192,6 +192,51 @@ class RawPmlRaraFinding(BaseModel):
     raw_interpretation: str | None = None
 
 
+class RawMayoFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    pt_uuid: int
+    report_uuid: int
+    accession_no: str | None = None
+    gene: str | None = None
+    protein: str | None = None
+    nucleotide: str | None = None
+    variant_type: str | None = None
+    result_summary: str | None = None
+    raw_test: str | None = None
+    raw_nucleotide_type: str | None = None
+    raw_therapies_current_dx: str | None = None
+    raw_therapies_other_indications: str | None = None
+    raw_trials: str | None = None
+    raw_biomarker: str | None = None
+    raw_result: str | None = None
+    raw_title: str | None = None
+    raw_category: str | None = None
+
+
+class RawHenryFordFinding(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    pt_uuid: int
+    report_uuid: int
+    accession_no: str | None = None
+    gene: str | None = None
+    protein: str | None = None
+    nucleotide: str | None = None
+    variant_type: str | None = None
+    result_summary: str | None = None
+    raw_variant_tier: str | int | None = None
+    raw_gene: str | None = None
+    raw_chro: str | int | None = None
+    raw_genomic_coordinates: str | int | None = None
+    raw_transcript: str | None = None
+    raw_cdna_change: str | None = None
+    raw_protein_change: str | None = None
+    raw_exon: str | int | None = None
+    raw_depth_of_coverage: str | int | None = None
+    raw_allele_fraction: str | float | None = None
+    raw_variant: str | None = None
+    raw_copy_number: str | float | None = None
+
+
 class RawTumorBiomarker(BaseModel):
     model_config = ConfigDict(extra='allow')
     pt_uuid: int

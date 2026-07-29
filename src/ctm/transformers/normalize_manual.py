@@ -15,17 +15,20 @@ from ..schemas.raw.models import (
     RawAmcNgsFinding,
     RawOgmFinding,
     RawPmlRaraFinding,
+    RawMayoFinding,
+    RawHenryFordFinding,
     RawTumorBiomarker,
 )
 from ..schemas.raw.normalized import Finding, Patient, ReportMetadata
 
 
 def _raw_fields(row: object) -> dict:
-    """Collect all raw_* fields from a raw model into a dict, dropping Nones."""
+    """Collect all raw_* fields (plus accession_no, if present) from a raw
+    model into a dict, dropping Nones."""
     return {
         k: v
         for k, v in row.model_dump().items()
-        if k.startswith("raw_") and v is not None
+        if (k.startswith("raw_") or k == "accession_no") and v is not None
     }
 
 
@@ -92,17 +95,27 @@ def normalize_pml_rara(row: RawPmlRaraFinding, source: str = "pml_rara") -> Find
     return _finding(row, source)
 
 
+def normalize_mayo(row: RawMayoFinding, source: str = "mayo") -> Finding:
+    return _finding(row, source)
+
+
+def normalize_henry_ford(row: RawHenryFordFinding, source: str = "henry_ford") -> Finding:
+    return _finding(row, source)
+
+
 def normalize_tumor_biomarker(row: RawTumorBiomarker, source: str = "tumor_biomarker") -> Finding:
     return _finding(row, source)
 
 
 # Map sheet name → (raw model class, normalize function)
 SHEET_NORMALIZERS = {
-    "tempus_findings":   (RawTempusFinding,   normalize_tempus),
-    "caris_findings":    (RawCarisFinding,    normalize_caris),
-    "ambry_findings":    (RawAmbryFinding,    normalize_ambry),
-    "amc_ngs_findings":  (RawAmcNgsFinding,  normalize_amc_ngs),
-    "ogm_findings":      (RawOgmFinding,      normalize_ogm),
-    "pml_rara_findings": (RawPmlRaraFinding,  normalize_pml_rara),
-    "tumor_biomarkers":  (RawTumorBiomarker,  normalize_tumor_biomarker),
+    "tempus_findings":      (RawTempusFinding,     normalize_tempus),
+    "caris_findings":       (RawCarisFinding,      normalize_caris),
+    "ambry_findings":       (RawAmbryFinding,      normalize_ambry),
+    "amc_ngs_findings":     (RawAmcNgsFinding,     normalize_amc_ngs),
+    "ogm_findings":         (RawOgmFinding,        normalize_ogm),
+    "pml_rara_findings":    (RawPmlRaraFinding,    normalize_pml_rara),
+    "mayo_findings":        (RawMayoFinding,       normalize_mayo),
+    "henry_ford_findings":  (RawHenryFordFinding,  normalize_henry_ford),
+    "tumor_biomarkers":     (RawTumorBiomarker,    normalize_tumor_biomarker),
 }
