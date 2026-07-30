@@ -15,9 +15,10 @@ body {
 }
 
 .report-header {
-  border-bottom: 2px solid #2c3e50;
+  border-top: 3px solid #FFCB05;
+  border-bottom: 2px solid #00274C;
   margin-bottom: 16px;
-  padding-bottom: 8px;
+  padding: 8px 0 8px 0;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -31,7 +32,7 @@ body {
 .report-header h1 {
   margin: 0;
   font-size: 18pt;
-  color: #2c3e50;
+  color: #00274C;
 }
 
 .report-meta {
@@ -53,7 +54,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: #2c3e50;
+  color: #00274C;
   margin-bottom: 4px;
 }
 
@@ -69,7 +70,7 @@ body {
 
 .section h2 {
   font-size: 12pt;
-  color: #2c3e50;
+  color: #00274C;
   border-bottom: 1px solid #ccc;
   padding-bottom: 4px;
   margin-bottom: 8px;
@@ -240,7 +241,7 @@ body {
 
 .abbrev-table th {
   font-weight: 700;
-  color: #2c3e50;
+  color: #00274C;
   white-space: nowrap;
   width: 60px;
 }
