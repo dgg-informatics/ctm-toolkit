@@ -74,7 +74,7 @@ def test_render_html_from_pt_trials_matches_smoke():
         SAMPLE_ID,
     )
     assert "<html" in html
-    assert "Trial Match Report" in html
+    assert "Michigan Medicine Trial Match" in html
     assert "NCT04858334" in html
     assert "Pancreatic Adenocarcinoma" in html
 
