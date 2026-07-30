@@ -5,7 +5,7 @@
     <thead>
       <tr>
         <th>NCT ID</th>
-        <th>Match Level</th>
+        <th>Trial Name</th>
         <th>Match Type</th>
         <th>Alteration</th>
       </tr>
@@ -14,7 +14,7 @@
       {% for m in other_matches %}
       <tr>
         <td>{{ m.nct_id or m.protocol_no }}</td>
-        <td>{{ m.match_level or "—" }}</td>
+        <td>{{ m.trial_name or "—" }}</td>
         <td>{{ m.match_type or "—" }}</td>
         <td>{{ m.genomic_alteration or "—" }}</td>
       </tr>

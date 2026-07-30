@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Trial Match Report</title>
+  <title>Michigan Medicine Trial Match</title>
   <style>
 {{ css }}
   </style>
@@ -10,7 +10,7 @@
 <body>
   <header class="report-header">
     <div class="report-header-title">
-      <h1>Trial Match Report</h1>
+      <h1>Michigan Medicine Trial Match</h1>
       <div class="report-meta">NCT ID: {{ primary_match.nct_id }}</div>
     </div>
     <div class="patient-header-box">
@@ -25,6 +25,7 @@
 
   {% include "_primary_match.html" %}
   {% include "_other_matches.html" %}
+  {% include "_genetic_profile.html" %}
   {% include "_patient_detail.html" %}
   {% include "_methods.html" %}
   {% include "_abbreviations.html" %}
