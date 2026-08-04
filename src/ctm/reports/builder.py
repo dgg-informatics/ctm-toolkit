@@ -54,17 +54,32 @@ def _extract(raw: dict, field_map: dict) -> list[dict]:
 # Primary-match selection helpers
 # ---------------------------------------------------------------------------
 
+def _match_reason(m: dict) -> str:
+    """Human-meaningful match reason for display, instead of the raw match_type
+    (`generic_clinical`, `gene`, ...). Genomic → the gene/alteration; TMB → TMB;
+    otherwise the patient's OncoTree diagnosis (the driver of a clinical match)."""
+    if m.get("reason_type") == "genomic":
+        return m.get("genomic_alteration") or m.get("true_hugo_symbol") or "Genomic"
+    if m.get("match_type") == "tmb":
+        return "TMB"
+    return m.get("oncotree_primary_diagnosis_name") or "Clinical criteria"
+
+
+def _match_priority(m: dict) -> tuple:
+    """Ranking key — lower is better. Prefers arm over step, then a genomic
+    reason over clinical, then matchengine's own sort_order. Used both to pick
+    the single primary match and to pick the best (most meaningful) match to
+    represent a trial when it matched for several reasons (e.g. age AND a gene)."""
+    level = 0 if m.get("match_level") == "arm" else 1
+    reason = 0 if m.get("reason_type") == "genomic" else 1
+    sort = m.get("sort_order") or [99] * 6
+    return (level, reason, sort)
+
+
 def _select_primary_match(trial_matches: list[dict]) -> dict | None:
     if not trial_matches:
         return None
-
-    def _priority(m: dict) -> tuple:
-        level = 0 if m.get("match_level") == "arm" else 1
-        reason = 0 if m.get("reason_type") == "genomic" else 1
-        sort = m.get("sort_order") or [99] * 6
-        return (level, reason, sort)
-
-    return min(trial_matches, key=_priority)
+    return min(trial_matches, key=_match_priority)
 
 
 def _build_other_matches(
@@ -72,20 +87,27 @@ def _build_other_matches(
 ) -> list[dict]:
     trials_by_protocol = trials_by_protocol or {}
     primary_protocol = primary.get("protocol_no") if primary else None
-    seen: set[str] = set()
-    others = []
+
+    # keep the single best (most meaningful) match doc per trial — a trial that
+    # matched on both age and a gene should surface the gene, not the age.
+    best_by_protocol: dict[str, dict] = {}
     for m in trial_matches:
         protocol = m.get("protocol_no")
-        if not protocol or protocol == primary_protocol or protocol in seen:
+        if not protocol or protocol == primary_protocol:
             continue
-        seen.add(protocol)
+        cur = best_by_protocol.get(protocol)
+        if cur is None or _match_priority(m) < _match_priority(cur):
+            best_by_protocol[protocol] = m
+
+    others = []
+    for protocol, m in best_by_protocol.items():
         summary = (trials_by_protocol.get(protocol) or {}).get("_summary") or {}
         others.append({
             "protocol_no": protocol,
             "nct_id": m.get("nct_id"),
             "trial_name": summary.get("long_title") or summary.get("short_title"),
             "match_level": m.get("match_level"),
-            "match_type": m.get("match_type"),
+            "match_reason": _match_reason(m),
             "genomic_alteration": m.get("genomic_alteration", ""),
             "source": "matchminer",
         })
@@ -118,7 +140,7 @@ def _build_primary_match_context(
     match_detail_rows = [
         _row("Cancer Type Match", match.get("oncotree_primary_diagnosis_name")),
         _row("Reason Type", match.get("reason_type")),
-        _row("Match Type", match.get("match_type")),
+        _row("Match Reason", _match_reason(match)),
         _row("Match Level", match.get("match_level")),
         _row("Match Engine", "MatchMiner-v2"),
     ]
@@ -248,7 +270,20 @@ def _render_report(ctx: dict, sample_id: str) -> str:
     return template.render(css=css, **ctx)
 
 
-def render_html_from_pt_trials_matches(pts_path: str, trials_path: str, matches_path: str, sample_id: str) -> str:
+def _trial_is_meaningful(trial: dict) -> bool:
+    """A trial is 'meaningful' if its step[0].match has an oncotree diagnosis
+    or a genomic clause — i.e. not an age/gender/ecog-only or empty match that
+    matches nearly everyone."""
+    from ..transformers.confidence_split import has_genomic, has_oncotree_diagnosis
+    steps = trial.get("treatment_list", {}).get("step", [])
+    match = steps[0].get("match", []) if steps else []
+    return has_oncotree_diagnosis(match) or has_genomic(match)
+
+
+def render_html_from_pt_trials_matches(
+    pts_path: str, trials_path: str, matches_path: str, sample_id: str,
+    meaningful_only: bool = False,
+) -> str:
     """Build a report for one patient from a patient collection, a trial
     collection, and a trial_match collection — the one report-building
     path. Trims trials to only those referenced by the patient's own matches.
@@ -262,6 +297,9 @@ def render_html_from_pt_trials_matches(pts_path: str, trials_path: str, matches_
     When the envelope shape is present, its "genomic" array (the patient's
     full genomic collection, not just the fields behind one match) also
     populates the Patient Genetic Profile section.
+
+    meaningful_only: keep only matches whose trial has an oncotree diagnosis or
+    genomic criterion, dropping age/gender-only ("matches everyone") trials.
     """
     matches_data = json.loads(Path(matches_path).read_text())
     matches = matches_data["trial_match"] if isinstance(matches_data, dict) else matches_data
@@ -269,6 +307,20 @@ def render_html_from_pt_trials_matches(pts_path: str, trials_path: str, matches_
     trials = json.loads(Path(trials_path).read_text())
 
     patient_matches = [m for m in matches if m.get("sample_id") == sample_id]
+
+    if meaningful_only:
+        meaningful_keys = set()
+        for t in trials:
+            if _trial_is_meaningful(t):
+                if t.get("protocol_no") is not None:
+                    meaningful_keys.add(t["protocol_no"])
+                if t.get("nct_id") is not None:
+                    meaningful_keys.add(t["nct_id"])
+        patient_matches = [
+            m for m in patient_matches
+            if m.get("protocol_no") in meaningful_keys or m.get("nct_id") in meaningful_keys
+        ]
+
     referenced_protocols = {m.get("protocol_no") for m in patient_matches}
     trials_by_protocol = {
         t.get("protocol_no"): t for t in trials if t.get("protocol_no") in referenced_protocols

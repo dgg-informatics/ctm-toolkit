@@ -75,6 +75,21 @@ def has_oncotree_diagnosis(node) -> bool:
     return False
 
 
+def has_genomic(node) -> bool:
+    """Recursively check a match node (or list of nodes) for a genomic clause,
+    including inside and/or wrappers."""
+    if isinstance(node, dict):
+        if "genomic" in node:
+            return True
+        for key in ("and", "or"):
+            if key in node and any(has_genomic(child) for child in node[key]):
+                return True
+        return False
+    if isinstance(node, list):
+        return any(has_genomic(item) for item in node)
+    return False
+
+
 def _cache_key(trial_id: str, text: str) -> str:
     return hashlib.md5(f"diagnosis:{trial_id}:{text}".encode()).hexdigest()
 
