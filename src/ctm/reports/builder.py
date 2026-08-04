@@ -32,8 +32,8 @@ PATIENT_DETAIL_FIELDS = {
 
 # TODO: hardcoded until referring-physician / genetic-report-physician are
 # real per-patient fields in the intake data — replace once that data exists.
-_REFERRING_PHYSICIAN_PLACEHOLDER = "Dr. Paul Swiecicki"
-_GENETIC_REPORT_PHYSICIAN_PLACEHOLDER = "Dr. Kelly Malloy"
+_REFERRING_PHYSICIAN_PLACEHOLDER = "NA"
+_GENETIC_REPORT_PHYSICIAN_PLACEHOLDER = "NA"
 
 
 def _row(label: str, value: object, bold: bool = False) -> dict:
