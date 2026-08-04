@@ -9,7 +9,7 @@ Usage:
   ctm-mm trials-merge --unchanged JSON --changed JSON --out JSON
 
 Options:
-  --pt-uuid N    Filter to one patient by pt_uuid (patients command)
+  --pt-uuid N[,N...]  Filter to one or more patients by pt_uuid, comma-separated (patients command)
   --out PATH     Save output to file (default: print to stdout)
 """
 import argparse
@@ -33,8 +33,8 @@ def main() -> None:
     )
     p_patients.add_argument("excel", metavar="EXCEL",
                             help="Path to patient_data_template.xlsx")
-    p_patients.add_argument("--pt-uuid", type=int, dest="pt_uuid", metavar="N",
-                            help="Filter to one patient by pt_uuid")
+    p_patients.add_argument("--pt-uuid", dest="pt_uuid", metavar="N[,N...]",
+                            help="Filter to one or more patients by pt_uuid (comma-separated, e.g. 6,7,8,9)")
     p_patients.add_argument("--out", metavar="PATH",
                             help="Save JSON output to file (default: print to stdout)")
 
@@ -166,8 +166,13 @@ def _cmd_raw_to_mm(args) -> None:
         print(f"Error: file not found: {excel_path}", file=sys.stderr)
         sys.exit(1)
 
+    pt_uuid_filter = (
+        {int(u.strip()) for u in args.pt_uuid.split(",") if u.strip()}
+        if args.pt_uuid else None
+    )
+
     print(f"Reading {excel_path} ...", file=sys.stderr)
-    patients, metadata, findings = read_and_normalize(excel_path, pt_uuid_filter=args.pt_uuid)
+    patients, metadata, findings = read_and_normalize(excel_path, pt_uuid_filter=pt_uuid_filter)
 
     if not patients:
         print("No patients found (check --pt-uuid or pt_general sheet).", file=sys.stderr)

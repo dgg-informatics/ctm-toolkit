@@ -233,6 +233,55 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 
 ---
 
+### MongoDB Compass Views
+
+Each daily database gets its own set of standard views for exploring trials and matches in Compass. Views live per-database, so recreate them against each new dated DB (idempotent — safe to re-run):
+
+```bash
+mongosh "mongodb://localhost:27018/<dated_db>" scripts/create_default_views.js
+```
+
+**Views on `trial_match`** (one row per patient↔trial match reason):
+
+| View | What it shows |
+|---|---|
+| `genomic_matches` | All genomic-driven matches (`reason_type: "genomic"`) — every gene/variant/CNV/fusion/MMR/signature hit. |
+| `clinical_matches` | Clinical matches where `match_type: "generic_clinical"` (diagnosis/age/gender/ECOG; excludes TMB). |
+| `specific_ct_matches` | Matches where `cancer_type_match: "specific"`. ⚠️ This flag is set by default and shows up even on age-only trials — not a reliable "meaningful" filter on its own. |
+| `top_matched` | Strongest matches: `cancer_type_match: "specific"` **and** `match_type: "gene"`. |
+| `match_type_breakdown` | Aggregation: match count + distinct-trial count per `match_type`, sorted. At-a-glance distribution. |
+| `mt_<value>` | One auto-generated view per distinct `match_type` present (e.g. `mt_gene`, `mt_generic_clinical`, `mt_variant`, `mt_tmb`, `mt_mmr`). |
+| `trial_match_meaningful` | ⭐ Matches only for trials with a **specific diagnosis or genomic** criterion. Excludes age-only, empty, and `_SOLID_`/`_LIQUID_` trials — the noise-filtered match list. |
+| `trial_match_generic_oncotree` | Matches for `_SOLID_`/`_LIQUID_` basket trials, kept in their own bucket. |
+
+**Views on `trial`** (one row per trial document):
+
+| View | What it shows |
+|---|---|
+| `biomarker_trials` | Trials with ≥1 entry in `_llm_curation.biomarker_references`. |
+| `ct_matches` | Full trial docs for every trial that produced ≥1 match. **Not deduped** — reflects duplicate trial copies. |
+| `uniq_matches_full` | ⭐ Full trial docs for the unique **meaningful**-matched trials, **deduped** (one doc per trial). The "actually-relevant trials" list. |
+| `trial_no_match_clause` | Trials with an empty `match[]` — no criteria at all. |
+| `trial_trivial_criteria` | Trials with only age/gender/ECOG — no diagnosis, no genomic. |
+| `trial_basket_solid_liquid` | Trials whose diagnosis is `_SOLID_`/`_LIQUID_` (broad basket). |
+
+**Two mental groupings:**
+
+- **"Show me the good matches"** → `uniq_matches_full` (deduped trial docs) or `trial_match_meaningful` (per-match-reason rows).
+- **"Show me what needs curation"** → `trial_no_match_clause` + `trial_trivial_criteria` (trials whose eligibility was never encoded past age).
+
+**Tier logic** — each trial lands in exactly one tier, decided by inspecting its `step[0].match`:
+
+- **meaningful** — has a genomic clause **or** a specific OncoTree diagnosis (not `_SOLID_`/`_LIQUID_`)
+- **basket** — has an OncoTree diagnosis but only `_SOLID_`/`_LIQUID_`
+- **trivial** — non-empty match, but no diagnosis and no genomic (age/gender/ECOG only)
+- **empty** — `match[]` is empty
+
+> [!NOTE]
+> The tier-based views (`trial_match_meaningful`, `uniq_matches_full`, and the three `trial_*` classification views) bake in trial-ID lists computed at script run time, because MongoDB views can't recursively detect a diagnosis/genomic clause nested inside `and`/`or` wrappers. If you load more trials into a DB *after* running the script, re-run it to reclassify. The plain aggregation views (`match_type_breakdown`, `biomarker_trials`, etc.) always reflect live data.
+
+---
+
 ## Schemas
 
 **Schema levels:**

@@ -24,13 +24,16 @@ def _sheet_rows(ws) -> list[dict]:
 
 def read_and_normalize(
     path: Path,
-    pt_uuid_filter: int | None = None,
+    pt_uuid_filter: int | set[int] | None = None,
 ) -> tuple[list[Patient], list[ReportMetadata], list[Finding]]:
     """Read Excel workbook → (patients, report_metadata, findings), all normalized.
 
-    pt_uuid_filter: if set, only rows for that patient are returned.
-    Rows that fail validation are skipped with a printed warning.
+    pt_uuid_filter: if set, only rows for the given pt_uuid(s) are returned.
+    Accepts a single int or a set of ints. Rows that fail validation are
+    skipped with a printed warning.
     """
+    if isinstance(pt_uuid_filter, int):
+        pt_uuid_filter = {pt_uuid_filter}
     wb = openpyxl.load_workbook(path, data_only=True)
 
     # ── Patients ──────────────────────────────────────────────────────────────
@@ -39,7 +42,7 @@ def read_and_normalize(
         for row in _sheet_rows(wb["pt_general"]):
             if row.get("pt_uuid") is None:
                 continue
-            if pt_uuid_filter is not None and row["pt_uuid"] != pt_uuid_filter:
+            if pt_uuid_filter is not None and row["pt_uuid"] not in pt_uuid_filter:
                 continue
             try:
                 patients.append(normalize_patient(RawPatientGeneral.model_validate(row)))

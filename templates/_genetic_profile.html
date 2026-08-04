@@ -1,0 +1,27 @@
+{% if genetic_profile %}
+<section class="section section-genetic-profile">
+  <h2>Patient Genetic Profile</h2>
+  <table class="data-table compact">
+    <thead>
+      <tr>
+        <th>Gene</th>
+        <th>Variant Category</th>
+        <th>Protein Change</th>
+        <th>cDNA Change</th>
+        <th>CNV Call</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in genetic_profile %}
+      <tr>
+        <td>{{ g.gene or "—" }}</td>
+        <td>{{ g.variant_category or "—" }}</td>
+        <td>{{ g.protein_change or "—" }}</td>
+        <td>{{ g.cdna_change or "—" }}</td>
+        <td>{{ g.cnv_call or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}

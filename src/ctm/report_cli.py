@@ -1,7 +1,7 @@
 """ctm-report — build a trial match report (PDF or live preview).
 
 Usage:
-  ctm-report --pts pts.json --trials trials.json --matches matches.json --sample-id ID [--preview] [--out PATH]
+  ctm-report --pts pts.json --trials trials.json --matches matches.json --sample-id ID [--meaningful-only] [--preview] [--out PATH]
 """
 import argparse
 import os
@@ -18,7 +18,8 @@ def _fix_macos_weasyprint_path() -> None:
             )
 
 
-def _run_preview(pts_path: str, trials_path: str, matches_path: str, sample_id: str) -> None:
+def _run_preview(pts_path: str, trials_path: str, matches_path: str, sample_id: str,
+                 meaningful_only: bool = False) -> None:
     from livereload import Server
     from ctm.reports.builder import BASE_DIR, render_html_from_pt_trials_matches
 
@@ -27,7 +28,8 @@ def _run_preview(pts_path: str, trials_path: str, matches_path: str, sample_id: 
 
     def build():
         output_dir.mkdir(exist_ok=True)
-        output_file.write_text(render_html_from_pt_trials_matches(pts_path, trials_path, matches_path, sample_id))
+        output_file.write_text(render_html_from_pt_trials_matches(
+            pts_path, trials_path, matches_path, sample_id, meaningful_only=meaningful_only))
 
     build()
     server = Server()
@@ -56,17 +58,22 @@ def main() -> None:
                         help="Flat trial_match collection JSON from the match engine")
     parser.add_argument("--sample-id", dest="sample_id", metavar="ID", required=True,
                         help="SAMPLE_ID of the patient to build the report for")
+    parser.add_argument("--meaningful-only", dest="meaningful_only", action="store_true",
+                        help="Keep only matches whose trial has an oncotree diagnosis or genomic "
+                             "criterion (drops age/gender-only trials that match everyone)")
     parser.add_argument("--preview", action="store_true",
                         help="Spin up livereload server instead of building PDF")
     args = parser.parse_args()
 
     if args.preview:
-        _run_preview(args.pts_path, args.trials_path, args.matches_path, args.sample_id)
+        _run_preview(args.pts_path, args.trials_path, args.matches_path, args.sample_id,
+                     meaningful_only=args.meaningful_only)
         return
 
     from weasyprint import HTML
 
-    html = render_html_from_pt_trials_matches(args.pts_path, args.trials_path, args.matches_path, args.sample_id)
+    html = render_html_from_pt_trials_matches(args.pts_path, args.trials_path, args.matches_path,
+                                              args.sample_id, meaningful_only=args.meaningful_only)
     output_path = Path(args.out) if args.out else BASE_DIR / "output" / "report.pdf"
     output_path.parent.mkdir(exist_ok=True, parents=True)
     HTML(string=html).write_pdf(str(output_path))

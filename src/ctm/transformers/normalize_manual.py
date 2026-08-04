@@ -17,6 +17,7 @@ from ..schemas.raw.models import (
     RawPmlRaraFinding,
     RawMayoFinding,
     RawHenryFordFinding,
+    RawGuardant360Finding,
     RawTumorBiomarker,
 )
 from ..schemas.raw.normalized import Finding, Patient, ReportMetadata
@@ -103,6 +104,10 @@ def normalize_henry_ford(row: RawHenryFordFinding, source: str = "henry_ford") -
     return _finding(row, source)
 
 
+def normalize_guardant360(row: RawGuardant360Finding, source: str = "guardant360") -> Finding:
+    return _finding(row, source)
+
+
 def normalize_tumor_biomarker(row: RawTumorBiomarker, source: str = "tumor_biomarker") -> Finding:
     return _finding(row, source)
 
@@ -117,5 +122,6 @@ SHEET_NORMALIZERS = {
     "pml_rara_findings":    (RawPmlRaraFinding,    normalize_pml_rara),
     "mayo_findings":        (RawMayoFinding,       normalize_mayo),
     "henry_ford_findings":  (RawHenryFordFinding,  normalize_henry_ford),
+    "guardant360_findings": (RawGuardant360Finding, normalize_guardant360),
     "tumor_biomarkers":     (RawTumorBiomarker,    normalize_tumor_biomarker),
 }

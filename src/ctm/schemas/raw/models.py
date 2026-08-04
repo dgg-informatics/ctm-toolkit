@@ -237,6 +237,21 @@ class RawHenryFordFinding(BaseModel):
     raw_copy_number: str | float | None = None
 
 
+class RawGuardant360Finding(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    pt_uuid: int
+    report_uuid: int
+    accession_no: str | int | None = None
+    gene: str | None = None
+    protein: str | None = None
+    nucleotide: str | None = None
+    variant_type: str | None = None
+    result_summary: str | None = None
+    raw_detected_alterations_biomarkers: str | None = None
+    raw_percent_cfdna_or_amp: str | float | None = None
+    raw_alteration_trend: str | float | None = None
+
+
 class RawTumorBiomarker(BaseModel):
     model_config = ConfigDict(extra='allow')
     pt_uuid: int

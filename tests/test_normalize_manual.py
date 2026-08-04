@@ -1,7 +1,13 @@
 """Tests for normalize_manual.py — raw Excel finding rows -> Finding docs."""
-from ctm.schemas.raw.models import RawHenryFordFinding, RawMayoFinding, RawTempusFinding
+from ctm.schemas.raw.models import (
+    RawGuardant360Finding,
+    RawHenryFordFinding,
+    RawMayoFinding,
+    RawTempusFinding,
+)
 from ctm.transformers.normalize_manual import (
     SHEET_NORMALIZERS,
+    normalize_guardant360,
     normalize_henry_ford,
     normalize_mayo,
 )
@@ -12,6 +18,32 @@ def test_mayo_and_henry_ford_registered_in_sheet_normalizers():
     assert "henry_ford_findings" in SHEET_NORMALIZERS
     assert SHEET_NORMALIZERS["mayo_findings"] == (RawMayoFinding, normalize_mayo)
     assert SHEET_NORMALIZERS["henry_ford_findings"] == (RawHenryFordFinding, normalize_henry_ford)
+
+
+def test_guardant360_registered_in_sheet_normalizers():
+    assert "guardant360_findings" in SHEET_NORMALIZERS
+    assert SHEET_NORMALIZERS["guardant360_findings"] == (RawGuardant360Finding, normalize_guardant360)
+
+
+def test_normalize_guardant360_maps_canonical_fields():
+    row = RawGuardant360Finding(pt_uuid=8, report_uuid=1, accession_no="G360-001",
+                                gene="PIK3CA", protein="p.E545K", variant_type="SNV",
+                                result_summary="1.2% cfDNA or Amplification",
+                                raw_percent_cfdna_or_amp=0.012,
+                                raw_alteration_trend="rising")
+    finding = normalize_guardant360(row)
+
+    assert finding.pt_uuid == 8
+    assert finding.report_uuid == 1
+    assert finding.source == "guardant360"
+    assert finding.gene == "PIK3CA"
+    assert finding.protein == "p.E545K"
+    assert finding.variant_type == "SNV"
+    assert finding.raw == {
+        "accession_no": "G360-001",
+        "raw_percent_cfdna_or_amp": 0.012,
+        "raw_alteration_trend": "rising",
+    }
 
 
 def test_normalize_mayo_maps_canonical_fields():
