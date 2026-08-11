@@ -4,7 +4,7 @@ Uses an OpenAI-compatible API (UMGPT) to suggest CTML match nodes for each
 eligibility criterion. Results are cached by MD5 hash of the criterion text
 so unchanged criteria never re-hit the API.
 
-Cache file: data/dump/.ctml_cache.json (gitignored)
+Cache file: ~/.cache/ctm/.ctml_cache.json (override with --cache or CTM_CACHE_DIR)
 """
 import hashlib
 import json
@@ -12,7 +12,14 @@ import os
 import urllib.request
 from pathlib import Path
 
-DEFAULT_CACHE_PATH = Path(".ctml_cache.json")
+from ..paths import cache_path
+
+DEFAULT_CACHE_NAME = ".ctml_cache.json"
+
+
+def default_cache_path() -> Path:
+    """Resolved lazily so CTM_CACHE_DIR / XDG_CACHE_HOME are honoured at call time."""
+    return cache_path(DEFAULT_CACHE_NAME)
 
 SYSTEM_PROMPT = """You are a clinical trial eligibility translator for MatchMiner.
 
@@ -136,13 +143,15 @@ def _validate_node(node: dict | None, valid: set[str]) -> dict | None:
     return node
 
 
-def load_cache(path: Path = DEFAULT_CACHE_PATH) -> dict:
+def load_cache(path: Path | None = None) -> dict:
+    path = path or default_cache_path()
     if path.exists():
         return json.loads(path.read_text())
     return {}
 
 
-def save_cache(cache: dict, path: Path = DEFAULT_CACHE_PATH) -> None:
+def save_cache(cache: dict, path: Path | None = None) -> None:
+    path = path or default_cache_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(cache, indent=2))
 

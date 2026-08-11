@@ -18,6 +18,11 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path
+
+_CURATE_CACHE = ".trials_curate_cache.json"
+_DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
+
 
 def main() -> None:
 
@@ -68,10 +73,12 @@ def main() -> None:
                                  help="ctm-ctml draft trials JSON (has _ctml_suggestions per trial)")
     p_trials_curate.add_argument("--out", required=True, metavar="JSON",
                                  help="Output path for the curated trials JSON")
-    p_trials_curate.add_argument("--cache", default=".trials_curate_cache.json", metavar="JSON",
-                                 help="Shared cache file for biomarker-scan and summary-suggestion LLM calls")
-    p_trials_curate.add_argument("--kb", default="data/gene_variant_descriptions_v2.json", metavar="JSON",
-                                 help="Known gene/variant knowledge base")
+    p_trials_curate.add_argument("--cache", default=None, metavar="JSON",
+                                 help="Shared cache file for biomarker-scan and summary-suggestion LLM "
+                                      f"calls (default: {cache_dir() / _CURATE_CACHE})")
+    p_trials_curate.add_argument("--kb", default=None, metavar="JSON",
+                                 help="Known gene/variant knowledge base (default: the copy shipped "
+                                      "with the package)")
 
     p_trials_confidence_split = sub.add_parser(
         "trials-confidence-split",
@@ -91,9 +98,9 @@ def main() -> None:
     p_trials_confidence_split.add_argument("--recover-diagnosis", action="store_true",
                                            help="For trials missing an oncotree diagnosis in match, attempt LLM "
                                                 "extraction from _raw.full_title/_raw.summary_obj")
-    p_trials_confidence_split.add_argument("--cache", default=".confidence_split_cache.json", metavar="JSON",
+    p_trials_confidence_split.add_argument("--cache", default=None, metavar="JSON",
                                            help="Cache file for diagnosis-recovery LLM calls (only used with "
-                                                "--recover-diagnosis)")
+                                                f"--recover-diagnosis; default: {cache_dir() / _DIAGNOSIS_CACHE})")
 
     p_trials_merge = sub.add_parser(
         "trials-merge",
@@ -337,22 +344,23 @@ def _cmd_trials_curate(args) -> None:
 
     trials = json.loads(Path(args.trials).read_text())
 
-    known_genes = load_known_genes(Path(args.kb))
-    print(f"{len(known_genes)} known genes loaded from {args.kb}", file=sys.stderr)
+    kb_path = Path(args.kb) if args.kb else DEFAULT_KB_PATH
+    known_genes = load_known_genes(kb_path)
+    print(f"{len(known_genes)} known genes loaded from {kb_path}", file=sys.stderr)
 
     print("Fetching OncoTree names...", file=sys.stderr)
     valid_oncotree = fetch_oncotree_names()
     print(f"  {len(valid_oncotree)} valid tumor types loaded", file=sys.stderr)
 
     client = build_client()
-    cache_path = Path(args.cache)
-    cache = load_cache(cache_path)
+    cache_file = Path(args.cache) if args.cache else cache_path(_CURATE_CACHE)
+    cache = load_cache(cache_file)
 
     for i, trial in enumerate(trials, 1):
         trial_id = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
         print(f"[{i}/{len(trials)}] {trial_id}", file=sys.stderr)
         curate_trial(trial, client, cache, known_genes, valid_oncotree)
-        save_cache(cache, cache_path)  # save after each trial so progress survives interruption
+        save_cache(cache, cache_file)  # save after each trial so progress survives interruption
 
     Path(args.out).write_text(json.dumps(trials, indent=2, default=str))
     print(f"Saved {len(trials)} trial(s) → {args.out}", file=sys.stderr)
@@ -365,13 +373,13 @@ def _cmd_trials_confidence_split(args) -> None:
     allowed_types = {t.strip() for t in args.allowed_biomarker_types.split(",") if t.strip()}
 
     client = cache = valid_oncotree = None
-    cache_path = Path(args.cache)
+    cache_file = Path(args.cache) if args.cache else cache_path(_DIAGNOSIS_CACHE)
 
     if args.recover_diagnosis:
         from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names
         client = build_client()
         valid_oncotree = fetch_oncotree_names()
-        cache = load_cache(cache_path)
+        cache = load_cache(cache_file)
 
     high_confidence, needs_curation = split_by_confidence(
         trials, allowed_types,
@@ -380,7 +388,7 @@ def _cmd_trials_confidence_split(args) -> None:
     )
 
     if args.recover_diagnosis:
-        save_cache(cache, cache_path)
+        save_cache(cache, cache_file)
 
     Path(args.high_confidence_out).write_text(json.dumps(high_confidence, indent=2, default=str))
     Path(args.needs_curation_out).write_text(json.dumps(needs_curation, indent=2, default=str))

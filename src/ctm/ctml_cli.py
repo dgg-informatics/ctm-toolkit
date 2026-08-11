@@ -7,7 +7,8 @@ Reads a normalized trials JSON (output of ctm-mm trials), sends each eligibility
 criterion to UMGPT, and writes a draft JSON with suggested CTML match nodes
 attached to each trial under _ctml_suggestions.
 
-Results are cached in data/dump/.ctml_cache.json — unchanged criteria are free.
+Results are cached in ~/.cache/ctm/.ctml_cache.json — unchanged criteria are free.
+Override the location with --cache, or point CTM_CACHE_DIR at another directory.
 
 Requires in .env:
   UMGPT_API_KEY=...
@@ -19,6 +20,8 @@ import json
 import sys
 from pathlib import Path
 
+from ctm.paths import cache_dir, cache_path
+
 _DEFAULT_CACHE = ".ctml_cache.json"
 
 
@@ -29,14 +32,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="ctm-ctml", description="Draft CTML match nodes from eligibility text")
     parser.add_argument("--trials", required=True, metavar="JSON", help="Normalized trials JSON from ctm-mm trials")
     parser.add_argument("--out",    required=True, metavar="JSON", help="Output draft JSON")
-    parser.add_argument("--cache",  default=_DEFAULT_CACHE, metavar="JSON", help=f"Cache file path (default: {_DEFAULT_CACHE})")
+    parser.add_argument("--cache",  default=None, metavar="JSON",
+                        help=f"Cache file path (default: {cache_dir() / _DEFAULT_CACHE})")
     parser.add_argument("--limit",  type=int, default=None, metavar="N", help="Process only first N trials (for testing)")
     parser.add_argument("--nct",    default=None, metavar="ID", nargs="+", help="Process only trials matching these NCT or protocol numbers")
     args = parser.parse_args()
 
     from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names, load_cache, process_trial, save_cache
 
-    cache_path = Path(args.cache)
+    cache_file = Path(args.cache) if args.cache else cache_path(_DEFAULT_CACHE)
 
     with open(args.trials) as f:
         trials = json.load(f)
@@ -51,7 +55,7 @@ def main() -> None:
         trials = trials[:args.limit]
 
     client = build_client()
-    cache = load_cache(cache_path)
+    cache = load_cache(cache_file)
 
     print("Fetching OncoTree names...", file=sys.stderr)
     valid_oncotree = fetch_oncotree_names()
@@ -62,7 +66,7 @@ def main() -> None:
         protocol = trial.get("protocol_no") or trial.get("nct_id") or f"trial-{i}"
         print(f"[{i+1}/{len(trials)}] {protocol}", file=sys.stderr)
         results.append(process_trial(trial, cache, client, valid_oncotree))
-        save_cache(cache, cache_path)  # save after each trial so progress survives interruption
+        save_cache(cache, cache_file)  # save after each trial so progress survives interruption
 
     Path(args.out).write_text(json.dumps(results, indent=2))
     print(f"Saved → {args.out}", file=sys.stderr)
