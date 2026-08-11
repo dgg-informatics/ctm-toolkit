@@ -6,9 +6,6 @@ dist/
 .pytest_cache/
 .env
 
-# uv
-uv.lock
-
 # hidden modules
 ai.py
 

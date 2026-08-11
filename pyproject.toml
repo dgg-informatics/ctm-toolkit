@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ctm-toolkit"
-version = "0.1.1"
-description = "Clinical trial data normalization and report generation toolkit for MatchMiner integration"
+version = "1.0.0"
+description = "Clinical trial data normalization and report generation toolkit"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -24,9 +24,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "pydantic>=2.0",
-    "openpyxl",
+    "dotenv",
     "jinja2",
+    "openpyxl",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
