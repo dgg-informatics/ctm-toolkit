@@ -6,8 +6,8 @@ dist/
 .pytest_cache/
 .env
 
-# hidden modules
-ai.py
+# MatchMiner Mongo credentials — created locally per the README, never commit
+SECRETS_JSON.json
 
 # data/real/ — real patient data, never commit (HIPAA)
 data/real/*
@@ -25,7 +25,8 @@ data/mock/*
 !data/mock/.gitkeep
 
 # output/ — generated preview artifacts, never commit
-# output/
+output/*
+!output/.gitkeep
 
 # superpowers
 docs/superpowers/*
