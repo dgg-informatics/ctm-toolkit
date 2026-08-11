@@ -24,10 +24,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "dotenv",
     "jinja2",
     "openpyxl",
     "pydantic>=2.0",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +47,11 @@ all = [
     "livereload",
     "openai",
     "python-dotenv",
+]
+# Test/lint tooling. An extra rather than a PEP 735 dependency-group so plain
+# `pip install ".[dev]"` works in the Dockerfile without a pip 25.1+ floor.
+dev = [
+    "pytest",
 ]
 
 [project.scripts]
