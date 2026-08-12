@@ -98,8 +98,8 @@ ctm-report --pts pt_1234.json --trials trials.json --matches export/matchminer_e
 Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See the reference workbook at *tests/fixtures/test-pt-data-v0.0.1.xlsx*, or generate a blank one with `python scripts/make_template.py`.
 
 ⚠️ **A filled-in workbook is PHI and must never be committed.** `.gitignore` denies
-`data/raw/*` and the generated `patient_data_template.xlsx` by default, but keep
-real workbooks outside the repo where practical.
+the generated `patient_data_template.xlsx` by default, but keep real workbooks
+outside the repo entirely.
 
 After you fill out the template excel sheet, please be careful of:
 
@@ -531,8 +531,6 @@ the page. Output is written to `./output/` relative to where you run the command
 - `tests/fixtures/` — all mock data (see below)
 - `scripts/` — `make_template.py` writes a blank intake workbook;
   `create_default_views.js` creates the Compass views
-- `data/` — untracked scratch space for your own working files. Nothing in it is
-  committed, and patient workbooks placed here are gitignored.
 
 > [!IMPORTANT]
 > Report templates, CSS, and reference data live **inside** `src/ctm/` so an

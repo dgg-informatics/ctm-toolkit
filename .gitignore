@@ -9,19 +9,10 @@ dist/
 # MatchMiner Mongo credentials — created locally per the README, never commit
 SECRETS_JSON.json
 
-# data/real/ — real patient data, never commit (HIPAA)
-data/real/*
-!data/real/.gitkeep
-
-# data/dump/ — scratch/misc files, not tracked
-data/dump/*
-!data/dump/.gitkeep
-
-# data/ holds nothing tracked any more — the committed reference workbook is
-# tests/fixtures/test-pt-data-v0.0.1.xlsx. Everything here is a local working
-# copy, and patient workbooks are PHI, so deny the whole tree by default.
-data/raw/*
-data/mock/*
+# data/ is gone — mock data lives in tests/fixtures/. Kept as a one-line guard so
+# that if the folder is ever recreated as local scratch, a patient workbook in it
+# cannot be committed.
+data/
 
 # scripts/make_template.py writes a blank workbook into the working directory;
 # once filled in it is PHI, so it is never committable.
