@@ -52,7 +52,7 @@ def test_flat_matches_other_matches_excludes_primary_protocol():
     matches = [
         {
             "sample_id": "1", "match_level": "arm", "reason_type": "genomic",
-            "show_in_ui": True, "protocol_no": "NCT02477839", "nct_id": "NCT02477839",
+            "show_in_ui": True, "protocol_no": "NCT90000002", "nct_id": "NCT90000002",
             "cancer_type_match": "specific", "match_type": "gene",
             "genomic_alteration": "EGFR", "trial_summary_status": "open",
             "sort_order": [1, 99, 1, 99, 99, 99], "hash": "aaa",
@@ -67,7 +67,7 @@ def test_flat_matches_other_matches_excludes_primary_protocol():
     ]
     ctx = load_context_from_flat_matches(matches, "1")
     other_protocols = [m["protocol_no"] for m in ctx["other_matches"]]
-    assert "NCT02477839" not in other_protocols
+    assert "NCT90000002" not in other_protocols
     assert "NCT99999999" in other_protocols
     m = ctx["other_matches"][0]
     assert "protocol_no" in m
@@ -87,17 +87,17 @@ def test_match_reason_labels():
 
 
 def test_other_matches_prefers_genomic_reason_when_trial_matched_on_both():
-    # NCT06253871 case: a trial matches on BOTH age (clinical) and a gene
+    # NCT90000003 case: a trial matches on BOTH age (clinical) and a gene
     # (genomic). The row should surface the gene, not generic_clinical — even
     # though the clinical doc appears first in the list.
     from ctm.reports.builder import load_context_from_flat_matches
     matches = [
         {"sample_id": "1", "match_level": "step", "reason_type": "clinical",
-         "show_in_ui": True, "protocol_no": "2024.010", "nct_id": "NCT06253871",
+         "show_in_ui": True, "protocol_no": "2024.010", "nct_id": "NCT90000003",
          "match_type": "generic_clinical", "genomic_alteration": "",
          "trial_summary_status": "open", "sort_order": [1, 99, 99, 99, 99, 99], "hash": "a"},
         {"sample_id": "1", "match_level": "step", "reason_type": "genomic",
-         "show_in_ui": True, "protocol_no": "2024.010", "nct_id": "NCT06253871",
+         "show_in_ui": True, "protocol_no": "2024.010", "nct_id": "NCT90000003",
          "match_type": "gene", "genomic_alteration": "HER2", "true_hugo_symbol": "HER2",
          "trial_summary_status": "open", "sort_order": [1, 99, 1, 99, 99, 99], "hash": "b"},
         # a second, unrelated trial so 2024.010 lands in other_matches, not primary
@@ -145,12 +145,12 @@ def test_other_matches_includes_trial_name_from_trials_by_protocol():
 def _make_normalized_json(tmp_path):
     data = {
         "clinical": {
-            "SAMPLE_ID": "302939",
+            "SAMPLE_ID": "900001",
             "VITAL_STATUS": "alive",
             "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "READ",
         },
         "genomic": [
-            {"SAMPLE_ID": "302939", "TRUE_HUGO_SYMBOL": "ERBB2", "VARIANT_CATEGORY": "MUTATION"}
+            {"SAMPLE_ID": "900001", "TRUE_HUGO_SYMBOL": "ERBB2", "VARIANT_CATEGORY": "MUTATION"}
         ],
         "extras": {
             "patients": {

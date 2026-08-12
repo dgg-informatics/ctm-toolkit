@@ -112,7 +112,8 @@ add_sheet(wb, "pt_general", [
     ("primary_dx",        "plain"),
     ("metastasis_sites",  "plain"),
 ], example=[
-    0, 302939, "Larry", "Corum", None, None, "AMC", "mid-rectal adenocarcinoma", None,
+    0, 900001, "Spider", "Man", "1962-08-10", "male", "AMC",
+    "mid-rectal adenocarcinoma", None,
 ])
 
 
@@ -132,9 +133,9 @@ add_sheet(wb, "report_metadata", [
     ("link",           "plain"),
     ("notes",          "plain"),
 ], example=[
-    0, 1, "tempus", "xT CDx", "TL-26-LOVTO77643", "Erin Cobain",
+    0, 0, "tempus", "xT CDx", "TL-00-EXAMPLE00000", "Dr. Jane Doe",
     "tumor/blood", "2026-01-08", "2026-02-25", "2026-03-07",
-    "Erin Cobain Email", "https://...", None,
+    "referring physician email", "https://...", None,
 ])
 
 
@@ -155,7 +156,7 @@ add_sheet(wb, "tempus_findings", [
     ("raw_therapies_other_indications", "raw"),
     ("raw_trials",                   "raw"),
 ], example=[
-    1, 0, "ERBB2", None, None, "somatic_mutation", "p.T733I 53.2% VAF",
+    0, 0, "ERBB2", None, None, "somatic_mutation", "p.T733I 53.2% VAF",
     "ERBB2 (HER2) p.T733I", "53.2% VAF", "somatic - potentially actionable",
     "DNA", None, "Neratinib, Neratinib + Fulvestrant", "2 trials",
 ])
@@ -201,7 +202,7 @@ add_sheet(wb, "caris_findings", [
     ("raw_genotype",               "raw"),   # HLA rows
     ("raw_hla_class",              "raw"),   # HLA rows
 ], example=[
-    2, 1, "ROS1", None, None, "fusion", "CD74-ROS1 pathogenic fusion",
+    0, 0, "ROS1", None, None, "fusion", "CD74-ROS1 pathogenic fusion",
     "SP26-02346A1", "lower lobe, lung", "lower lobe, lung",
     "2026-02-17", "2026-03-17", "2026-03-21",
     "University of Michigan Health West - Cancer Center at the Village",
@@ -225,7 +226,7 @@ add_sheet(wb, "ambry_findings", [
     ("raw_gross_deletions_dups",       "raw"),
     ("raw_summary",                    "raw"),
 ], example=[
-    2, 2, None, None, None, "germline", "negative — no significant variants",
+    0, 0, None, None, None, "germline", "negative — no significant variants",
     "None Detected", "None Detected", "None Detected",
     "Negative: No clinically significant variants detected",
 ])
@@ -256,7 +257,7 @@ add_sheet(wb, "amc_ngs_findings", [
     ("raw_therapeutic_implications", "raw"),
     ("raw_pertinent_negatives",      "raw"),
 ], example=[
-    3, 3, "EGFR", None, None, "somatic_mutation", "exon 19 del E746_A750del",
+    0, 0, "EGFR", None, None, "somatic_mutation", "exon 19 del E746_A750del",
     "F91209848", "SU-26-14583-A1", "Left lower lobe",
     "Level 1 FDA-recognized biomarker", "EGFR exon 19 deletion",
     "c.2236_2250del", "E746_A750del", "NM_005228.3 hg19 chr7:55242465",
@@ -280,7 +281,7 @@ add_sheet(wb, "ogm_findings", [
     ("raw_iscn_karyotype",     "raw"),
     ("raw_additional_results", "raw"),
 ], example=[
-    4, 4, None, None, None, "structural_variant", "no significant alterations detected",
+    0, 0, None, None, None, "structural_variant", "no significant alterations detected",
     "No clinically significant copy number alterations or structural variants were detected.",
     "Optical genome mapping analysis did not identify any clinically significant genomic alterations.",
     "ogm (X,1-22)x2", None,
@@ -299,7 +300,7 @@ add_sheet(wb, "pml_rara_findings", [
     ("raw_test_result",   "raw"),
     ("raw_interpretation","raw"),
 ], example=[
-    4, 5, "PML/RARA", None, None, "fusion", "negative",
+    0, 0, "PML/RARA", None, None, "fusion", "negative",
     "NEGATIVE for PML/RARA",
     "PML/RARA transcripts were not detected in this specimen.",
 ])
@@ -325,7 +326,7 @@ add_sheet(wb, "mayo_findings", [
     ("raw_title",                        "raw"),
     ("raw_category",                     "raw"),
 ], example=[
-    5, 6, "MAYO-000000", "IDH1", "p.R132H", "c.395G>A", "mutation", "detected",
+    0, 0, "MAYO-000000", "IDH1", "p.R132H", "c.395G>A", "mutation", "detected",
     "Mayo Comprehensive Solid Tumor Panel", "missense",
     "None", "None", "None",
     "IDH1 R132H", "Detected", "IDH1 p.R132H (c.395G>A)", "somatic",
@@ -355,7 +356,7 @@ add_sheet(wb, "henry_ford_findings", [
     ("raw_variant",               "raw"),
     ("raw_copy_number",           "raw"),
 ], example=[
-    6, 7, "HF-000000", "KRAS", "p.G12D", "c.35G>A", "mutation", "detected",
+    0, 0, "HF-000000", "KRAS", "p.G12D", "c.35G>A", "mutation", "detected",
     "Tier I", "KRAS", 12, "chr12:25245350", "NM_004985.5",
     "c.35G>A", "p.G12D", 2, 1200, 0.42, "KRAS p.G12D", None,
 ])
@@ -375,7 +376,7 @@ add_sheet(wb, "guardant360_findings", [
     ("raw_percent_cfdna_or_amp",             "raw"),
     ("raw_alteration_trend",                 "raw"),
 ], example=[
-    7, 8, "G360-000000", "EGFR", "p.L858R", "c.2573T>G", "mutation", "detected",
+    0, 0, "G360-000000", "EGFR", "p.L858R", "c.2573T>G", "mutation", "detected",
     "EGFR L858R", 0.8, "increasing",
 ])
 
@@ -398,7 +399,7 @@ add_sheet(wb, "tumor_biomarkers", [
     ("raw_rna_expression", "raw"),
     ("raw_rna_fusion",     "raw"),
 ], example=[
-    3, 3, "TMB", "tumor_biomarker", "1.6 mut/Mb",
+    0, 0, "TMB", "tumor_biomarker", "1.6 mut/Mb",
     "1.6m/MB", "stable", "NA", "NA",
     "Not detected (<0.1, threshold 50)", "normal", "3.1", "negative",
     "overexpression of ERBB3, WT1, underexpression of CDKN2A/B", "negative",

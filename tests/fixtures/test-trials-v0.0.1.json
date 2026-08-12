@@ -1,7 +1,7 @@
 [
   {
-    "protocol_no": "2017.130",
-    "nct_id": "NCT03067181",
+    "protocol_no": "2099.006",
+    "nct_id": "NCT90000006",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -308,7 +308,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "RESEARCH,2017.130 AGCT1531",
+      "short_title": "RESEARCH,2099.006 AGCT1531",
       "long_title": "AGCT1531, A Phase 3 Study of Active Surveillance for Low Risk and a Randomized Trial of Carboplatin vs. Cisplatin for Standard Risk Pediatric and Adult Patients with Germ Cell Tumors",
       "phase": "Phase III",
       "sponsor": "Institutional",
@@ -320,19 +320,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Jasty-Rao, Rama"
+        "full_name": "Public, John"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "871",
-      "protocol_no": "2017.130",
-      "nct_number": "NCT03067181",
+      "protocol_no": "2099.006",
+      "nct_number": "NCT90000006",
       "status": "OPEN TO ACCRUAL",
-      "title": "RESEARCH,2017.130 AGCT1531",
+      "title": "RESEARCH,2099.006 AGCT1531",
       "full_title": "AGCT1531, A Phase 3 Study of Active Surveillance for Low Risk and a Randomized Trial of Carboplatin vs. Cisplatin for Standard Risk Pediatric and Adult Patients with Germ Cell Tumors",
       "summary_obj": "This phase III trial studies how well active surveillance, bleomycin, carboplatin, etoposide, or cisplatin work in treating pediatric and adult patients with germ cell tumors. Active surveillance may help doctors to monitor subjects with low risk germ cell tumors after their tumor is removed. Drugs used in chemotherapy, such as bleomycin, carboplatin, etoposide, and cisplatin, work in different ways to stop the growth of tumor cells, either by killing the cells, by stopping them from dividing, or by stopping them from spreading.",
-      "secondary_protocol_no": "HUM00136727",
+      "secondary_protocol_no": "HUM00000007",
       "sponsor_type": "Institutional",
       "age_group": "Both",
       "phase": "III",
@@ -340,7 +340,7 @@
       "scope": "National",
       "disease_site": "Other Male Genital; Unknown Sites",
       "lay_description": null,
-      "pi": "Jasty-Rao, Rama",
+      "pi": "Public, John",
       "institutions": null,
       "oncology_group": "Childhood Cancers",
       "management_group": "CTSU - Oncology",
@@ -601,8 +601,8 @@
     ]
   },
   {
-    "protocol_no": "2017.115",
-    "nct_id": "NCT02981628",
+    "protocol_no": "2099.005",
+    "nct_id": "NCT90000005",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -909,19 +909,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Goldman, Joshua"
+        "full_name": "Noakes, Fred"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "895",
-      "protocol_no": "2017.115",
-      "nct_number": "NCT02981628",
+      "protocol_no": "2099.005",
+      "nct_number": "NCT90000005",
       "status": "OPEN TO ACCRUAL",
       "title": "COG AALL1621",
       "full_title": "AALL1621, A Phase 2 Study of Inotuzumab Ozogamicin (NSC# 772518, IND# 133494) in Children and Young Adults with Relapsed or Refractory CD22+ BAcute Lymphoblastic Leukemia (B-ALL)",
       "summary_obj": "This phase II trial studies how well inotuzumab ozogamicin works in treating younger patients with B-lymphoblastic lymphoma or CD22 positive B acute lymphoblastic leukemia that has come back (relapsed) or does not respond to treatment (refractory). Inotuzumab ozogamicin is a monoclonal antibody, called inotuzumab, linked to a toxic agent called ozogamicin. Inotuzumab attaches to CD22 positive cancer cells in a targeted way and delivers ozogamicin to kill them.",
-      "secondary_protocol_no": "HUM00134979",
+      "secondary_protocol_no": "HUM00000006",
       "sponsor_type": "Institutional",
       "age_group": "Both",
       "phase": "II",
@@ -929,7 +929,7 @@
       "scope": "National",
       "disease_site": "Lymphoid Leukemia",
       "lay_description": null,
-      "pi": "Goldman, Joshua",
+      "pi": "Noakes, Fred",
       "institutions": null,
       "oncology_group": "Childhood Cancers",
       "management_group": "CTSU - Oncology",
@@ -1157,8 +1157,8 @@
     ]
   },
   {
-    "protocol_no": "2018.117",
-    "nct_id": "NCT03126916",
+    "protocol_no": "2099.009",
+    "nct_id": "NCT90000008",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -1335,19 +1335,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Mody, Rajen"
+        "full_name": "Loe, Lena"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "3989",
-      "protocol_no": "2018.117",
-      "nct_number": "NCT03126916",
+      "protocol_no": "2099.009",
+      "nct_number": "NCT90000008",
       "status": "OPEN TO ACCRUAL",
       "title": "ANBL1531",
       "full_title": "A Phase 3 Study of 131IMetaiodobenzylguanidine(131I-MIBG) or Crizotinib Added to Intensive Therapy for Children with Newly Diagnosed High-Risk Neuroblastoma (NBL)",
       "summary_obj": "This phase III trial studies iobenguane I-131 or crizotinib and standard therapy in treating younger patients with newly-diagnosed high-risk neuroblastoma or ganglioneuroblastoma. Radioactive drugs, such as iobenguane I-131, may carry radiation directly to tumor cells and not harm normal cells. Crizotinib may stop the growth of tumor cells by blocking some of the enzymes needed for cell growth. Giving iobenguane I-131 or crizotinib and standard therapy may work better compared to crizotinib and standard therapy alone in treating younger patients with neuroblastoma or ganglioneuroblastoma.",
-      "secondary_protocol_no": "HUM00146837",
+      "secondary_protocol_no": "HUM00000009",
       "sponsor_type": "Institutional",
       "age_group": "Children",
       "phase": "III",
@@ -1355,7 +1355,7 @@
       "scope": "National",
       "disease_site": "Brain and Nervous System",
       "lay_description": null,
-      "pi": "Mody, Rajen",
+      "pi": "Loe, Lena",
       "institutions": null,
       "oncology_group": "Childhood Cancers",
       "management_group": "CTSU - Oncology",
@@ -1492,8 +1492,8 @@
     ]
   },
   {
-    "protocol_no": "2015.001",
-    "nct_id": "NCT02445222",
+    "protocol_no": "2099.001",
+    "nct_id": "NCT90000002",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -1563,7 +1563,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "Research, NB (UMCC 2015.001) Long Term Follow-Up of.",
+      "short_title": "Research, NB (UMCC 2099.001) Long Term Follow-Up of.",
       "long_title": "Long Term Follow-Up of Patients Exposed to Lentiviral-Based CD19 directed CART Cell Therapy",
       "phase": "N/A",
       "sponsor": "Industry",
@@ -1574,19 +1574,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Yanik, Gregory"
+        "full_name": "Voe, Vera"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "4215",
-      "protocol_no": "2015.001",
-      "nct_number": "NCT02445222",
+      "protocol_no": "2099.001",
+      "nct_number": "NCT90000002",
       "status": "OPEN TO ACCRUAL",
-      "title": "Research, NB (UMCC 2015.001) Long Term Follow-Up of.",
+      "title": "Research, NB (UMCC 2099.001) Long Term Follow-Up of.",
       "full_title": "Long Term Follow-Up of Patients Exposed to Lentiviral-Based CD19 directed CART Cell Therapy",
       "summary_obj": "Per Health Authorities guidelines for gene therapy medicinal products that utilize integrating vectors (e.g. lentiviral vectors), long term safety and efficacy follow up of treated patients is required. The purpose of this study is to monitor all patients exposed to CAR-T therapied for 15 years following their last CAR-T (e.g. CTL019) infusion to assess the risk of delayed adverse events (AEs), monitor for replication competent lentivirus (RCL) and assess long-term efficacy, including vector persistence.",
-      "secondary_protocol_no": "HUM00096991",
+      "secondary_protocol_no": "HUM00000002",
       "sponsor_type": "Industry",
       "age_group": "Both",
       "phase": "N/A",
@@ -1594,7 +1594,7 @@
       "scope": "Unspecified",
       "disease_site": "Lymphoid Leukemia",
       "lay_description": null,
-      "pi": "Yanik, Gregory",
+      "pi": "Voe, Vera",
       "institutions": null,
       "oncology_group": "Bone Marrow Transplant",
       "management_group": "CTSU - Oncology",
@@ -1668,8 +1668,8 @@
     ]
   },
   {
-    "protocol_no": "2015.063",
-    "nct_id": "NCT02445222",
+    "protocol_no": "2099.002",
+    "nct_id": "NCT90000002",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -1737,7 +1737,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "UMCC 2015.063, Magenau",
+      "short_title": "UMCC 2099.002, Rowe",
       "long_title": "Long Term Follow-Up of Patients Exposed to Lentiviral-Based CD19 directed CART Cell Therapy (ADULT)",
       "phase": "N/A",
       "sponsor": "Industry",
@@ -1748,19 +1748,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Magenau, John"
+        "full_name": "Rowe, Mary"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "4241",
-      "protocol_no": "2015.063",
-      "nct_number": "NCT02445222",
+      "protocol_no": "2099.002",
+      "nct_number": "NCT90000002",
       "status": "OPEN TO ACCRUAL",
-      "title": "UMCC 2015.063, Magenau",
+      "title": "UMCC 2099.002, Rowe",
       "full_title": "Long Term Follow-Up of Patients Exposed to Lentiviral-Based CD19 directed CART Cell Therapy (ADULT)",
       "summary_obj": "Per Health Authorities guidelines for gene therapy medicinal products that utilize integrating vectors (e.g. lentiviral vectors), long term safety and efficacy follow up of treated patients is required. The purpose of this study is to monitor all patients exposed to CAR-T therapied for 15 years following their last CAR-T (e.g. CTL019) infusion to assess the risk of delayed adverse events (AEs), monitor for replication competent lentivirus (RCL) and assess long-term efficacy, including vector persistence.",
-      "secondary_protocol_no": "HUM00101108",
+      "secondary_protocol_no": "HUM00000003",
       "sponsor_type": "Industry",
       "age_group": "Adults",
       "phase": "N/A",
@@ -1768,7 +1768,7 @@
       "scope": "Unspecified",
       "disease_site": "Lymphoid Leukemia",
       "lay_description": null,
-      "pi": "Magenau, John",
+      "pi": "Rowe, Mary",
       "institutions": null,
       "oncology_group": "Bone Marrow Transplant",
       "management_group": "CTSU - Oncology",
@@ -1830,8 +1830,8 @@
     ]
   },
   {
-    "protocol_no": "2018.161",
-    "nct_id": "NCT02582697",
+    "protocol_no": "2099.011",
+    "nct_id": "NCT90000003",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -1992,19 +1992,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Jasty-Rao, Rama"
+        "full_name": "Public, John"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "5667",
-      "protocol_no": "2018.161",
-      "nct_number": "NCT02582697",
+      "protocol_no": "2099.011",
+      "nct_number": "NCT90000003",
       "status": "OPEN TO ACCRUAL",
       "title": "AGCT1532",
       "full_title": "Phase 3 Accelerated BEP Trial:\nA randomised phase 3 trial of accelerated versus standard BEP chemotherapy for patients with intermediate and poor-risk metastatic germ cell tumours",
       "summary_obj": "The purpose of this study is to determine whether accelerated BEP chemotherapy is more effective than standard BEP chemotherapy in males with intermediate and poor-risk metastatic germ cell tumours.",
-      "secondary_protocol_no": "HUM00155205",
+      "secondary_protocol_no": "HUM00000010",
       "sponsor_type": "Institutional",
       "age_group": "Both",
       "phase": "III",
@@ -2012,7 +2012,7 @@
       "scope": "National",
       "disease_site": "Other Female Genital; Other Male Genital; Ovary",
       "lay_description": null,
-      "pi": "Jasty-Rao, Rama",
+      "pi": "Public, John",
       "institutions": null,
       "oncology_group": "Childhood Cancers",
       "management_group": "CTSU - Oncology",
@@ -2175,8 +2175,8 @@
     ]
   },
   {
-    "protocol_no": "2017.153",
-    "nct_id": "NCT03418961",
+    "protocol_no": "2099.007",
+    "nct_id": "NCT90000009",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -2421,7 +2421,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "2017.153, S1501, Cobain",
+      "short_title": "2099.007, S1501, Roe",
       "long_title": "S1501 PROSPECTIVE EVALUATION OF CARVEDILOL IN PREVENTION OF CARDIAC TOXICITY IN PATIENTS WITH METASTATIC HER-2+ BREAST CANCER, PHASE III",
       "phase": "Phase III",
       "sponsor": "National",
@@ -2432,19 +2432,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Cobain, Erin"
+        "full_name": "Roe, Richard"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "5949",
-      "protocol_no": "2017.153",
-      "nct_number": "NCT03418961",
+      "protocol_no": "2099.007",
+      "nct_number": "NCT90000009",
       "status": "OPEN TO ACCRUAL",
-      "title": "2017.153, S1501, Cobain",
+      "title": "2099.007, S1501, Roe",
       "full_title": "S1501 PROSPECTIVE EVALUATION OF CARVEDILOL IN PREVENTION OF CARDIAC TOXICITY IN PATIENTS WITH METASTATIC HER-2+ BREAST CANCER, PHASE III",
       "summary_obj": "This phase III trial studies how well carvedilol works in preventing cardiac toxicity in patients with human epidermal growth factor receptor (HER)-2-positive breast cancer that has spread to other places in the body. A beta-blocker, such as carvedilol, is used to treat heart failure and high blood pressure, and it may prevent the heart from side effects of chemotherapy.",
-      "secondary_protocol_no": "HUM00137495",
+      "secondary_protocol_no": "HUM00000008",
       "sponsor_type": "National",
       "age_group": "Adults",
       "phase": "III",
@@ -2452,7 +2452,7 @@
       "scope": "Unspecified",
       "disease_site": "Breast",
       "lay_description": null,
-      "pi": "Cobain, Erin",
+      "pi": "Roe, Richard",
       "institutions": null,
       "oncology_group": "Breast Oncology",
       "management_group": "CTSU - Oncology",
@@ -2681,8 +2681,8 @@
     ]
   },
   {
-    "protocol_no": "2018.160",
-    "nct_id": "NCT03533582",
+    "protocol_no": "2099.010",
+    "nct_id": "NCT90000011",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -2954,19 +2954,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Sedig, Laura"
+        "full_name": "Coe, Cora"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "5971",
-      "protocol_no": "2018.160",
-      "nct_number": "NCT03533582",
+      "protocol_no": "2099.010",
+      "nct_number": "NCT90000011",
       "status": "OPEN TO ACCRUAL",
       "title": "COG - AHEP1531",
       "full_title": "COG AHEP1531 - Pediatric Hepatic Malignancy International Therapeutic Trial (PHITT)",
       "summary_obj": "This partially randomized phase II/III trial studies how well, in combination with surgery, cisplatin and combination chemotherapy works in treating children and young adults with hepatoblastoma or hepatocellular carcinoma. Drugs used in chemotherapy, such as cisplatin, doxorubicin, fluorouracil, vincristine sulfate, carboplatin, etoposide, irinotecan, sorafenib, gemcitabine and oxaliplatin, work in different ways to stop the growth of tumor cells, either by killing the cells, by stopping them from dividing, or by stopping them from spreading. Giving combination chemotherapy may kill more tumor cells than one type of chemotherapy alone.",
-      "secondary_protocol_no": "HUM00156542",
+      "secondary_protocol_no": "HUM00000011",
       "sponsor_type": "Institutional",
       "age_group": "Both",
       "phase": "II/III",
@@ -2974,7 +2974,7 @@
       "scope": "National",
       "disease_site": "Liver",
       "lay_description": null,
-      "pi": "Sedig, Laura",
+      "pi": "Coe, Cora",
       "institutions": null,
       "oncology_group": "Childhood Cancers",
       "management_group": "CTSU - Oncology",
@@ -3291,8 +3291,8 @@
     ]
   },
   {
-    "protocol_no": "2015.191",
-    "nct_id": "NCT02402244",
+    "protocol_no": "2099.003",
+    "nct_id": "NCT90000001",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -3383,19 +3383,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Mody, Rajen"
+        "full_name": "Loe, Lena"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "6993",
-      "protocol_no": "2015.191",
-      "nct_number": "NCT02402244",
+      "protocol_no": "2099.003",
+      "nct_number": "NCT90000001",
       "status": "OPEN TO ACCRUAL",
       "title": "APEC14B1 Every Child Registry",
       "full_title": "THE PROJECT: EVERYCHILD PROTOCOL: A REGISTRY, ELIGIBILITY SCREENING, BIOLOGY AND OUTCOME STUDY",
       "summary_obj": "This study gathers health information for the Project: Every Child for younger patients with cancer. Gathering health information over time from younger patients with cancer may help doctors find better methods of treatment and on-going care.",
-      "secondary_protocol_no": "HUM00109219",
+      "secondary_protocol_no": "HUM00000004",
       "sponsor_type": "Institutional",
       "age_group": "Both",
       "phase": "N/A",
@@ -3403,7 +3403,7 @@
       "scope": "Unspecified",
       "disease_site": "Anus; Bones and Joints; Brain and Nervous System; Breast; Cervix; Colon; Corpus Uteri; Esophagus; Eye and Orbit; Hodgkin's Lymphoma; Ill-Defined Sites; Kaposi's Sarcoma; Kidney; Larynx; Leukemia, other; Lip, Oral Cavity and Pharynx; Liver; Lung; Lymphoid Leukemia; Melanoma, Skin; Multiple Myeloma; Myeloid and Monocytic Leukemia; Non-Hodgkin's Lymphoma; Other Digestive Organ; Other Endocrine System; Other Female Genital; Other Hematopoietic; Other Male Genital; Other Respiratory and Intrathoracic Organs; Other Skin; Other Skin Excludes: Melanoma, Mycosis fungoides, Kaposi's sarcoma; Other Urinary; Ovary; Pancreas; Prostate; Rectum; Small Intestine; Soft Tissue; Stomach; Thyroid; Unknown Sites; Urinary Bladder",
       "lay_description": null,
-      "pi": "Mody, Rajen",
+      "pi": "Loe, Lena",
       "institutions": null,
       "oncology_group": "Childhood Cancers",
       "management_group": "CTSU - Oncology",
@@ -3427,8 +3427,8 @@
     "_ctml_suggestions": []
   },
   {
-    "protocol_no": "2017.013",
-    "nct_id": "NCT03099356",
+    "protocol_no": "2099.004",
+    "nct_id": "NCT90000007",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -3574,7 +3574,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "2017.013 Cyclophosphamide and Sirolimus",
+      "short_title": "2099.004 Cyclophosphamide and Sirolimus",
       "long_title": "An open label phase II trial evaluating the efficacy of cyclophosphamide and sirolimus for the treatment of metastatic, RAI-refractory, differentiated thyroid cancer",
       "phase": "Phase II",
       "sponsor": "Institutional",
@@ -3585,19 +3585,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Worden, Francis"
+        "full_name": "Toe, Tina"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "8358",
-      "protocol_no": "2017.013",
-      "nct_number": "NCT03099356",
+      "protocol_no": "2099.004",
+      "nct_number": "NCT90000007",
       "status": "OPEN TO ACCRUAL",
-      "title": "2017.013 Cyclophosphamide and Sirolimus",
+      "title": "2099.004 Cyclophosphamide and Sirolimus",
       "full_title": "An open label phase II trial evaluating the efficacy of cyclophosphamide and sirolimus for the treatment of metastatic, RAI-refractory, differentiated thyroid cancer",
       "summary_obj": "This study will be a non-randomized pilot trial using Cyclophosphamide and Sirolimus for the treatment of metastatic differentiated thyroid cancer. Patients will be treated with Sirolimus 4 mg, PO, days 1-28 as well as Cyclophosphamide 100 mg, PO, days 1-5 and 15-19. Cycle length will be 28 days. Patients will be monitored closely for toxicity and undergo imaging to evaluate efficacy once every 2 cycles.",
-      "secondary_protocol_no": "HUM00126559",
+      "secondary_protocol_no": "HUM00000005",
       "sponsor_type": "Institutional",
       "age_group": "Adults",
       "phase": "II",
@@ -3605,7 +3605,7 @@
       "scope": "Unspecified",
       "disease_site": "Thyroid",
       "lay_description": null,
-      "pi": "Worden, Francis",
+      "pi": "Toe, Tina",
       "institutions": null,
       "oncology_group": "Head, Neck, and Endocrine Malignancies",
       "management_group": "CTSU - Oncology",
@@ -3796,8 +3796,8 @@
     ]
   },
   {
-    "protocol_no": "2019.058",
-    "nct_id": "NCT03435796",
+    "protocol_no": "2099.012",
+    "nct_id": "NCT90000010",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -3850,7 +3850,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "2019.058, Pawarode",
+      "short_title": "2099.012, Pawarode",
       "long_title": "LONG-TERM FOLLOW-UP PROTOCOL FOR SUBJECTS TREATED WITH GENE-MODIFIED T CELLS",
       "phase": "N/A",
       "sponsor": "Industry",
@@ -3863,19 +3863,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Ghosh, Monalisa"
+        "full_name": "Bloggs, Joe"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "9842",
-      "protocol_no": "2019.058",
-      "nct_number": "NCT03435796",
+      "protocol_no": "2099.012",
+      "nct_number": "NCT90000010",
       "status": "OPEN TO ACCRUAL",
-      "title": "2019.058, Pawarode",
+      "title": "2099.012, Pawarode",
       "full_title": "LONG-TERM FOLLOW-UP PROTOCOL FOR SUBJECTS TREATED WITH GENE-MODIFIED T CELLS",
       "summary_obj": "This is a prospective study for the long-term follow-up (LTFU) of safety and efficacy for all pediatric and adult participants exposed to Gene-modified (GM) T cell therapy participating in a previous Celgene sponsored or Celgene alliance partner sponsored study.\n\nParticipants who received at least one GM T cell infusion will be asked to enroll in this LTFU protocol upon either premature discontinuation from, or completion of the prior parent treatment protocol.",
-      "secondary_protocol_no": "HUM00162493",
+      "secondary_protocol_no": "HUM00000012",
       "sponsor_type": "Industry",
       "age_group": "Adults",
       "phase": "N/A",
@@ -3883,7 +3883,7 @@
       "scope": "Unspecified",
       "disease_site": "Lymphoid Leukemia; Multiple Myeloma; Non-Hodgkin's Lymphoma",
       "lay_description": null,
-      "pi": "Ghosh, Monalisa",
+      "pi": "Bloggs, Joe",
       "institutions": null,
       "oncology_group": "Bone Marrow Transplant",
       "management_group": "CTSU - Oncology",
@@ -3921,8 +3921,8 @@
     ]
   },
   {
-    "protocol_no": "2018.100",
-    "nct_id": "NCT02584270",
+    "protocol_no": "2099.008",
+    "nct_id": "NCT90000004",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -3995,19 +3995,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Munz, Stephanie"
+        "full_name": "Moe, Milo"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "11839",
-      "protocol_no": "2018.100",
-      "nct_number": "NCT02584270",
+      "protocol_no": "2099.008",
+      "nct_number": "NCT90000004",
       "status": "OPEN TO ACCRUAL",
       "title": "PGSRT Trial",
       "full_title": "Prosthesis guided speech rehabilitation of T1/T2 cancers of the tongue (PGSRT): a randomized clinical trial",
       "summary_obj": "This study will fill a scientific gap in the current knowledge providing data for evaluation of the palatal augmentation prosthesis as a therapeutic modality in a robust scientific randomized prospective clinical trial. Positive outcomes from this study have the potential to dramatically alter the most common morbidity of oral cancer therapy, namely speech and swallowing function in a population of patients with T1/T2 tumors of the tongue who are not currently routinely recommended for a palatal augmentation prosthesis.",
-      "secondary_protocol_no": "HUM00093723",
+      "secondary_protocol_no": "HUM00000001",
       "sponsor_type": "Industry",
       "age_group": "Adults",
       "phase": "N/A",
@@ -4015,7 +4015,7 @@
       "scope": "Unspecified",
       "disease_site": "Lip, Oral Cavity and Pharynx",
       "lay_description": null,
-      "pi": "Munz, Stephanie",
+      "pi": "Moe, Milo",
       "institutions": null,
       "oncology_group": "Head, Neck, and Endocrine Malignancies",
       "management_group": "CTSU - Oncology",
@@ -4059,8 +4059,8 @@
     ]
   },
   {
-    "protocol_no": "2021.045",
-    "nct_id": "NCT03715933",
+    "protocol_no": "2099.014",
+    "nct_id": "NCT90000012",
     "status": "closed to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -4173,7 +4173,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "UMCC 2021.045, Chugh",
+      "short_title": "UMCC 2099.014, Doe",
       "long_title": "An Open-Label, Multicenter, First-in-Human, Dose-Escalation Phase 1 Study of INBRX-109 in Subjects with Locally Advanced or Metastatic Solid Tumors Including Sarcomas",
       "phase": "Phase I",
       "sponsor": "Industry",
@@ -4188,19 +4188,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Chugh, Rashmi"
+        "full_name": "Doe, Jane"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "29917",
-      "protocol_no": "2021.045",
-      "nct_number": "NCT03715933",
+      "protocol_no": "2099.014",
+      "nct_number": "NCT90000012",
       "status": "OPEN TO ACCRUAL",
-      "title": "UMCC 2021.045, Chugh",
+      "title": "UMCC 2099.014, Doe",
       "full_title": "An Open-Label, Multicenter, First-in-Human, Dose-Escalation Phase 1 Study of INBRX-109 in Subjects with Locally Advanced or Metastatic Solid Tumors Including Sarcomas",
       "summary_obj": "This is a first-in-human, open-label, non-randomized, three-part phase 1 trial of INBRX-109, which is a recombinant humanized tetravalent antibody targeting the human death receptor 5 (DR5).",
-      "secondary_protocol_no": "HUM00202966",
+      "secondary_protocol_no": "HUM00000015",
       "sponsor_type": "Industry",
       "age_group": "Adults",
       "phase": "I",
@@ -4208,7 +4208,7 @@
       "scope": "Unspecified",
       "disease_site": "Melanoma, Skin; Other Digestive Organ; Pancreas; Soft Tissue; Stomach",
       "lay_description": null,
-      "pi": "Chugh, Rashmi",
+      "pi": "Doe, Jane",
       "institutions": null,
       "oncology_group": "Multi-tumor Experimental Therapeutics",
       "management_group": "CTSU - Oncology",
@@ -4340,8 +4340,8 @@
     ]
   },
   {
-    "protocol_no": "2020.153",
-    "nct_id": "NCT04293562",
+    "protocol_no": "2099.013",
+    "nct_id": "NCT90000013",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -4598,19 +4598,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Sedig, Laura"
+        "full_name": "Coe, Cora"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "26378",
-      "protocol_no": "2020.153",
-      "nct_number": "NCT04293562",
+      "protocol_no": "2099.013",
+      "nct_number": "NCT90000013",
       "status": "SUSPENDED",
       "title": "AAML1831",
       "full_title": "A Phase 3 Randomized Trial for Patients with de novo AML Comparing Standard Therapy Including Gemtuzumab Ozogamicin (GO) to CPX-351 with GO, and the Addition of the FLT3 Inhibitor Gilteritinib for Patients with FLT3 Mutations: AAML1831",
       "summary_obj": "This phase III trial compares standard chemotherapy to therapy with CPX-351 and/or gilteritinib for patients with newly diagnosed acute myeloid leukemia with or without FLT3 mutations. Drugs used in chemotherapy, such as daunorubicin, cytarabine, and gemtuzumab ozogamicin, work in different ways to stop the growth of cancer cells, either by killing the cells, by stopping them from dividing, or by stopping them from spreading. CPX-351 is made up of daunorubicin and cytarabine and is made in a way that makes the drugs stay in the bone marrow longer and could be less likely to cause heart problems than traditional anthracycline drugs, a common class of chemotherapy drug. Some acute myeloid leukemia patients have an abnormality in the structure of a gene called FLT3. Genes are pieces of DNA (molecules that carry instructions for development, functioning, growth and reproduction) inside each cell that tell the cell what to do and when to grow and divide. FLT3 plays an important role in the normal making of blood cells. This gene can have permanent changes that cause it to function abnormally by making cancer cells grow. Gilteritinib may block the abnormal function of the FLT3 gene that makes cancer cells grow. The overall goals of this study are, 1) to compare the effects, good and/or bad, of CPX-351 with daunorubicin and cytarabine on people with newly diagnosed AML to find out which is better, 2) to study the effects, good and/or bad, of adding gilteritinib to AML therapy for patients with high amounts of FLT3/ITD or other FLT3 mutations and 3) to study changes in heart function during and after treatment for AML. Giving CPX-351 and/or gilteritinib with standard chemotherapy may work better in treating patients with acute myeloid leukemia compared to standard chemotherapy alone.",
-      "secondary_protocol_no": "HUM00189466",
+      "secondary_protocol_no": "HUM00000013",
       "sponsor_type": "Institutional",
       "age_group": "Children",
       "phase": "III",
@@ -4618,7 +4618,7 @@
       "scope": "National",
       "disease_site": "Myeloid and Monocytic Leukemia",
       "lay_description": "YELLOW BUCKET",
-      "pi": "Sedig, Laura",
+      "pi": "Coe, Cora",
       "institutions": null,
       "oncology_group": "Childhood Cancers",
       "management_group": "CTSU - Oncology",
@@ -4953,8 +4953,8 @@
     ]
   },
   {
-    "protocol_no": "2021.070",
-    "nct_id": "NCT04858334",
+    "protocol_no": "2099.015",
+    "nct_id": "NCT90000014",
     "status": "open to accrual",
     "entity": "amc",
     "treatment_list": {
@@ -5175,7 +5175,7 @@
           "value": "open to accrual"
         }
       ],
-      "short_title": "2021.070, EA2192, Enzler",
+      "short_title": "2099.015, EA2192, Poe",
       "long_title": "EA2192, APOLLO: A Randomized Phase II Double-Blind Study of Olaparib versus Placebo Following Adjuvant Chemotherapy in Patients with Resected Pancreatic Cancer and a Pathogenic BRCA1, BRCA2 or PALB2 Mutation",
       "phase": "Phase II",
       "sponsor": "National",
@@ -5186,19 +5186,19 @@
       ],
       "drugs": [],
       "investigator": {
-        "full_name": "Enzler, Thomas"
+        "full_name": "Poe, Edgar"
       },
       "prior_treatment_requirements": []
     },
     "_raw": {
       "amc_id": "33320",
-      "protocol_no": "2021.070",
-      "nct_number": "NCT04858334",
+      "protocol_no": "2099.015",
+      "nct_number": "NCT90000014",
       "status": "OPEN TO ACCRUAL",
-      "title": "2021.070, EA2192, Enzler",
+      "title": "2099.015, EA2192, Poe",
       "full_title": "EA2192, APOLLO: A Randomized Phase II Double-Blind Study of Olaparib versus Placebo Following Adjuvant Chemotherapy in Patients with Resected Pancreatic Cancer and a Pathogenic BRCA1, BRCA2 or PALB2 Mutation",
       "summary_obj": "This phase II trial investigates how well the addition of olaparib following completion of surgery and chemotherapy works in treating patients with pancreatic cancer that has been surgically removed (resected) and has a pathogenic mutation in BRCA1, BRCA2, or PALB2. Olaparib is an inhibitor of PARP, an enzyme that helps repair deoxyribonucleic acid (DNA) when it becomes damaged. Blocking PARP may help keep tumor cells from repairing their damaged DNA, causing them to die. PARP inhibitors are a type of targeted therapy.",
-      "secondary_protocol_no": "HUM00200255",
+      "secondary_protocol_no": "HUM00000014",
       "sponsor_type": "National",
       "age_group": "Adults",
       "phase": "II",
@@ -5206,7 +5206,7 @@
       "scope": "National",
       "disease_site": "Pancreas",
       "lay_description": null,
-      "pi": "Enzler, Thomas",
+      "pi": "Poe, Edgar",
       "institutions": null,
       "oncology_group": "Gastrointestinal Oncology",
       "management_group": "CTSU - Oncology",
