@@ -20,14 +20,13 @@ import json
 import sys
 from pathlib import Path
 
-from ctm.paths import cache_dir, cache_path
+from ctm.paths import cache_dir, cache_path, load_env
 
 _DEFAULT_CACHE = ".ctml_cache.json"
 
 
 def main() -> None:
-    from dotenv import load_dotenv
-    load_dotenv()
+    load_env()
 
     parser = argparse.ArgumentParser(prog="ctm-ctml", description="Draft CTML match nodes from eligibility text")
     parser.add_argument("--trials", required=True, metavar="JSON", help="Normalized trials JSON from ctm-mm trials")

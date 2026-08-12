@@ -18,13 +18,15 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path
+from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path, load_env
 
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
 
 
 def main() -> None:
+    # trials-curate and trials-confidence-split reach UMGPT via build_client()
+    load_env()
 
     parser = argparse.ArgumentParser(
         prog="ctm-mm",
