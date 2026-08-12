@@ -1,12 +1,13 @@
 """Tests for Raw model data capture — extra columns and renamed fields."""
 import pytest
+
 from ctm.schemas.raw.models import (
-    RawTempusFinding,
-    RawCarisFinding,
     RawAmbryFinding,
     RawAmcNgsFinding,
+    RawCarisFinding,
     RawOgmFinding,
     RawPmlRaraFinding,
+    RawTempusFinding,
     RawTumorBiomarker,
 )
 from ctm.transformers.normalize_manual import normalize_tempus

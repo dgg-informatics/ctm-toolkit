@@ -1,0 +1,31 @@
+# A host .venv is platform-specific (and ~164 MB) — copying it into a Linux
+# image both bloats the build and shadows the real install.
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Secrets — never bake into an image layer.
+.env
+SECRETS_JSON.json
+
+# Scratch and generated artifacts.
+data/dump/
+data/real/
+output/
+.cache/
+
+# Repo metadata not needed at runtime.
+.git/
+.gitignore
+.github/
+.claude/
+.superpowers/
+docs/
+*.code-workspace
+.DS_Store
+**/.DS_Store

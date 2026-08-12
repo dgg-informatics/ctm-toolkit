@@ -3,8 +3,8 @@
 The XML root is <PROTOCOL_SUMMARY> containing <PROTOCOL> elements.
 Empty string values are normalized to None.
 """
-from pathlib import Path
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from ..schemas.raw.models import RawAMCTrial
 

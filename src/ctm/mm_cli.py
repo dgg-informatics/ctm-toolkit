@@ -1,8 +1,8 @@
 """ctm-mm — MatchMiner import tooling CLI.
 
 Usage:
-  ctm-mm patients PATH/TO/patient_data_template.xlsx [options]
-  ctm-mm trials [--sparrow YAML] [--amc YAML] [--west YAML] --out PATH
+  ctm-mm patients PATH/TO/patient_data.xlsx [options]
+  ctm-mm trials [--amc XML] [--ct JSON] [--sparrow XLSX] [--west XLSX] --out PATH
   ctm-mm trials-diff --new JSON --master JSON --out-prefix PREFIX
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
@@ -17,6 +17,11 @@ import json
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path
+
+_CURATE_CACHE = ".trials_curate_cache.json"
+_DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
 
 
 def main() -> None:
@@ -44,8 +49,12 @@ def main() -> None:
     )
     p_trials.add_argument("--amc", metavar="XML", help="Path to AMC trials XML export")
     p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
-    p_trials.add_argument("--sparrow", metavar="XLSX", help="Path to Sparrow marketing trials Excel sheet")
-    p_trials.add_argument("--west", metavar="FILE", help="Path to West trials (not yet implemented)")
+    p_trials.add_argument("--sparrow", metavar="XLSX",
+                          help="Path to the Sparrow marketing trials Excel sheet (NCT numbers are "
+                               "resolved against ClinicalTrials.gov)")
+    p_trials.add_argument("--west", metavar="XLSX",
+                          help="Path to the UMH-West trials Excel template (NCT numbers are "
+                               "resolved against ClinicalTrials.gov)")
     p_trials.add_argument("--out", metavar="PATH", required=True,
                           help="Save MatchMiner CTML JSON output to file")
 
@@ -68,10 +77,12 @@ def main() -> None:
                                  help="ctm-ctml draft trials JSON (has _ctml_suggestions per trial)")
     p_trials_curate.add_argument("--out", required=True, metavar="JSON",
                                  help="Output path for the curated trials JSON")
-    p_trials_curate.add_argument("--cache", default=".trials_curate_cache.json", metavar="JSON",
-                                 help="Shared cache file for biomarker-scan and summary-suggestion LLM calls")
-    p_trials_curate.add_argument("--kb", default="data/gene_variant_descriptions_v2.json", metavar="JSON",
-                                 help="Known gene/variant knowledge base")
+    p_trials_curate.add_argument("--cache", default=None, metavar="JSON",
+                                 help="Shared cache file for biomarker-scan and summary-suggestion LLM "
+                                      f"calls (default: {cache_dir() / _CURATE_CACHE})")
+    p_trials_curate.add_argument("--kb", default=None, metavar="JSON",
+                                 help="Known gene/variant knowledge base (default: the copy shipped "
+                                      "with the package)")
 
     p_trials_confidence_split = sub.add_parser(
         "trials-confidence-split",
@@ -91,9 +102,9 @@ def main() -> None:
     p_trials_confidence_split.add_argument("--recover-diagnosis", action="store_true",
                                            help="For trials missing an oncotree diagnosis in match, attempt LLM "
                                                 "extraction from _raw.full_title/_raw.summary_obj")
-    p_trials_confidence_split.add_argument("--cache", default=".confidence_split_cache.json", metavar="JSON",
+    p_trials_confidence_split.add_argument("--cache", default=None, metavar="JSON",
                                            help="Cache file for diagnosis-recovery LLM calls (only used with "
-                                                "--recover-diagnosis)")
+                                                f"--recover-diagnosis; default: {cache_dir() / _DIAGNOSIS_CACHE})")
 
     p_trials_merge = sub.add_parser(
         "trials-merge",
@@ -224,8 +235,8 @@ def _cmd_raw_to_mm(args) -> None:
 
 def _cmd_trials(args) -> None:
     from ctm.transformers.amc_xml_to_raw import load as load_amc
+    from ctm.transformers.ctgov_to_raw import from_search_response, from_study
     from ctm.transformers.raw_amc_to_ctml import to_ctml_dict as amc_to_ctml
-    from ctm.transformers.ctgov_to_raw import from_study, from_search_response
     from ctm.transformers.raw_ctgov_to_ctml import to_ctml_dict as ctgov_to_ctml
 
     trials: list[dict] = []
@@ -262,8 +273,8 @@ def _cmd_trials(args) -> None:
         trials.extend(ctgov_to_ctml(t) for t in raw_ct)
 
     if args.sparrow:
-        from ctm.transformers.sparrow_xlsx_to_raw import load as load_sparrow
         from ctm.transformers.raw_sparrow_to_ctml import to_ctml_dict as sparrow_to_ctml
+        from ctm.transformers.sparrow_xlsx_to_raw import load as load_sparrow
         sparrow_path = Path(args.sparrow)
         if not sparrow_path.exists():
             print(f"Error: file not found: {sparrow_path}", file=sys.stderr)
@@ -281,8 +292,8 @@ def _cmd_trials(args) -> None:
                 print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
 
     if args.west:
-        from ctm.transformers.west_xlsx_to_raw import load as load_west
         from ctm.transformers.raw_west_to_ctml import to_ctml_dict as west_to_ctml
+        from ctm.transformers.west_xlsx_to_raw import load as load_west
         west_path = Path(args.west)
         if not west_path.exists():
             print(f"Error: file not found: {west_path}", file=sys.stderr)
@@ -337,22 +348,23 @@ def _cmd_trials_curate(args) -> None:
 
     trials = json.loads(Path(args.trials).read_text())
 
-    known_genes = load_known_genes(Path(args.kb))
-    print(f"{len(known_genes)} known genes loaded from {args.kb}", file=sys.stderr)
+    kb_path = Path(args.kb) if args.kb else DEFAULT_KB_PATH
+    known_genes = load_known_genes(kb_path)
+    print(f"{len(known_genes)} known genes loaded from {kb_path}", file=sys.stderr)
 
     print("Fetching OncoTree names...", file=sys.stderr)
     valid_oncotree = fetch_oncotree_names()
     print(f"  {len(valid_oncotree)} valid tumor types loaded", file=sys.stderr)
 
     client = build_client()
-    cache_path = Path(args.cache)
-    cache = load_cache(cache_path)
+    cache_file = Path(args.cache) if args.cache else cache_path(_CURATE_CACHE)
+    cache = load_cache(cache_file)
 
     for i, trial in enumerate(trials, 1):
         trial_id = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
         print(f"[{i}/{len(trials)}] {trial_id}", file=sys.stderr)
         curate_trial(trial, client, cache, known_genes, valid_oncotree)
-        save_cache(cache, cache_path)  # save after each trial so progress survives interruption
+        save_cache(cache, cache_file)  # save after each trial so progress survives interruption
 
     Path(args.out).write_text(json.dumps(trials, indent=2, default=str))
     print(f"Saved {len(trials)} trial(s) → {args.out}", file=sys.stderr)
@@ -365,13 +377,13 @@ def _cmd_trials_confidence_split(args) -> None:
     allowed_types = {t.strip() for t in args.allowed_biomarker_types.split(",") if t.strip()}
 
     client = cache = valid_oncotree = None
-    cache_path = Path(args.cache)
+    cache_file = Path(args.cache) if args.cache else cache_path(_DIAGNOSIS_CACHE)
 
     if args.recover_diagnosis:
         from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names
         client = build_client()
         valid_oncotree = fetch_oncotree_names()
-        cache = load_cache(cache_path)
+        cache = load_cache(cache_file)
 
     high_confidence, needs_curation = split_by_confidence(
         trials, allowed_types,
@@ -380,7 +392,7 @@ def _cmd_trials_confidence_split(args) -> None:
     )
 
     if args.recover_diagnosis:
-        save_cache(cache, cache_path)
+        save_cache(cache, cache_file)
 
     Path(args.high_confidence_out).write_text(json.dumps(high_confidence, indent=2, default=str))
     Path(args.needs_curation_out).write_text(json.dumps(needs_curation, indent=2, default=str))

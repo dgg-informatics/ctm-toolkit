@@ -12,15 +12,16 @@ The match tree is populated with age and gender where available; genomic
 and oncotree criteria are left for manual/AI population downstream.
 """
 import re
-from ..schemas.raw.models import RawCTGovTrial
+
 from ..schemas.matchminer.clinical_trial import (
+    ClinicalTrialNormalized,
     CtmlArm,
     CtmlEligibility,
     CtmlEligibilityCriterion,
     CtmlStep,
     CtmlTreatmentList,
-    ClinicalTrialNormalized,
 )
+from ..schemas.raw.models import RawCTGovTrial
 
 _STATUS_MAP: dict[str, str] = {
     "RECRUITING": "open to accrual",

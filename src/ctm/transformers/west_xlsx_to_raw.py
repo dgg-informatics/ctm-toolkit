@@ -6,7 +6,6 @@ one are skipped with a warning (no NCT means nothing to fetch from CTGov).
 Expected columns (row 1 header):
   Group | Disease Category | Sponsor | Title | ID | nct_id
 """
-import sys
 from pathlib import Path
 
 import openpyxl

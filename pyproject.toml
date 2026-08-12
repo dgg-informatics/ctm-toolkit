@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ctm-toolkit"
-version = "0.1.1"
-description = "Clinical trial data normalization and report generation toolkit for MatchMiner integration"
+version = "1.0.0"
+description = "Clinical trial data normalization and report generation toolkit"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -24,9 +24,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "pydantic>=2.0",
-    "openpyxl",
     "jinja2",
+    "openpyxl",
+    "pydantic>=2.0",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]
@@ -39,13 +40,16 @@ preview = [
 ]
 llm = [
     "openai",
-    "python-dotenv",
 ]
+# Self-referential so it can never drift out of sync with the extras above.
 all = [
-    "weasyprint",
-    "livereload",
-    "openai",
-    "python-dotenv",
+    "ctm-toolkit[report,preview,llm]",
+]
+# Test/lint tooling. An extra rather than a PEP 735 dependency-group so plain
+# `pip install ".[dev]"` works in the Dockerfile without a pip 25.1+ floor.
+dev = [
+    "pytest",
+    "ruff",
 ]
 
 [project.scripts]
@@ -60,3 +64,29 @@ packages = ["src/ctm"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110          # the CLI help strings and column tables read better wide
+target-version = "py311"
+extend-exclude = ["data", "output"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes — unused imports/variables, undefined names
+    "I",        # isort — import ordering
+    "UP",       # pyupgrade — modern syntax for the 3.11 floor
+    "B",        # bugbear — likely bugs
+    "C4",       # comprehension simplifications
+    "RUF",      # ruff's own rules
+]
+ignore = [
+    "E501",     # line length is enforced by the formatter, not the linter
+    "B008",     # argparse/pydantic defaults legitimately call functions
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Fixtures and CLI scaffolding assert on long literal dicts; scripts are top-level
+# procedural by design.
+"tests/*" = ["E402"]
+"scripts/*" = ["E402"]

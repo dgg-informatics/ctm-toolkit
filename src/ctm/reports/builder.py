@@ -5,14 +5,14 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-BASE_DIR = Path(__file__).parent.parent.parent.parent
-DATA_DIR = BASE_DIR / "data"
-TEMPLATES_DIR = BASE_DIR / "templates"
-STATIC_DIR = BASE_DIR / "static"
+# Report assets ship inside the package so an installed wheel can render without
+# a source checkout — anchor them to ctm/, never to the repo root.
+PACKAGE_DIR = Path(__file__).parent.parent
+TEMPLATES_DIR = PACKAGE_DIR / "templates"
+STATIC_DIR = PACKAGE_DIR / "static"
+METHODS_PATH = PACKAGE_DIR / "content" / "methods.json"
 
 DATA_SOURCE_VERSION = "TrialDBv0.1-jun26"
-
-METHODS_PATH = DATA_DIR / "content" / "methods.json"
 
 PATIENT_HEADER_FIELDS = {
     "first_name": "First Name",

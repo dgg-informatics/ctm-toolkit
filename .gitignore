@@ -6,11 +6,8 @@ dist/
 .pytest_cache/
 .env
 
-# uv
-uv.lock
-
-# hidden modules
-ai.py
+# MatchMiner Mongo credentials — created locally per the README, never commit
+SECRETS_JSON.json
 
 # data/real/ — real patient data, never commit (HIPAA)
 data/real/*
@@ -20,15 +17,19 @@ data/real/*
 data/dump/*
 !data/dump/.gitkeep
 
-# data/raw/ — most files committed; xlsx contains patient data, never commit
-data/raw/patient_data_template.xlsx
-data/raw/~$*
-!data/raw/.gitkeep
+# data/ holds nothing tracked any more — the committed reference workbook is
+# tests/fixtures/test-pt-data-v0.0.1.xlsx. Everything here is a local working
+# copy, and patient workbooks are PHI, so deny the whole tree by default.
+data/raw/*
 data/mock/*
-!data/mock/.gitkeep
+
+# scripts/make_template.py writes a blank workbook into the working directory;
+# once filled in it is PHI, so it is never committable.
+/patient_data_template.xlsx
 
 # output/ — generated preview artifacts, never commit
-# output/
+output/*
+!output/.gitkeep
 
 # superpowers
 docs/superpowers/*

@@ -2,14 +2,36 @@
 
 This repo prepares data from various sources to integrate with popular open-source clinical trial matching software (MatchMiner supported, TrialMatchAI at some point). Beyond providing input sources for popular clinical trial matching software, this repo also provides post-matching processing scripts to generate reports. For instance, once clinical trial matching has completed, it interfaces with the structured output (from MatchMiner) to provide a report for the patient.
 
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `ctm-mm patients` | Excel workbook → MatchMiner-compatible `{clinical, genomic, extras}` JSON |
+| `ctm-mm trials` | AMC XML / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
+| `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
+| `ctm-mm trials-curate` | LLM biomarker scan + title-derived suggestions on a `ctm-ctml` draft |
+| `ctm-mm trials-confidence-split` | **[beta]** Bucket curated trials into auto-pass / needs-a-human |
+| `ctm-mm trials-merge` | Merge carried-forward and freshly-curated trials into a new dated master |
+| `ctm-ctml` | LLM pass turning eligibility free text into suggested CTML match nodes |
+| `ctm-fetch` | Fetch a single trial from ClinicalTrials.gov by NCT ID |
+| `ctm-meta` | Multi-section CSV comparing coverage, overlap, and status across trial sources |
+| `ctm-report` | Build the trial-match report as a PDF, or serve a live-reload preview |
+
+Every command supports `--help`.
+
 ## Quick Start
 
 #### Patient Data Prep
 
 ```bash
-# Step 1: Normalize patient data from Excel template
-ctm-mm patients <patient_data_template.xlsx> --pt-uuid 1234 --out pt_1234.json
+# Step 1: Normalize patient data from a filled-in Excel workbook
+ctm-mm patients <patient_data.xlsx> --pt-uuid 1234 --out pt_1234.json
 ```
+
+Need a blank workbook to fill in? Run `python scripts/make_template.py` — it writes
+`patient_data_template.xlsx` into the current directory. For the expected layout,
+see `tests/fixtures/test-pt-data-v0.0.1.xlsx`, which carries mock patients plus a
+sample row for every findings sheet.
 
 #### Clinical Trial Data Prep
 
@@ -29,7 +51,9 @@ ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm  # format for 
 
 #### CTML Normalization
 
-**Ensure you have **.env** file with UMGPT_API_KEY=, UMGPT_BASE_URL=, and UMGPT_MODEL=**
+**Copy `.env.example` to `.env` and fill in `UMGPT_API_KEY` and `UMGPT_BASE_URL`**
+(`UMGPT_MODEL` is optional, defaults to `gpt-4o`). LLM responses are cached in
+`~/.cache/ctm/` — override with `CTM_CACHE_DIR` or `XDG_CACHE_HOME`.
 
 ```bash
 # Step 3: Run the LLM (UMGPT) to help match MatchMiner's Clinical Trial Markup Language (CTML) format
@@ -46,23 +70,23 @@ Step 4: **Manual Processing**
 matchengine load -t ctml-draft-manually-edited.json --trial-format json --db test
 
 # Step 6: Load Patient clinical data
-matchengine load -t ctml-draft-manually-edited.json --trial-format json --db test
+matchengine load -c patient-normalized-clinical.json --db test
 
 # Step 7: Load Patient genomic data
-matchengine load -t ctml-draft-manually-edited.json --trial-format json --db test
+matchengine load -g patient-normalized-genomic.json --db test
 
 # Step 8: Run MatchMiner
 matchengine match --config path/to/dfci_config.json
 
 # Step 9: Export match results from MatchMiner's Mongo database
-SECRETS_JSON=SECRETS_JSON.json python export_matches.py --patient 7439568 --output export/ --db v1
+SECRETS_JSON=SECRETS_JSON.json python export_matches.py --patient 8 --output export/ --db v1
 ```
 
 #### Build a Report
 
 ```bash
 # Step 10: Build report from patient, trial, and match collections
-ctm-report --pts data/patient.json --trials trials.json --matches data/matchminer_export.json --sample-id 7439568 --out output.pdf
+ctm-report --pts pt_1234.json --trials trials.json --matches export/matchminer_export.json --sample-id 8 --out output.pdf
 ```
 
 ---
@@ -71,7 +95,11 @@ ctm-report --pts data/patient.json --trials trials.json --matches data/matchmine
 
 #### Patient Data
 
-Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See example at */data/raw/pt_template.xlsx*.
+Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See the reference workbook at *tests/fixtures/test-pt-data-v0.0.1.xlsx*, or generate a blank one with `python scripts/make_template.py`.
+
+⚠️ **A filled-in workbook is PHI and must never be committed.** `.gitignore` denies
+`data/raw/*` and the generated `patient_data_template.xlsx` by default, but keep
+real workbooks outside the repo where practical.
 
 After you fill out the template excel sheet, please be careful of:
 
@@ -81,9 +109,20 @@ After you fill out the template excel sheet, please be careful of:
 
 #### Clinical Trial Data
 
-Clinical trial data comes from automated sources for AMC and Sparrow. For AMC, an export of the OnCORE database is retreived in the form of an XML file (see *data/raw/amc_trails_raw.xml*). For Sparrow, an Excel document is emailed each month (see *data/sparrow_trials_raw.xlsx*).
+Clinical trial data comes from automated sources for AMC and Sparrow. For AMC, an export of the OnCORE database is retrieved in the form of an XML file. For Sparrow, an Excel document is emailed each month.
 
-For UMH-West, an Excel sheet is emailed is a format that is incomplete and requires manual processing immediately. Thus, this repo holds a template for recording West trial data instead of the raw data file we receive. See the template for West's trial data at *data/raw/west_trial_template.xlsx* --> note the *_template.xlsx instead of *_raw.xlsx ;-)
+For UMH-West, an Excel sheet is emailed in a format that is incomplete and requires manual processing immediately, so we re-record West trial data into our own sheet rather than consuming the file we receive as-is.
+
+None of these raw source files live in this repo — they are institutional exports
+and are kept out of it. Small mock samples showing the expected shape of each are
+in `tests/fixtures/`:
+
+| Source | Fixture |
+|---|---|
+| AMC (OnCORE XML) | `test-trials-amc-v0.0.1.xml` |
+| Sparrow (XLSX) | `test-trials-sparrow-v0.0.1.xlsx` |
+| UMH-West (XLSX) | `test-trials-west-v0.0.1.xlsx` |
+| ClinicalTrials.gov API responses | `clinicaltrial_gov/NCT*.json` |
 
 The automation from AMC, Sparrow, West, and ClinicalTrials.gov clinical trial data requires some manual massaging of the data before it can be put into MatchMiner:
 
@@ -124,7 +163,7 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
 
 1. Fill out patient_data_template.xlsx sheets
    1. pt_general: look up patient general information and manually record here. You can add as many columns as you want and later update the report generation script so you can include other patient information.
-   2. `*_findings` sheets (`tempus_findings`, `caris_findings`, `ambry_findings`, `amc_ngs_findings`, `ogm_findings`, `pml_rara_findings`): one row per genomic finding. Every findings sheet shares the same 5 core columns:
+   2. `*_findings` sheets — one row per genomic finding. The sheets the parser reads are `tempus_findings`, `caris_findings`, `ambry_findings`, `amc_ngs_findings`, `ogm_findings`, `pml_rara_findings`, `mayo_findings`, `henry_ford_findings`, `guardant360_findings`, and `tumor_biomarkers`. The authoritative list is `SHEET_NORMALIZERS` in `src/ctm/transformers/normalize_manual.py`; `tests/test_template_sheets.py` fails if the reference workbook drifts from it. Every findings sheet shares the same 5 core columns:
 
       | Column | Meaning |
       |---|---|
@@ -204,7 +243,7 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 3. Run the LLM + manual curation, same as the first-time flow, but only on the changed file:
    1. `$ ctm-ctml --trials 2026-07-14-changed.json --out 2026-07-14-changed-draft.json`
    2. `--nct`/`--limit` aren't needed here — the file is already scoped to just the changed trials.
-   3. `$ ctm-mm trials-curate --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json --cache .trials_curate_cache.json`  # cross-checks biomarker mentions against the known-gene KB and adds a title-only LLM pass, then collects everything into an `_llm_curation` field for the reviewer to work from.
+   3. `$ ctm-mm trials-curate --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json`  # cross-checks biomarker mentions against the known-gene KB and adds a title-only LLM pass, then collects everything into an `_llm_curation` field for the reviewer to work from. Caches to `~/.cache/ctm/` and uses the gene/variant KB shipped inside the package, so neither `--cache` nor `--kb` needs setting.
    4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field written by `trials-curate` as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
 
 > [!WARNING]
@@ -336,9 +375,15 @@ MatchMiner expects each document to conform to CTML format. See the [MatchMiner 
 
 ## Setup
 
-### Docker (recommended)
+### Local installation (recommended)
 
-The easiest way to run the full stack (app + MongoDB) is Docker Compose:
+See below. A virtualenv plus an existing MongoDB is the simplest setup, and it is
+how the toolkit is currently run.
+
+### Docker
+
+Optional. Useful if you want MongoDB provided for you, or a Linux environment
+matching the server. Docker Compose runs the app plus MongoDB:
 
 ```bash
 # Build and start app + MongoDB
@@ -357,6 +402,12 @@ docker-compose down
 docker-compose down -v
 ```
 
+> [!NOTE]
+> The compose file bind-mounts the repo at `/app`, but the package is installed
+> non-editable, so **editing source will not take effect without a rebuild**. If
+> you want live code changes in the container, change the Dockerfile to
+> `pip install -e ".[all,dev]"`.
+
 MongoDB data is stored in a named Docker volume (`ctm-report-preview_mongo_data`) and survives container restarts. To inspect it:
 
 ```bash
@@ -369,22 +420,42 @@ docker-compose exec mongo mongosh
 
 ### Local installation
 
+Install from this checkout, not from PyPI — the published `ctm-toolkit` is well
+behind and does not include the packaged report templates:
+
 ```bash
-uv pip install "ctm-toolkit[report]"
+uv venv
+uv pip install -e ".[all,dev]"                                   # report + preview + llm + pytest/ruff
 uv pip install "git+https://github.com/wintermutant/matchengine-V2"
 ```
 
-On macOS, WeasyPrint also needs the native Pango library:
+Extras, if you want a narrower install: `[report]` (PDF), `[preview]` (live
+reload), `[llm]` (UMGPT curation), `[dev]` (pytest + ruff), `[all]`.
+
+WeasyPrint needs native Pango. On macOS:
 
 ```bash
 brew install pango
 ```
 
+On Debian/Ubuntu these two are sufficient — the `-dev` headers are not needed
+because WeasyPrint and Pillow ship prebuilt wheels:
+
+```bash
+sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0
+```
+
 ### Running tests
 
 ```bash
-.venv/bin/python -m pytest
+pytest          # 137 tests, fully offline — no network access at any point
+ruff check .    # lint
 ```
+
+The suite never reaches the network. An autouse fixture in `tests/conftest.py`
+blocks `urllib.request.urlopen`, and the West/Sparrow transformers — which
+normally fetch trial content from ClinicalTrials.gov — are pointed at canned
+responses in `tests/fixtures/clinicaltrial_gov/`.
 
 ### Disclaimer about MatchMiner and MongoDB
 
@@ -440,30 +511,48 @@ $ ctm-report \
 ```
 
 This opens a browser tab at `http://localhost:5500/report.html`. Any edit to a
-template in `templates/`, the stylesheet in `static/report.css`, or any of the
-three input files automatically re-renders the report and refreshes the page.
+template in `src/ctm/templates/`, the stylesheet in `src/ctm/static/report.css`,
+or any of the three input files automatically re-renders the report and refreshes
+the page. Output is written to `./output/` relative to where you run the command.
 
 
 # Project layout
 
 ## Folders
 
-- `data/` - see Data directories table above
-- `templates/` - `report.html` is the base page, `_*.html` are the per-section includes
-- `static/report.css` - shared styling, including the `@page` rule for PDF page size/margins
-- `src/ctm/reports/builder.py` - loads JSON data and renders the Jinja2 template to HTML
-- `src/ctm/report_cli.py` - the `ctm-report` CLI; builds a PDF or serves a live-reload preview
+- `src/ctm/` — the package. Everything the installed wheel needs lives here.
+  - `templates/` — `report.html` is the base page, `_*.html` are the per-section includes
+  - `static/report.css` — shared styling, including the `@page` rule for PDF page size/margins
+  - `content/methods.json` — the Methods prose rendered into every report
+  - `refs/` — gene/variant knowledge base used by `ctm-mm trials-curate`
+  - `paths.py` — resolves packaged reference data and the per-user cache directory
+  - `reports/builder.py` — loads JSON data and renders the Jinja2 template to HTML
+  - `report_cli.py` — the `ctm-report` CLI; builds a PDF or serves a live-reload preview
+- `tests/fixtures/` — all mock data (see below)
+- `scripts/` — `make_template.py` writes a blank intake workbook;
+  `create_default_views.js` creates the Compass views
+- `data/` — untracked scratch space for your own working files. Nothing in it is
+  committed, and patient workbooks placed here are gitignored.
 
-## Data directories
+> [!IMPORTANT]
+> Report templates, CSS, and reference data live **inside** `src/ctm/` so an
+> installed wheel can render without a source checkout. Anchor new asset paths to
+> the package (see `paths.py`), never to the repo root —
+> `tests/test_packaging.py` fails if that regresses.
 
-We have some example data we store in this repo as a nice reference.
+## Mock data
 
-| Directory       | Purpose                                                                                                                                                                                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data/content/` | Static content used to build the report.                                                                                                                                                                                                                 |
-| `data/dump/`    | Ignore for now. It's where we dump random raw trial and patient data.                                                                                                                                                                                    |
-| `data/mock/`    | Synthetic data that shows the format of patient, trial, and match data and is used to build a mock report to show the report format. Patient and trial data are normalized, while match data is exported from the match engine (MatchMiner only for now) |
-| `data/raw/`     | Templates for manually creating initial patient and clinical trial data. This is the input for the normalization step                                                                                                                                    |
+All example data lives in `tests/fixtures/`. The repo contains **no real patient
+or trial data** — names, MRNs, protocol numbers, and NCT IDs are all fabricated.
+
+| Fixture | Purpose |
+| --- | --- |
+| `test-pt-data-v0.0.1.xlsx` | Reference intake workbook: mock patients plus a sample row for every findings sheet. Doubles as the layout to copy when filling one in. |
+| `test-pts-v0.0.1.json` | Normalized patient collection — output of `ctm-mm patients` |
+| `test-trials-v0.0.1.json` | Fully curated trial collection, i.e. post-LLM and post-manual-review. This is what report tests need, since genomic and OncoTree criteria only exist after curation. |
+| `test-matches-v0.0.1.json` | `trial_match` collection, joined to the trials fixture by `protocol_no` |
+| `test-trials-{amc,sparrow,west}-v0.0.1.*` | Raw per-source samples, for normalization tests only |
+| `clinicaltrial_gov/NCT*.json` | Canned ClinicalTrials.gov API responses, trimmed to the fields the transformers read, so tests run offline |
 
 
 # Extensions

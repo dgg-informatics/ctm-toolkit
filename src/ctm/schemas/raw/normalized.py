@@ -7,6 +7,7 @@ Three collections:
 """
 from datetime import date
 from typing import Any
+
 from pydantic import BaseModel
 
 

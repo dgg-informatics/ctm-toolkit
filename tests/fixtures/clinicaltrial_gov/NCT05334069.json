@@ -1,0 +1,211 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT05334069",
+      "orgStudyIdInfo": {
+        "id": "A212102"
+      },
+      "secondaryIdInfos": [
+        {
+          "id": "NCI-2022-02477",
+          "type": "REGISTRY",
+          "domain": "NCI Clinical Trial Reporting Program"
+        },
+        {
+          "id": "UG1CA189823",
+          "type": "NIH",
+          "link": "https://reporter.nih.gov/quickSearch/UG1CA189823"
+        }
+      ],
+      "organization": {
+        "fullName": "Alliance for Clinical Trials in Oncology",
+        "class": "OTHER"
+      },
+      "briefTitle": "Collecting Blood Samples From Patients With and Without Cancer to Evaluate Tests for Early Cancer Detection",
+      "officialTitle": "Blinded Reference Set for Multicancer Early Detection Blood Tests"
+    },
+    "statusModule": {
+      "statusVerifiedDate": "2026-08",
+      "overallStatus": "RECRUITING",
+      "expandedAccessInfo": {
+        "hasExpandedAccess": false
+      },
+      "startDateStruct": {
+        "date": "2022-08-18",
+        "type": "ACTUAL"
+      },
+      "primaryCompletionDateStruct": {
+        "date": "2027-01-31",
+        "type": "ESTIMATED"
+      },
+      "completionDateStruct": {
+        "date": "2027-02-28",
+        "type": "ESTIMATED"
+      },
+      "studyFirstSubmitDate": "2022-04-12",
+      "studyFirstSubmitQcDate": "2022-04-12",
+      "studyFirstPostDateStruct": {
+        "date": "2022-04-19",
+        "type": "ACTUAL"
+      },
+      "lastUpdateSubmitDate": "2026-08-04",
+      "lastUpdatePostDateStruct": {
+        "date": "2026-08-05",
+        "type": "ACTUAL"
+      }
+    },
+    "sponsorCollaboratorsModule": {
+      "responsibleParty": {
+        "type": "SPONSOR"
+      },
+      "leadSponsor": {
+        "name": "Alliance for Clinical Trials in Oncology",
+        "class": "OTHER"
+      },
+      "collaborators": [
+        {
+          "name": "National Cancer Institute (NCI)",
+          "class": "NIH"
+        }
+      ]
+    },
+    "descriptionModule": {
+      "briefSummary": "This study collects blood and tissue samples from patients with cancer and without cancer to evaluate tests for early cancer detection. Collecting and storing samples of blood and tissue from patients with and without cancer to study in the laboratory may help researchers develop tests for the early detection of cancers.",
+      "detailedDescription": "PRIMARY OBJECTIVE:\n\nI. To provide a blinded reference set of cancer versus (vs.) non-cancer blood samples that will be used to validate assays for inclusion in a prospective clinical trial focused on utility of blood-based multi-cancer early detection.\n\nSECONDARY OBJECTIVES:\n\nI. Evaluate test performance at the time of initial cancer diagnosis by tumor type.\n\nII. Evaluate test performance at the time of initial cancer diagnosis by clinical stage.\n\nOUTLINE:\n\nParticipants complete a questionnaire at baseline. Participants undergo collection of blood samples at registration and at 12 months after registration. Patients with a cancer diagnosis may undergo collection of tissue samples at registration and 12 months after registration.\n\nAfter completion of study, participants are followed up at 1 year."
+    },
+    "conditionsModule": {
+      "conditions": [
+        "Acute Lymphoblastic Leukemia",
+        "Acute Myeloid Leukemia",
+        "Ann Arbor Stage I Lymphoma",
+        "Ann Arbor Stage II Lymphoma",
+        "Ann Arbor Stage III Lymphoma",
+        "Ann Arbor Stage IV Lymphoma",
+        "Chronic Lymphocytic Leukemia",
+        "Chronic Myeloid Leukemia",
+        "Gastroesophageal Junction Adenocarcinoma",
+        "Head and Neck Carcinoma",
+        "Hematopoietic and Lymphoid Cell Neoplasm",
+        "Invasive Breast Carcinoma",
+        "Kidney Carcinoma",
+        "Malignant Hepatobiliary Neoplasm",
+        "Malignant Solid Neoplasm",
+        "Melanoma",
+        "Muscle-Invasive Bladder Carcinoma",
+        "RISS Stage I Plasma Cell Myeloma",
+        "RISS Stage II Plasma Cell Myeloma",
+        "RISS Stage III Plasma Cell Myeloma",
+        "Sarcoma",
+        "Stage I Bladder Cancer AJCC v6 and v7",
+        "Stage I Breast Cancer AJCC v7",
+        "Stage I Colorectal Cancer AJCC v6 and v7",
+        "Stage I Esophageal Cancer AJCC V7",
+        "Stage I Gastric Cancer AJCC V7",
+        "Stage I Lung Cancer AJCC v7",
+        "Stage I Ovarian Cancer AJCC v6 and v7",
+        "Stage I Pancreatic Cancer AJCC v6 and v7",
+        "Stage I Prostate Cancer AJCC v7",
+        "Stage I Uterine Corpus Cancer AJCC v7",
+        "Stage II Bladder Cancer AJCC v6 and v7",
+        "Stage II Breast Cancer AJCC v6 and v7",
+        "Stage II Colorectal Cancer AJCC v7",
+        "Stage II Esophageal Cancer AJCC v7",
+        "Stage II Gastric Cancer AJCC v7",
+        "Stage II Lung Cancer AJCC v7",
+        "Stage II Ovarian Cancer AJCC v6 and v7",
+        "Stage II Pancreatic Cancer AJCC v6 and v7",
+        "Stage II Prostate Cancer AJCC v7",
+        "Stage II Uterine Corpus Cancer AJCC v7",
+        "Stage III Bladder Cancer AJCC v6 and v7",
+        "Stage III Breast Cancer AJCC v7",
+        "Stage III Colorectal Cancer AJCC v7",
+        "Stage III Esophageal Cancer AJCC v7",
+        "Stage III Gastric Cancer AJCC v7",
+        "Stage III Lung Cancer AJCC v7",
+        "Stage III Ovarian Cancer AJCC v6 and v7",
+        "Stage III Pancreatic Cancer AJCC v6 and v7",
+        "Stage III Prostate Cancer AJCC v7",
+        "Stage III Uterine Corpus Cancer AJCC v7",
+        "Stage IV Bladder Cancer AJCC v7",
+        "Stage IV Breast Cancer AJCC v6 and v7",
+        "Stage IV Colorectal Cancer AJCC v7",
+        "Stage IV Esophageal Cancer AJCC v7",
+        "Stage IV Gastric Cancer AJCC v7",
+        "Stage IV Lung Cancer AJCC v7",
+        "Stage IV Ovarian Cancer AJCC v6 and v7",
+        "Stage IV Pancreatic Cancer AJCC v6 and v7",
+        "Stage IV Prostate Cancer AJCC v7",
+        "Stage IV Uterine Corpus Cancer AJCC v7",
+        "Thyroid Gland Carcinoma"
+      ]
+    },
+    "designModule": {
+      "studyType": "OBSERVATIONAL",
+      "patientRegistry": false,
+      "designInfo": {
+        "observationalModel": "CASE_CONTROL",
+        "timePerspective": "PROSPECTIVE"
+      },
+      "bioSpec": {
+        "retention": "SAMPLES_WITH_DNA",
+        "description": "Blood, tissue"
+      },
+      "enrollmentInfo": {
+        "count": 2000,
+        "type": "ESTIMATED"
+      }
+    },
+    "armsInterventionsModule": {
+      "armGroups": [
+        {
+          "label": "Screening (questionnaire, biospecimen collection)",
+          "description": "Participants complete a questionnaire at baseline. Participants undergo collection of blood samples at registration and at 12 months after registration. Patients with a cancer diagnosis may undergo collection of tissue samples at registration and 12 months after registration.",
+          "interventionNames": [
+            "Other: Questionnaire Administration",
+            "Procedure: Biospecimen Collection"
+          ]
+        }
+      ],
+      "interventions": [
+        {
+          "type": "OTHER",
+          "name": "Questionnaire Administration",
+          "description": "Complete questionnaire",
+          "armGroupLabels": [
+            "Screening (questionnaire, biospecimen collection)"
+          ]
+        },
+        {
+          "type": "PROCEDURE",
+          "name": "Biospecimen Collection",
+          "description": "Undergo collection of tissue and blood samples",
+          "armGroupLabels": [
+            "Screening (questionnaire, biospecimen collection)"
+          ]
+        }
+      ]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Inclusion Criteria:\n\n* Participants with a cancer diagnosis: Documentation of disease:\n\n  * Histologic documentation: Histologically confirmed diagnosis of invasive cancer\n  * Stage: Stage I-IV per American Joint Committee on Cancer (AJCC) 7th edition, with the exception of patients with leukemia, lymphoma, and multiple myeloma\n\n    * For leukemia: Type (chronic lymphocytic leukemia \\[CLL\\], chronic myeloid leukemia \\[CML\\], acute lymphoblastic lymphoma \\[ALL\\], acute myeloid leukemia \\[AML\\])\n    * For lymphoma: Stage I-IV based on Ann Arbor staging\n    * For multiple myeloma: Stage I, II, III based on Revised International Staging System (RISS)\n  * One of the following tumor types:\n\n    * Colorectal\n    * Bladder\n    * Head and neck\n    * Hepatobiliary\n    * Lung\n    * Lymphoma\n    * Leukemia\n    * Ovary \\*\\*\\* For these specific cancer types only, patients may be enrolled prior to histologic confirmation of malignancy. Sites are required to contact the study chairs to review appropriateness for enrollment\n    * Pancreas \\*\\*\\* For these specific cancer types only, patients may be enrolled prior to histologic confirmation of malignancy. Sites are required to contact the study chairs to review appropriateness for enrollment\n    * Multiple myeloma\n    * Gastric, esophageal or gastroesophageal\n    * Breast\n    * Thyroid\n    * Kidney\n\n      * For these specific cancer types only, patients may be enrolled prior to histologic confirmation of malignancy. Sites are required to contact the study chairs to review appropriateness for enrollment\n    * Endometrium\n    * Prostate\n    * Melanoma\n\n      \\*\\*\\* For these specific cancer types only, patients may be enrolled prior to histologic confirmation of malignancy. Sites are required to contact the study chairs to review appropriateness for enrollment\n    * Sarcoma\n* Participants with a cancer diagnosis: No prior definitive systemic or local anti-cancer intervention\n* Participants with a cancer diagnosis: Age \\>= 40 and =\\< 75\n* Participants with a cancer diagnosis: No known current pregnancy by self-report\n* Participants with a cancer diagnosis: No known or prior history of in situ or invasive malignancy (excluding in situ non-melanoma skin cancers) other than the current cancer diagnosis\n* Participants with a cancer diagnosis: Willingness to provide blood samples for research use\n* Participants with a cancer diagnosis: Absence of medical contraindications to a research blood draw volume of 60 mL\n* Participants with a cancer diagnosis: No history of organ transplantation\n* Participants with a cancer diagnosis: Ability to read and comprehend English or Spanish\n\n  \\* Eligibility is restricted to individuals who can comprehend and read English or Spanish given that participation in the study will require the ability to read and complete questionnaires that are available only in those two languages\n* Participants without a cancer diagnosis and without suspicion of cancer: Age \\>= 40 and =\\< 75\n* Participants without a cancer diagnosis and without suspicion of cancer: No known current pregnancy by self-report\n* Participants without a cancer diagnosis and without suspicion of cancer: No known or prior history of in situ or invasive malignancy (excluding in situ non-melanoma skin cancers)\n* Participants without a cancer diagnosis and without suspicion of cancer: Willingness to provide blood samples for research use\n* Participants without a cancer diagnosis and without suspicion of cancer: Absence of medical contraindications to a research blood draw volume of 60 mL\n* Participants without a cancer diagnosis and without suspicion of cancer: No history of organ transplantation\n* Participants without a cancer diagnosis and without suspicion of cancer: Ability to read and comprehend English or Spanish\n\n  \\* Eligibility is restricted to individuals who can comprehend and read English or Spanish given that participation in the study will require the ability to read and complete questionnaires that are available only in those two languages\n* Participants with a high suspicion of cancer: High suspicion of ovarian cancer, pancreatic cancer, kidney cancer, or melanoma by clinical and/or radiological assessment, with plans for histologic or cytologic confirmation within 28 days after study blood draw\n\n  \\* Examples of highly suspicious cases include: elevated CA125 and abnormal transvaginal ultrasound, suspicious renal or pancreatic mass on imaging, suspicious cutaneous lesion concerning for melanoma\n* Participants with a high suspicion of cancer: Central review of radiology reports and/or clinical documentation conducted by study chairs\n* Participants with a high suspicion of cancer: Age \\>= 40 and =\\< 75\n* Participants with a high suspicion of cancer: No known current pregnancy by self-report\n* Participants with a high suspicion of cancer: No known or prior history of in situ or invasive malignancy (excluding in situ non-melanoma skin cancers) other than the current cancer diagnosis\n* Participants with a high suspicion of cancer: Willingness to provide blood samples for research use\n* Participants with a high suspicion of cancer: Absence of medical contraindications to a research blood draw volume of 60 mL\n* Participants with a high suspicion of cancer: No history or organ transplantation\n* Participants with a high suspicion of cancer: Ability to read and comprehend English or Spanish \\* Eligibility is restricted to individuals who can comprehend and read English and Spanish given that participation in the study will require the ability to read and complete questionnaires that are available only in those two languages",
+      "healthyVolunteers": true,
+      "sex": "ALL",
+      "minimumAge": "40 Years",
+      "maximumAge": "75 Years",
+      "stdAges": [
+        "ADULT",
+        "OLDER_ADULT"
+      ],
+      "studyPopulation": "Patients with a cancer diagnosis and participants without cancer and without suspicion of cancer and with a high suspicion of cancer",
+      "samplingMethod": "NON_PROBABILITY_SAMPLE"
+    },
+    "contactsLocationsModule": {
+      "overallOfficials": [
+        {
+          "name": "Mary Public, MD",
+          "affiliation": "University of Colorado, Denver",
+          "role": "STUDY_CHAIR"
+        }
+      ]
+    }
+  }
+}

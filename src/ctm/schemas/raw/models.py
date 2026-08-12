@@ -5,7 +5,8 @@ passed straight in with model_validate(). All fields are optional except the
 join keys (pt_uuid, report_uuid), which must be present for the normalizer
 to link documents correctly.
 """
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -294,7 +295,7 @@ class RawCTGovTrial(BaseModel):
     principal_investigator: str | None = None  # first PRINCIPAL_INVESTIGATOR in overallOfficials
     drug_interventions: list[str] = Field(default_factory=list)  # DRUG/BIOLOGICAL names
     fetched_at: datetime = Field(          # UTC timestamp of the API pull
-        default_factory=lambda: datetime.now(tz=timezone.utc)
+        default_factory=lambda: datetime.now(tz=UTC)
     )
 
 

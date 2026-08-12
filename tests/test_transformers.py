@@ -1,23 +1,22 @@
 """Transformer tests — no MongoDB required."""
 from pathlib import Path
 
-
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_amc_xml_to_normalized():
+    from ctm.schemas.matchminer.clinical_trial import ClinicalTrialNormalized
     from ctm.transformers.amc_xml_to_raw import load
     from ctm.transformers.raw_amc_to_ctml import to_ctml_dict
-    from ctm.schemas.matchminer.clinical_trial import ClinicalTrialNormalized
 
-    raw_trials = load(FIXTURES / "amc_trials_sample.xml")
+    raw_trials = load(FIXTURES / "test-trials-amc-v0.0.1.xml")
     assert len(raw_trials) == 1
 
     d = to_ctml_dict(raw_trials[0])
     trial = ClinicalTrialNormalized.model_validate({**d, "summary": d.get("_summary", {}), "raw": d.get("_raw", {})})
 
-    assert trial.protocol_no == "2021.045"
-    assert trial.nct_id == "NCT03715933"
+    assert trial.protocol_no == "2099.014"
+    assert trial.nct_id == "NCT90000014"
     assert trial.status == "open to accrual"
     assert trial.entity == "amc"
 
@@ -36,15 +35,15 @@ def test_amc_xml_to_normalized():
 
     # _raw has full source fields
     assert d["_raw"]["octsu_genes_interest"] == "IDH1, IDH2"
-    assert d["_raw"]["secondary_protocol_no"] == "HUM00202966"
+    assert d["_raw"]["secondary_protocol_no"] == "HUM00000014"
     assert d["_raw"]["management_group"] == "CTSU - Oncology"
 
 
 def test_clinical_trial_normalized_has_trial_hash_field():
     from ctm.schemas.matchminer.clinical_trial import ClinicalTrialNormalized
 
-    trial = ClinicalTrialNormalized(protocol_no="2021.070", entity="amc")
+    trial = ClinicalTrialNormalized(protocol_no="2099.015", entity="amc")
     assert trial.trial_hash is None
 
-    trial2 = ClinicalTrialNormalized(protocol_no="2021.070", entity="amc", trial_hash="abc123")
+    trial2 = ClinicalTrialNormalized(protocol_no="2099.015", entity="amc", trial_hash="abc123")
     assert trial2.trial_hash == "abc123"

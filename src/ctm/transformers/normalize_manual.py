@@ -7,17 +7,17 @@ Pattern for every source:
   3. source is propagated from the corresponding ReportMetadata row.
 """
 from ..schemas.raw.models import (
-    RawPatientGeneral,
-    RawReportMetadata,
-    RawTempusFinding,
-    RawCarisFinding,
     RawAmbryFinding,
     RawAmcNgsFinding,
-    RawOgmFinding,
-    RawPmlRaraFinding,
-    RawMayoFinding,
-    RawHenryFordFinding,
+    RawCarisFinding,
     RawGuardant360Finding,
+    RawHenryFordFinding,
+    RawMayoFinding,
+    RawOgmFinding,
+    RawPatientGeneral,
+    RawPmlRaraFinding,
+    RawReportMetadata,
+    RawTempusFinding,
     RawTumorBiomarker,
 )
 from ..schemas.raw.normalized import Finding, Patient, ReportMetadata

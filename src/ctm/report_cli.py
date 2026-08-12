@@ -21,20 +21,23 @@ def _fix_macos_weasyprint_path() -> None:
 def _run_preview(pts_path: str, trials_path: str, matches_path: str, sample_id: str,
                  meaningful_only: bool = False) -> None:
     from livereload import Server
-    from ctm.reports.builder import BASE_DIR, render_html_from_pt_trials_matches
 
-    output_dir = BASE_DIR / "output"
+    from ctm.reports.builder import STATIC_DIR, TEMPLATES_DIR, render_html_from_pt_trials_matches
+
+    output_dir = Path.cwd() / "output"
     output_file = output_dir / "report.html"
 
     def build():
-        output_dir.mkdir(exist_ok=True)
+        output_dir.mkdir(exist_ok=True, parents=True)
         output_file.write_text(render_html_from_pt_trials_matches(
             pts_path, trials_path, matches_path, sample_id, meaningful_only=meaningful_only))
 
     build()
     server = Server()
-    server.watch(str(BASE_DIR / "templates" / "*.html"), build)
-    server.watch(str(BASE_DIR / "static" / "*.css"), build)
+    # Watch the packaged assets — under an editable install these are the files
+    # you actually edit, and they are what render_html reads.
+    server.watch(str(TEMPLATES_DIR / "*.html"), build)
+    server.watch(str(STATIC_DIR / "*.css"), build)
     server.watch(pts_path, build)
     server.watch(trials_path, build)
     server.watch(matches_path, build)
@@ -45,11 +48,11 @@ def _run_preview(pts_path: str, trials_path: str, matches_path: str, sample_id: 
 def main() -> None:
     _fix_macos_weasyprint_path()
 
-    from ctm.reports.builder import BASE_DIR, render_html_from_pt_trials_matches
+    from ctm.reports.builder import render_html_from_pt_trials_matches
 
     parser = argparse.ArgumentParser(prog="ctm-report")
     parser.add_argument("--out", metavar="PATH", default=None,
-                        help="Output PDF path (default: output/report.pdf)")
+                        help="Output PDF path (default: ./output/report.pdf)")
     parser.add_argument("--pts", dest="pts_path", metavar="PATH", required=True,
                         help="Patient collection JSON from ctm-mm patients")
     parser.add_argument("--trials", dest="trials_path", metavar="PATH", required=True,
@@ -74,7 +77,7 @@ def main() -> None:
 
     html = render_html_from_pt_trials_matches(args.pts_path, args.trials_path, args.matches_path,
                                               args.sample_id, meaningful_only=args.meaningful_only)
-    output_path = Path(args.out) if args.out else BASE_DIR / "output" / "report.pdf"
+    output_path = Path(args.out) if args.out else Path.cwd() / "output" / "report.pdf"
     output_path.parent.mkdir(exist_ok=True, parents=True)
     HTML(string=html).write_pdf(str(output_path))
     print(f"Wrote {output_path}")
