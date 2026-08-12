@@ -7,7 +7,7 @@ MatchMiner expects two MongoDB collections:
 This module is pure (no I/O). Callers handle MongoDB writes.
 """
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ..schemas.raw.normalized import Finding, Patient
@@ -117,7 +117,7 @@ def to_clinical(
         "GENDER": _normalize_gender(patient.sex),
         "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": tmb,
         "REPORT_DATE": report_date,
-        "_updated": datetime.now(tz=timezone.utc).isoformat(),
+        "_updated": datetime.now(tz=UTC).isoformat(),
     }
 
 
@@ -157,7 +157,7 @@ def to_genomic_docs(
             "TRUE_HUGO_SYMBOL": f.gene,
             "VARIANT_CATEGORY": variant_category,
             "WILDTYPE": vt in _WILDTYPE_TYPES,
-            "_updated": datetime.now(tz=timezone.utc).isoformat(),
+            "_updated": datetime.now(tz=UTC).isoformat(),
         }
 
         if clinical_id is not None:

@@ -21,8 +21,10 @@ import pytest
 from ctm.transformers.normalize_manual import SHEET_NORMALIZERS
 
 REPO_ROOT = Path(__file__).parent.parent
-TEMPLATE = REPO_ROOT / "data" / "raw" / "patient_data_template.xlsx"
 GENERATOR = REPO_ROOT / "scripts" / "make_template.py"
+# The committed reference workbook. Doubles as the layout a curator looks at,
+# so it must cover every sheet the parser reads.
+REFERENCE = REPO_ROOT / "tests" / "fixtures" / "test-pt-data-v0.0.1.xlsx"
 
 
 def _add_sheet_calls():
@@ -53,26 +55,32 @@ def test_generator_emits_every_sheet_the_parser_reads():
     assert not missing, f"parser reads these sheets but the template lacks them: {sorted(missing)}"
 
 
-@pytest.mark.skipif(not TEMPLATE.exists(), reason="template not generated")
-def test_committed_template_matches_the_generator():
-    """Guards against editing make_template.py but forgetting to regenerate."""
-    wb = openpyxl.load_workbook(TEMPLATE, read_only=True)
-    on_disk = set(wb.sheetnames)
-    missing = set(SHEET_NORMALIZERS) - on_disk
-    assert not missing, (
-        f"committed template is missing {sorted(missing)} — "
-        f"re-run: python scripts/make_template.py"
-    )
+def test_reference_workbook_covers_every_sheet_the_parser_reads():
+    """It is the only committed example of the layout, so a gap is invisible."""
+    wb = openpyxl.load_workbook(REFERENCE, read_only=True)
+    missing = set(SHEET_NORMALIZERS) - set(wb.sheetnames)
+    assert not missing, f"reference workbook is missing {sorted(missing)}"
 
 
-@pytest.mark.skipif(not TEMPLATE.exists(), reason="template not generated")
-def test_committed_template_holds_no_patient_data():
-    """The template is a visual reference; real data belongs in an ignored copy."""
-    wb = openpyxl.load_workbook(TEMPLATE, read_only=True)
-    for ws in wb.worksheets:
-        if ws.title.startswith("_"):
-            continue  # _legend / _conventions are documentation
-        assert ws.max_row <= 2, (
-            f"{ws.title} has {ws.max_row} rows — the template must hold only a "
-            f"header and a single example row, never real records"
-        )
+def test_findings_sheets_spell_the_canonical_columns_correctly():
+    """Every Raw* model sets extra='allow', so unknown columns pass through into
+    `raw` rather than erroring. That makes a typo in a canonical header silent:
+    `varient_type` would be accepted and the real field left empty. Assert the
+    join keys and canonical names are present and exactly spelled, without
+    forbidding the extra pass-through columns the schema deliberately permits."""
+    required = {"pt_uuid", "report_uuid"}
+    canonical = {"gene", "variant_type", "result_summary"}
+    wb = openpyxl.load_workbook(REFERENCE, read_only=True)
+    for sheet in SHEET_NORMALIZERS:
+        headers = {c.value for c in wb[sheet][1] if c.value is not None}
+        assert required <= headers, f"{sheet}: missing join keys {sorted(required - headers)}"
+        assert canonical <= headers, f"{sheet}: missing/misspelled {sorted(canonical - headers)}"
+
+
+def test_reference_workbook_is_parseable_and_joined():
+    """Rows must actually join — orphaned pt_uuids are dropped without warning."""
+    from ctm.transformers.excel_reader import read_and_normalize
+
+    patients, _metadata, findings = read_and_normalize(REFERENCE)
+    assert patients, "no patients parsed"
+    assert findings, "findings present in the workbook but none survived the join"

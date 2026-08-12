@@ -15,15 +15,16 @@ The match tree is populated with age; genomic/clinical criteria from free
 text are not auto-extracted and left for manual/AI population downstream.
 """
 import re
-from ..schemas.raw.models import RawAMCTrial
+
 from ..schemas.matchminer.clinical_trial import (
+    ClinicalTrialNormalized,
     CtmlArm,
     CtmlEligibility,
     CtmlEligibilityCriterion,
     CtmlStep,
     CtmlTreatmentList,
-    ClinicalTrialNormalized,
 )
+from ..schemas.raw.models import RawAMCTrial
 
 _STATUS_MAP: dict[str, str] = {
     "OPEN TO ACCRUAL": "open to accrual",

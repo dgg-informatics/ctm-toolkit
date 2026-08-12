@@ -1,0 +1,261 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT04314401",
+      "orgStudyIdInfo": {
+        "id": "NCI-2020-00750"
+      },
+      "secondaryIdInfos": [
+        {
+          "id": "NCI-2020-00750",
+          "type": "REGISTRY",
+          "domain": "CTRP (Clinical Trial Reporting Program)"
+        },
+        {
+          "id": "10323",
+          "type": "OTHER",
+          "domain": "Division of Cancer Treatment and Diagnosis"
+        },
+        {
+          "id": "10323",
+          "type": "OTHER",
+          "domain": "CTEP"
+        }
+      ],
+      "organization": {
+        "fullName": "National Cancer Institute (NCI)",
+        "class": "NIH"
+      },
+      "briefTitle": "National Cancer Institute \"Cancer Moonshot Biobank\"",
+      "officialTitle": "Cancer Moonshot Biobank Research Protocol"
+    },
+    "statusModule": {
+      "statusVerifiedDate": "2026-04",
+      "overallStatus": "ACTIVE_NOT_RECRUITING",
+      "expandedAccessInfo": {
+        "hasExpandedAccess": false
+      },
+      "startDateStruct": {
+        "date": "2020-11-11",
+        "type": "ACTUAL"
+      },
+      "primaryCompletionDateStruct": {
+        "date": "2027-04-30",
+        "type": "ESTIMATED"
+      },
+      "completionDateStruct": {
+        "date": "2027-04-30",
+        "type": "ESTIMATED"
+      },
+      "studyFirstSubmitDate": "2020-03-18",
+      "studyFirstSubmitQcDate": "2020-03-18",
+      "studyFirstPostDateStruct": {
+        "date": "2020-03-19",
+        "type": "ACTUAL"
+      },
+      "lastUpdateSubmitDate": "2026-05-12",
+      "lastUpdatePostDateStruct": {
+        "date": "2026-05-13",
+        "type": "ACTUAL"
+      }
+    },
+    "sponsorCollaboratorsModule": {
+      "responsibleParty": {
+        "type": "SPONSOR"
+      },
+      "leadSponsor": {
+        "name": "National Cancer Institute (NCI)",
+        "class": "NIH"
+      }
+    },
+    "descriptionModule": {
+      "briefSummary": "This trial collects multiple tissue and blood samples, along with medical information, from cancer patients. The \"Cancer Moonshot Biobank\" is a longitudinal study. This means it collects and stores samples and information over time, throughout the course of a patient's cancer treatment. By looking at samples and information collected from the same people over time, researchers hope to better understand how cancer changes over time and over the course of medical treatments.",
+      "detailedDescription": "PRIMARY OBJECTIVE:\n\nI. To support current and future investigations into drug resistance and sensitivity and other National Cancer Institute (NCI)-sponsored cancer research initiatives through the procurement and distribution of multiple longitudinal biospecimens and associated data from a diverse group of cancer patients who are undergoing standard of care treatment at NCI Community Oncology Research Program (NCORP) sites and other National Clinical Trials Network (NCTN) sites.\n\nSECONDARY OBJECTIVES:\n\nI. To provide a service of value to study participants and their medical providers through the performance of molecular profiling assays on tumor samples in a Clinical Laboratory Improvement Act (CLIA)-certified laboratory and reporting of results to physicians and patients that they may opt to use in clinical management, including analysis of data for acquired resistance mechanisms.\n\nII. To enable the development of patient-derived models such as cell lines and xenografts for cancer researchers through the provision of biospecimens from up to 20% of study participants to the NCI's Patient Derived Models Repository (PDMR), a national resource available to investigators.\n\nIII. To develop and implement robust approaches in patient and provider engagement to improve understanding of biobanking and its relationship to cancer research and increase representation of minority and underserved study participants in cancer research.\n\nIV. To develop increased capabilities in United States (U.S.) community hospitals and clinics for contribution to cancer research through biobanking activities.\n\nV. To enable secondary research generated from the project through deposition of data in public repositories such as Cancer Research Data Commons (CRDC), The Cancer Imaging Archive (TCIA) and database of Genotypes and Phenotypes (dbGaP) and other potential NCI databases, including clinical, radiology and pathology data with an emphasis on treatment response and outcome data.\n\nVI. To provide residual biospecimens and associated data from the project to the cancer research community.\n\nOUTLINE:\n\nPatients undergo collection of tissue samples during baseline and at time of disease progression and collection of blood samples throughout the study, including at time of disease progression. Patients with hematological malignancies also undergo collection of bone marrow and cerebral spinal fluid at the same time points. Archival blood and tissue, as well as bone marrow of patients with hematological malignancies, is also collected if available. Additionally, patients may undergo computed tomography (CT), positron emission tomography (PET)/CT and/or magnetic resonance imaging (MRI) throughout the study, and may undergo paracentesis on study. Patient medical records are reviewed, and data is collected for at least 5 years."
+    },
+    "conditionsModule": {
+      "conditions": [
+        "Acute Myeloid Leukemia",
+        "Anatomic Stage III Breast Cancer AJCC v8",
+        "Anatomic Stage IV Breast Cancer AJCC v8",
+        "Clinical Stage IV Esophageal Adenocarcinoma AJCC v8",
+        "Clinical Stage IV Gastric Cancer AJCC v8",
+        "Clinical Stage IV Gastroesophageal Junction Adenocarcinoma AJCC v8",
+        "Esophageal Carcinoma",
+        "Fallopian Tube Carcinoma",
+        "Gastric Carcinoma",
+        "Hormone Receptor-Positive Breast Carcinoma",
+        "Invasive Breast Carcinoma",
+        "Lung Non-Small Cell Carcinoma",
+        "Lung Small Cell Carcinoma",
+        "Malignant Solid Neoplasm",
+        "Melanoma",
+        "Metastatic Prostate Carcinoma",
+        "Multiple Myeloma",
+        "Ovarian Carcinoma",
+        "Ovarian High Grade Serous Adenocarcinoma",
+        "Primary Peritoneal Carcinoma",
+        "Stage III Fallopian Tube Cancer AJCC v8",
+        "Stage III Lung Cancer AJCC v8",
+        "Stage III Ovarian Cancer AJCC v8",
+        "Stage IV Colorectal Cancer AJCC v8",
+        "Stage IV Fallopian Tube Cancer AJCC v8",
+        "Stage IV Lung Cancer AJCC v8",
+        "Stage IV Ovarian Cancer AJCC v8",
+        "Stage IVB Prostate Cancer AJCC v8",
+        "Triple-Negative Breast Carcinoma"
+      ]
+    },
+    "designModule": {
+      "studyType": "OBSERVATIONAL",
+      "designInfo": {
+        "observationalModel": "COHORT",
+        "timePerspective": "PROSPECTIVE"
+      },
+      "bioSpec": {
+        "retention": "SAMPLES_WITH_DNA",
+        "description": "Blood, tissue, bone marrow, cerebral spinal fluid"
+      },
+      "enrollmentInfo": {
+        "count": 1600,
+        "type": "ESTIMATED"
+      }
+    },
+    "armsInterventionsModule": {
+      "armGroups": [
+        {
+          "label": "Observational (biospecimen collection, chart review)",
+          "description": "Patients undergo collection of tissue samples during baseline and at time of disease progression and collection of blood samples throughout the study, including at time of disease progression. Patients with hematological malignancies also undergo collection of bone marrow and cerebral spinal fluid at the same time points. Archival blood and tissue, as well as bone marrow of patients with hematological malignancies, is also collected if available. Additionally, patients may undergo CT, PET/CT and/or MRI throughout the study, and may undergo paracentesis on study. Patient medical records are reviewed, and data is collected for at least 5 years.",
+          "interventionNames": [
+            "Procedure: Biospecimen Collection",
+            "Procedure: Computed Tomography",
+            "Procedure: Magnetic Resonance Imaging",
+            "Other: Medical Chart Review",
+            "Procedure: Paracentesis",
+            "Procedure: Positron Emission Tomography"
+          ]
+        }
+      ],
+      "interventions": [
+        {
+          "type": "PROCEDURE",
+          "name": "Biospecimen Collection",
+          "description": "Undergo collection of blood, tissue, bone marrow, and cerebral spinal fluid samples",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, chart review)"
+          ],
+          "otherNames": [
+            "Biological Sample Collection",
+            "Biospecimen Collected",
+            "Sample Collection",
+            "Specimen Collection"
+          ]
+        },
+        {
+          "type": "PROCEDURE",
+          "name": "Computed Tomography",
+          "description": "Undergo CT",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, chart review)"
+          ],
+          "otherNames": [
+            "CAT",
+            "CAT Scan",
+            "Computed Axial Tomography",
+            "Computerized Axial Tomography",
+            "Computerized axial tomography (procedure)",
+            "Computerized Tomography",
+            "Computerized Tomography (CT) scan",
+            "CT",
+            "CT Scan",
+            "Diagnostic CAT Scan",
+            "Diagnostic CAT Scan Service Type",
+            "tomography"
+          ]
+        },
+        {
+          "type": "PROCEDURE",
+          "name": "Magnetic Resonance Imaging",
+          "description": "Undergo MRI",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, chart review)"
+          ],
+          "otherNames": [
+            "Magnetic Resonance",
+            "Magnetic Resonance Imaging (MRI)",
+            "Magnetic resonance imaging (procedure)",
+            "Magnetic Resonance Imaging Scan",
+            "Medical Imaging, Magnetic Resonance / Nuclear Magnetic Resonance",
+            "MR",
+            "MR Imaging",
+            "MRI",
+            "MRI Scan",
+            "MRIs",
+            "NMR Imaging",
+            "NMRI",
+            "Nuclear Magnetic Resonance Imaging",
+            "sMRI",
+            "Structural MRI"
+          ]
+        },
+        {
+          "type": "OTHER",
+          "name": "Medical Chart Review",
+          "description": "Medical charts are reviewed and data is collected",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, chart review)"
+          ],
+          "otherNames": [
+            "Chart Review"
+          ]
+        },
+        {
+          "type": "PROCEDURE",
+          "name": "Paracentesis",
+          "description": "Undergo paracentesis",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, chart review)"
+          ]
+        },
+        {
+          "type": "PROCEDURE",
+          "name": "Positron Emission Tomography",
+          "description": "Undergo PET/CT",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, chart review)"
+          ],
+          "otherNames": [
+            "Medical Imaging, Positron Emission Tomography",
+            "PET",
+            "PET Scan",
+            "Positron emission tomography (procedure)",
+            "Positron Emission Tomography Scan",
+            "Positron-Emission Tomography",
+            "PT"
+          ]
+        }
+      ]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Inclusion Criteria:\n\n* Is consistent with OR has been diagnosed with one of the following:\n\n  * Colorectal cancer: stage IV\n  * Non-small cell or small cell lung cancer: stage III/IV\n  * Prostate cancer: metastatic prostate cancer\n  * Gastric cancer, not otherwise specified (NOS): stage IV\n  * Esophageal cancer, NOS: stage IV\n  * Adenocarcinoma of gastroesophageal junction: stage IV\n  * High grade serous ovarian cancer: stage III/IV\n  * Invasive breast carcinoma: stage III/IV\n  * Melanoma: stage III/IV\n  * Acute myeloid leukemia\n  * Multiple myeloma\n\n    * For the purposes of this study,\n\n      * Re-staging is allowed\n      * Having more than one primary cancer is allowed, if the patient is being treated solely for one of the eligible cancers listed above\n* Patient should fit in one of the following four clinical scenarios (a-d)\n\n  * Undergoing diagnostic workup for one of the diseases listed for which treatment will likely include a new regimen of standard of care therapy OR\n  * Scheduled to begin treatment with a new regimen of standard of care therapy OR\n  * Currently progressing on a regimen of standard of care therapy OR\n  * Currently being treated with a regimen standard of care therapy, without evidence of progression\n* Requirements for fresh tissue biospecimen collections at enrollment:\n\n  * For clinical scenarios a, b, and c above, freshly collected tumor tissue or bone marrow (BM) aspirate must be submitted at enrollment\n\n    * For clinical scenarios a and b, the fresh tissue collection must be prior to starting therapy\n    * For clinical scenario a, the biospecimen collection must be part of a standard of care medical procedure\n    * For clinical scenarios b or c, the biospecimen collection may be part of a standard of care medical procedure OR\n    * The biospecimen collection may be part of a study-specific procedure (\"research only biopsy\"), when the patient has a tumor amenable to image guided or direct vision biopsy and is willing and able to undergo a tumor biopsy for molecular profiling\n\n      * Note: For research-only biopsies, the biopsy must not be associated with a significant risk of severe or major complications or death; the procedure cannot be a mediastinal, laparoscopic, open or endoscopic biopsy; nor can the procedure be a brain biopsy; nor can the patient be under the age of majority as determined by each U.S. state\n* Requirements for archival tissue:\n\n  * For clinical scenarios a and b above, archival tissue as outlined below must be submitted IF AVAILABLE\n  * For clinical scenarios c and d above, archival tissue as outlined below is REQUIRED\n  * Pre-existing archival material (formalin-fixed, paraffin-embedded \\[FFPE\\] block, BM aspirate, or unstained slides) that:\n\n    * Contains the cancer type for which the participant is enrolled, and\n    * Was collected no more than 5 years prior to initiation of therapy, and\n    * Contains at least a surface area of 5 mm\\^2 and optimal surface area of 25 mm\\^2 or 3-5 mL cryopreserved bone marrow aspirate to yield 200 million bone marrow mononuclear cells, and\n    * Contains at least 10% tumor content. 70% tumor content is optimal, and\n    * No more than 1 line of standard of care systemic therapy was administered from the date of archival material collection to the date of initiation of therapy\n* Requirements for blood collection: ALL scenarios require fresh blood collection at enrollment\n\n  * Blood collection for clinical scenarios a, b, and c must take place within 1 week of fresh tumor specimen collection\n  * Blood collection for clinical scenario d must take place within 4 weeks of enrollment, and while patient is on treatment\n* Age 13 or older\n* Any sex\n* Eastern Cooperative Oncology Group (ECOG) performance status (PS) of 0, 1, or 2\n* Ability to understand and willingness to sign an informed consent document. Consent may be provided by a Legally Authorized Representative (LAR) in accordance with 45 CFR 46.102(i)\n* NCI PDMR INCLUSION CRITERIA: Patients with CRC with mismatch repair deficient (dMMR) or microsatellite instability-high (MSI-H) status\n* NCI PDMR INCLUSION CRITERIA: Patients with CRC who are 40 years old or younger at time of collection irrespective of mismatch repair deficient (dMMR) or microsatellite instability-high (MSI-H) status\n* NCI PDMR INCLUSION CRITERIA: Patients with BRCA that are either\n\n  * Any race/ethnicity with hormone receptor positive (ER+PR+, ER+PR-, or ER-PR+)\n  * African American with triple negative (ER-PR-HER2-)\n* NCI PDMR INCLUSION CRITERIA: Patients with lung cancer (LCA), prostate cancer (PCA), gastroesophageal cancer (GEC), ovarian cancer (OV), acute myeloid leukemia (AML), multiple myeloma (MML)\n\nExclusion Criteria:\n\n* Treated with or has already begun treatment with a non-standard of care therapeutic agent (investigational) in an interventional clinical trial\n\n  * For the purposes of this study, past enrollment in clinical trials whereby the patient was randomized and treated with standard-of-care anti-cancer treatment (chemotherapy regimen, surgery and radiation therapy) is allowed\n* Uncontrolled intercurrent illness that in the physician's assessment would pose undue risk for biopsy\n* Use of full dose coumarin-derivative anticoagulants such as warfarin are prohibited. Patients may be switched to low molecular weight (LMW) heparin at physician discretion\n\n  * Low molecular weight (LMW) heparin is permitted for prophylactic or therapeutic use\n  * Factor X inhibitors are permitted\n  * Use of anti-platelet drugs are permitted\n\n    * Stopping the anticoagulation treatment for biopsy, bone marrow aspirate, or resection should be per site standard operating procedure (SOP)\n* NCI PDMR EXCLUSION CRITERIA: Patients with complete response\n* NCI PDMR EXCLUSION CRITERIA: Patients with invasive fungal infections\n* NCI PDMR EXCLUSION CRITERIA: Patients with active and/or uncontrolled infections or who are still recovering from an infection\n\n  * Actively febrile patients with uncertain etiology of febrile episode\n  * All antibiotics for non-prophylactic treatment of infection should be completed at least 1 week (7 days) prior to collection\n  * No recurrence of fever or other symptoms related to infection for at least 1 week (7 days) following completion of antibiotics\n* NCI PDMR EXCLUSION CRITERIA: Patients with human immunodeficiency virus (HIV), active or chronic hepatitis (i.e. quantifiable hepatitis B virus \\[HBV\\]-deoxyribonucleic acid \\[DNA\\] and/or positive hepatitis B surface antigen \\[HbsAg\\], quantifiable hepatitis C virus \\[HCV\\]-ribonucleic acid \\[RNA\\]) or known history of HBV/HCV without documented resolution",
+      "healthyVolunteers": false,
+      "sex": "ALL",
+      "minimumAge": "13 Years",
+      "stdAges": [
+        "CHILD",
+        "ADULT",
+        "OLDER_ADULT"
+      ],
+      "studyPopulation": "Patients undergoing treatment for cancer types with commercially available therapies.",
+      "samplingMethod": "NON_PROBABILITY_SAMPLE"
+    },
+    "contactsLocationsModule": {
+      "overallOfficials": [
+        {
+          "name": "Richard Roe",
+          "affiliation": "National Cancer Institute (NCI)",
+          "role": "PRINCIPAL_INVESTIGATOR"
+        }
+      ]
+    }
+  }
+}

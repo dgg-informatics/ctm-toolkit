@@ -21,6 +21,7 @@ def _fix_macos_weasyprint_path() -> None:
 def _run_preview(pts_path: str, trials_path: str, matches_path: str, sample_id: str,
                  meaningful_only: bool = False) -> None:
     from livereload import Server
+
     from ctm.reports.builder import STATIC_DIR, TEMPLATES_DIR, render_html_from_pt_trials_matches
 
     output_dir = Path.cwd() / "output"

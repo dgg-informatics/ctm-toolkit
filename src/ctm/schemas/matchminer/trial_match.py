@@ -10,6 +10,7 @@ the external contract so field names and types are explicit and searchable.
 Reference: MatchMiner API /api/v1/trialmatches export format.
 """
 from __future__ import annotations
+
 from pydantic import BaseModel, Field
 
 

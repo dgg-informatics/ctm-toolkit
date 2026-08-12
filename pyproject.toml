@@ -49,6 +49,7 @@ all = [
 # `pip install ".[dev]"` works in the Dockerfile without a pip 25.1+ floor.
 dev = [
     "pytest",
+    "ruff",
 ]
 
 [project.scripts]
@@ -63,3 +64,29 @@ packages = ["src/ctm"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110          # the CLI help strings and column tables read better wide
+target-version = "py311"
+extend-exclude = ["data", "output"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes — unused imports/variables, undefined names
+    "I",        # isort — import ordering
+    "UP",       # pyupgrade — modern syntax for the 3.11 floor
+    "B",        # bugbear — likely bugs
+    "C4",       # comprehension simplifications
+    "RUF",      # ruff's own rules
+]
+ignore = [
+    "E501",     # line length is enforced by the formatter, not the linter
+    "B008",     # argparse/pydantic defaults legitimately call functions
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Fixtures and CLI scaffolding assert on long literal dicts; scripts are top-level
+# procedural by design.
+"tests/*" = ["E402"]
+"scripts/*" = ["E402"]

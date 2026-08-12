@@ -5,9 +5,9 @@ templates/, static/, and content/ used to live at the repo root, anchored via
 to `<site-packages>/..` once installed, so `ctm-report` could not find its own
 templates off a checkout. These tests fail if anything drifts back that way.
 """
-import ctm
 from pathlib import Path
 
+import ctm
 from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path
 from ctm.reports.builder import METHODS_PATH, STATIC_DIR, TEMPLATES_DIR
 

@@ -12,14 +12,11 @@ import csv
 import json
 import sys
 from collections import Counter, defaultdict
-from itertools import combinations
-from pathlib import Path
 
 
-def _load(path: str) -> tuple[str, list[dict]]:
-    name = Path(path).stem
+def _load(path: str) -> list[dict]:
     with open(path) as f:
-        return name, json.load(f)
+        return json.load(f)
 
 
 def _nct(t: dict) -> str | None:
@@ -82,8 +79,7 @@ def main() -> None:
     sources: dict[str, list[dict]] = {}
     for flag, path in [("amc", args.amc), ("sparrow", args.sparrow), ("west", args.west)]:
         if path:
-            name, trials = _load(path)
-            sources[flag] = trials
+            sources[flag] = _load(path)
 
     if not sources:
         print("Error: provide at least one source (--amc, --sparrow, --west)", file=sys.stderr)
@@ -118,7 +114,7 @@ def main() -> None:
         _write_section(writer, "Source Summary", rows)
 
         # ── 2. Overlap Matrix ─────────────────────────────────────────────────
-        rows = [[""] + source_names]
+        rows = [["", *source_names]]
         for a in source_names:
             row = [a]
             for b in source_names:
@@ -135,30 +131,30 @@ def main() -> None:
 
         # ── 4. Status Breakdown ───────────────────────────────────────────────
         all_statuses = sorted({_status(t) for trials in sources.values() for t in trials})
-        rows = [["Status"] + source_names]
+        rows = [["Status", *source_names]]
         for status in all_statuses:
             row = [status]
-            for name, trials in sources.items():
+            for trials in sources.values():
                 row.append(sum(1 for t in trials if _status(t) == status))
             rows.append(row)
         _write_section(writer, "Status Breakdown", rows)
 
         # ── 5. Phase Distribution ─────────────────────────────────────────────
         all_phases = sorted({_phase(t) for trials in sources.values() for t in trials})
-        rows = [["Phase"] + source_names]
+        rows = [["Phase", *source_names]]
         for phase in all_phases:
             row = [phase]
-            for name, trials in sources.items():
+            for trials in sources.values():
                 row.append(sum(1 for t in trials if _phase(t) == phase))
             rows.append(row)
         _write_section(writer, "Phase Distribution", rows)
 
         # ── 6. Age Group Breakdown ────────────────────────────────────────────
         all_ages = sorted({_age(t) for trials in sources.values() for t in trials})
-        rows = [["Age Group"] + source_names]
+        rows = [["Age Group", *source_names]]
         for age in all_ages:
             row = [age]
-            for name, trials in sources.items():
+            for trials in sources.values():
                 row.append(sum(1 for t in trials if _age(t) == age))
             rows.append(row)
         _write_section(writer, "Age Group Breakdown", rows)
@@ -169,10 +165,10 @@ def main() -> None:
             ("Has drug interventions",   _has_drugs),
             ("Has match tree beyond age", _has_match_beyond_age),
         ]
-        rows = [["Metric"] + source_names + ["Notes"]]
+        rows = [["Metric", *source_names, "Notes"]]
         for label, fn in metrics:
             row = [label]
-            for name, trials in sources.items():
+            for trials in sources.values():
                 n = sum(1 for t in trials if fn(t))
                 row.append(f"{n}/{len(trials)}")
             row.append("match tree beyond age = manually curated criteria exist")
@@ -182,7 +178,7 @@ def main() -> None:
         # ── 8. Sponsor / Cooperative Group ───────────────────────────────────
         rows = [["Sponsor", "Count (all sources, deduplicated by NCT)"]]
         sponsor_counter: Counter = Counter()
-        for nct, src_map in nct_map.items():
+        for src_map in nct_map.values():
             # Use any source that has summary.sponsor
             for t in src_map.values():
                 sponsor = (t.get("_summary", {}).get("sponsor") or "Unknown").strip()
@@ -201,7 +197,7 @@ def main() -> None:
                 if len(set(statuses.values())) > 1:
                     conflicts.append((nct, statuses))
 
-        rows = [["NCT ID"] + source_names]
+        rows = [["NCT ID", *source_names]]
         for nct, statuses in sorted(conflicts):
             row = [nct]
             for name in source_names:

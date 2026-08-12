@@ -1,15 +1,18 @@
-"""Generate data/raw/patient_data_template.xlsx — the manual data entry template.
+"""Generate a blank patient-data entry workbook into the current directory.
 
-The template is a *visual reference only*: header rows, a colour legend, and one
-italic example row per sheet. Real patient data is never entered here — copy the
-file, fill the copy, and keep it out of the repo (data/raw/*.xlsx is gitignored
-apart from the blank templates).
+This is a utility, not a tracked artifact. The committed reference workbook is
+tests/fixtures/test-pt-data-v0.0.1.xlsx, which carries mock patients plus a
+sample row for every finding sheet — look there to see the expected layout.
+Run this script only when you want a fresh empty sheet to hand to a curator.
+
+Output is gitignored: real patient data must never be committed. Fill a copy
+and keep it outside the repo.
 
 Sheet names must stay in sync with SHEET_NORMALIZERS in
 ctm.transformers.normalize_manual; tests/test_template_sheets.py enforces this.
 """
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 wb = openpyxl.Workbook()
@@ -406,7 +409,7 @@ add_sheet(wb, "tumor_biomarkers", [
 ])
 
 
-out = "data/raw/patient_data_template.xlsx"
+out = "patient_data_template.xlsx"
 wb.save(out)
 print(f"Saved → {out}")
 print(f"Sheets: {wb.sheetnames}")

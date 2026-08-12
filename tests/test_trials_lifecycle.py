@@ -115,7 +115,7 @@ def test_split_unchanged_carries_forward_llm_curation_from_master():
     master = [_trial("amc", "2021.070", eligibility, _llm_curation=llm_curation)]
     new = [_trial("amc", "2021.070", eligibility, treatment_list={"step": []})]
 
-    unchanged, changed, deleted = split_by_eligibility(new, master)
+    unchanged, _changed, _deleted = split_by_eligibility(new, master)
 
     assert len(unchanged) == 1
     assert unchanged[0]["_llm_curation"] == llm_curation
@@ -127,7 +127,7 @@ def test_split_unchanged_omits_llm_curation_when_master_has_none():
     master = [_trial("amc", "2021.070", eligibility)]
     new = [_trial("amc", "2021.070", eligibility, treatment_list={"step": []})]
 
-    unchanged, changed, deleted = split_by_eligibility(new, master)
+    unchanged, _changed, _deleted = split_by_eligibility(new, master)
 
     assert len(unchanged) == 1
     assert "_llm_curation" not in unchanged[0]
@@ -147,7 +147,7 @@ def test_end_to_end_weekly_update_flow():
     """Simulates one full weekly cycle: diff a fresh normalization against
     last week's master, pretend to curate the changed trials, merge, and
     check every one of the four routing outcomes landed correctly."""
-    from ctm.trials_lifecycle import split_by_eligibility, merge_master
+    from ctm.trials_lifecycle import merge_master, split_by_eligibility
 
     same_eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}
     old_eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}

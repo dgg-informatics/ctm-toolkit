@@ -187,7 +187,7 @@ def build_client():
     try:
         from openai import OpenAI
     except ImportError:
-        raise ImportError("Run: uv pip install 'ctm-toolkit[llm]'")
+        raise ImportError("Run: uv pip install 'ctm-toolkit[llm]'") from None
 
     api_key = os.environ.get("UMGPT_API_KEY")
     base_url = os.environ.get("UMGPT_BASE_URL")

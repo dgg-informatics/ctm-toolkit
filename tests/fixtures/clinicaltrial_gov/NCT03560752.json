@@ -1,0 +1,170 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT03560752",
+      "orgStudyIdInfo": {
+        "id": "18007"
+      },
+      "secondaryIdInfos": [
+        {
+          "id": "NCI-2018-01115",
+          "type": "REGISTRY",
+          "domain": "CTRP (Clinical Trial Reporting Program)"
+        },
+        {
+          "id": "18007",
+          "type": "OTHER",
+          "domain": "City of Hope Medical Center"
+        }
+      ],
+      "organization": {
+        "fullName": "City of Hope Medical Center",
+        "class": "OTHER"
+      },
+      "briefTitle": "CMV-MVA Triplex Vaccination of Stem Cell Donors in Preventing CMV Viremia in Participants With Allogeneic Transplant",
+      "officialTitle": "CMV-MVA Triplex Vaccination of Stem Cell Donors to Enhance CMV Specific Immunity and Prevent CMV Viremia in Recipients After Stem Cell Transplant"
+    },
+    "statusModule": {
+      "statusVerifiedDate": "2025-11",
+      "overallStatus": "ACTIVE_NOT_RECRUITING",
+      "startDateStruct": {
+        "date": "2018-08-20",
+        "type": "ACTUAL"
+      },
+      "primaryCompletionDateStruct": {
+        "date": "2022-01-22",
+        "type": "ACTUAL"
+      },
+      "completionDateStruct": {
+        "date": "2026-07-29",
+        "type": "ESTIMATED"
+      },
+      "studyFirstSubmitDate": "2018-06-07",
+      "studyFirstSubmitQcDate": "2018-06-07",
+      "studyFirstPostDateStruct": {
+        "date": "2018-06-18",
+        "type": "ACTUAL"
+      },
+      "resultsFirstSubmitDate": "2023-12-20",
+      "resultsFirstSubmitQcDate": "2024-01-09",
+      "resultsFirstPostDateStruct": {
+        "date": "2024-01-31",
+        "type": "ACTUAL"
+      },
+      "lastUpdateSubmitDate": "2025-11-24",
+      "lastUpdatePostDateStruct": {
+        "date": "2025-12-10",
+        "type": "ACTUAL"
+      }
+    },
+    "sponsorCollaboratorsModule": {
+      "responsibleParty": {
+        "type": "SPONSOR"
+      },
+      "leadSponsor": {
+        "name": "City of Hope Medical Center",
+        "class": "OTHER"
+      },
+      "collaborators": [
+        {
+          "name": "National Cancer Institute (NCI)",
+          "class": "NIH"
+        }
+      ]
+    },
+    "descriptionModule": {
+      "briefSummary": "This phase II trial studies how well multi-peptide CMV-modified vaccinia Ankara (CMV-MVA Triplex) vaccination of stem cell donors works in preventing cytomegalovirus (CMV) viremia in participants with blood cancer undergoing donor stem cell transplant. Giving a vaccine to the donors may boost the recipient's immunity to this virus and reduce the chance of CMV disease after transplant.",
+      "detailedDescription": "PRIMARY OBJECTIVES:\n\nI. Establish the feasibility and safety of priming CMV immunity in donors by Triplex vaccination prior to peripheral blood stem cell (PBSC) harvest.\n\nSECONDARY OBJECTIVES:\n\nI. Examine if Triplex vaccination of hematopoietic stem cell transplant (HCT) donors has an impact on CMV events.\n\nOUTLINE:\n\nDonors receive multi-peptide CMV-modified vaccinia Ankara vaccine injection between days -60 and -10 prior to granulocyte colony stimulating factor mobilization. Participants undergo hematopoietic cell transplantation on day 0.\n\nAfter completion of study treatment, participants are followed up for 1 year."
+    },
+    "conditionsModule": {
+      "conditions": [
+        "Accelerated Phase CML, BCR-ABL1 Positive",
+        "Acute Lymphoblastic Leukemia in Remission",
+        "Acute Myeloid Leukemia in Remission",
+        "Chronic Lymphocytic Leukemia",
+        "Chronic Phase CML, BCR-ABL1 Positive",
+        "Cytomegalovirus Positive",
+        "Donor",
+        "Hematopoietic Cell Transplant Recipient",
+        "Hodgkin Lymphoma",
+        "Myelodysplastic Syndrome",
+        "Myelodysplastic/Myeloproliferative Neoplasm",
+        "Non-Hodgkin Lymphoma",
+        "Myelofibrosis",
+        "Hematopoietic and Lymphoid Cell Neoplasm"
+      ]
+    },
+    "designModule": {
+      "studyType": "INTERVENTIONAL",
+      "phases": [
+        "PHASE1"
+      ],
+      "designInfo": {
+        "allocation": "NON_RANDOMIZED",
+        "interventionModel": "PARALLEL",
+        "primaryPurpose": "SUPPORTIVE_CARE",
+        "maskingInfo": {
+          "masking": "NONE"
+        }
+      },
+      "enrollmentInfo": {
+        "count": 34,
+        "type": "ACTUAL"
+      }
+    },
+    "armsInterventionsModule": {
+      "armGroups": [
+        {
+          "label": "Donor (multi-peptide CMV-modified vaccinia Ankara vaccine)",
+          "type": "EXPERIMENTAL",
+          "description": "Donors receive multi-peptide CMV-modified vaccinia Ankara vaccine injection between days -60 and -10 prior to granulocyte colony stimulating factor mobilization.",
+          "interventionNames": [
+            "Biological: Multi-peptide CMV-Modified Vaccinia Ankara Vaccine"
+          ]
+        },
+        {
+          "label": "Receipient (multi-peptide CMV-modified vaccinia Ankara vaccine)",
+          "type": "EXPERIMENTAL",
+          "description": "Participants undergo hematopoietic cell transplantation on day 0 and receive multi-peptide CMV-modified Vaccinia Ankara vaccine injection on days 28 and 56.",
+          "interventionNames": [
+            "Biological: Multi-peptide CMV-Modified Vaccinia Ankara Vaccine"
+          ]
+        }
+      ],
+      "interventions": [
+        {
+          "type": "BIOLOGICAL",
+          "name": "Multi-peptide CMV-Modified Vaccinia Ankara Vaccine",
+          "description": "Given via injection",
+          "armGroupLabels": [
+            "Donor (multi-peptide CMV-modified vaccinia Ankara vaccine)",
+            "Receipient (multi-peptide CMV-modified vaccinia Ankara vaccine)"
+          ],
+          "otherNames": [
+            "CMV-MVA Triplex Vaccine"
+          ]
+        }
+      ]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Inclusion Criteria:\n\n* DONOR: Ability to comprehend the investigational nature of the study and provide informed consent\n* DONOR: Willing to receive Triplex vaccination, a minimum of 14 days prior to the PBSC collection\n* DONOR VACCINATION: Donors are eligible to be vaccinated prior to the determination of their human immunodeficiency virus (HIV), hepatitis B virus (HBV), hepatitis C virus (HCV) and human T-cell lymphotropic virus (HTLV) status. The exclusion criteria for transplant is independent of eligibility for vaccination and is determined by the exclusion criteria for transplant from donors\n* RECIPIENT: All subjects must have the ability to understand and the willingness to sign a written informed consent\n* RECIPIENT: Participant must be willing to comply with study and/or follow-up procedures, including willingness to be followed for one year post-HCT\n* RECIPIENT: Age 18 to 75 years\n* RECIPIENT: Planned HCT for the treatment of the following hematologic malignancies: lymphoma (Hodgkin and non-Hodgkin), myelodysplastic syndrome, acute lymphoblastic leukemia in first or second remission, acute myeloid leukemia in first or second remission, chronic myelogenous leukemia (in first chronic or accelerated phase, or in second chronic phase), chronic lymphocytic leukemia, myeloproliferative disorders and myelofibrosis (City of Hope \\[COH\\] only). Patients with multiple myeloma are excluded\n* RECIPIENT: CMV seropositive\n* RECIPIENT: Planned related HCT with 8/8 (A, B, C, DRB1) high resolution HLA donor allele matching\n* RECIPIENT: Conditioning and immunosuppressive regimens according to institutional guidelines are permitted\n* RECIPIENT: Negative serum or urine beta-human chorionic gonadotropin (HCG) test (female patient of childbearing potential only) within two weeks of registration\n* RECIPIENT: Seronegative for HIV, HCV and active HBV (surface antigen negative) within 2 months of registration\n* RECIPIENT: Agreement by females of childbearing potential and males with partners of childbearing potential to use effective contraception (hormonal or barrier method or abstinence) prior to study entry and for up to 90 days post-HCT. Should a woman become pregnant or suspect that she is pregnant while participating on the trial, she should inform her treating physician immediately\n\nExclusion Criteria:\n\n* TRANSPLANT FROM DONOR: Unfit to undergo standard stem cell mobilization and apheresis e.g. abnormal blood counts, history of stroke, uncontrolled hypertension\n* TRANSPLANT FROM DONOR: Sickling hemoglobinopathy including HbSS, HbAS, HbSC\n* TRANSPLANT FROM DONOR: Positive for human immunodeficiency virus (HIV), active hepatitis B (hepatitis B virus \\[HBV\\]), hepatitis C (hepatitis C virus \\[HCV\\]) or human T-cell lymphotropic virus (HTLV-I/II). This holds true even if donors have been already vaccinated according to criteria for donor vaccination\n* TRANSPLANT FROM DONOR: Donors with impaired cardiac function are excluded. Electrocardiography is routine for potential HCT donors over 60 years old and those with a history of heart disease. Subjects in whom cardiac function is abnormal (excluding 1st degree branch block, sinus brachycardia, sinus tachycardia or non-specific T wave changes) are ineligible for Triplex vaccination\n* TRANSPLANT FROM DONOR: Severe psychiatric illness. Mental deficiency sufficiently severe as to make compliance with the donation procedure unlikely, and making informed consent impossible\n* RECIPIENT: Any prior investigational CMV vaccine\n* RECIPIENT: Experimental anti-CMV chemotherapy in the last 6 months\n* RECIPIENT: Planned medications from the time of HCT to day 70 post-HCT\n* RECIPIENT: Live attenuated vaccines\n* RECIPIENT: Medically indicated subunit (Engerix-B for HBV; Gardasil for human papillomavirus \\[HPV\\]) or killed vaccines (e.g. influenza, pneumococcal, or allergy treatment with antigen injections)\n* RECIPIENT: Allergy treatment with antigens injections\n* RECIPIENT: Alemtuzumab or any equivalent in vivo T-cell depleting agent\n* RECIPIENT: Antiviral medications with known therapeutic effects on CMV such as ganciclovir (GCV)/valganciclovir (VAL), FOS, Cidofovir, CMX-001, maribavir. Acyclovir has no known therapeutic efficacy against CMV and is allowable as standard of care to prevent Herpes simplex virus (HSV)\n* RECIPIENT: Prophylactic therapy with CMV immunoglobulin or prophylactic antiviral CMV treatment (Letermovir is permitted). EXCEPT for low risk patients \\[8/8 high resolution HLA donor allele matching HCT\\])\n* RECIPIENT: Other investigational product - concurrent enrollment in other clinical trials using any investigational new drug (IND) drugs with unknown effects on CMV or with unknown toxicity profiles is prohibited\n* RECIPIENT: Other medications that might interfere with the evaluation of the investigational product\n* RECIPIENT: Diagnosis with autoimmune disease\n* RECIPIENT: Pregnant women and women who are lactating. The risks of CMV-MVA-Triplex to pregnant women are unknown. Because there is an unknown but potential risk for adverse events in nursing infants secondary to treatment of the mother. Breastfeeding should be discontinued if the mother is enrolled on this study\n* RECIPIENT: Any other condition that would, in the investigator's judgment, contraindicate the patient's participation in the clinical study due to safety concerns or compliance with clinical study procedures, e.g., social/ psychological issues, etc\n* RECIPIENT: Prospective participants who, in the opinion of the investigator, may not be able to comply with all study procedures (including compliance issues related to feasibility/logistics)",
+      "healthyVolunteers": true,
+      "sex": "ALL",
+      "minimumAge": "18 Years",
+      "maximumAge": "80 Years",
+      "stdAges": [
+        "ADULT",
+        "OLDER_ADULT"
+      ]
+    },
+    "contactsLocationsModule": {
+      "overallOfficials": [
+        {
+          "name": "Jane Doe, MD",
+          "affiliation": "City of Hope Medical Center",
+          "role": "PRINCIPAL_INVESTIGATOR"
+        }
+      ]
+    }
+  }
+}

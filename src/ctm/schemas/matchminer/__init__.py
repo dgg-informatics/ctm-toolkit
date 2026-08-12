@@ -1,24 +1,24 @@
-from .patient import MMClinical, MMGenomic
 from .clinical_trial import (
+    ClinicalTrialNormalized,
+    CtmlArm,
     CtmlEligibility,
     CtmlEligibilityCriterion,
-    CtmlArm,
     CtmlStep,
     CtmlTreatmentList,
-    ClinicalTrialNormalized,
 )
-from .trial_match import MMTrialMatch, MMPatientRef, MMTrialMatchExport
+from .patient import MMClinical, MMGenomic
+from .trial_match import MMPatientRef, MMTrialMatch, MMTrialMatchExport
 
 __all__ = [
-    "MMClinical",
-    "MMGenomic",
+    "ClinicalTrialNormalized",
+    "CtmlArm",
     "CtmlEligibility",
     "CtmlEligibilityCriterion",
-    "CtmlArm",
     "CtmlStep",
     "CtmlTreatmentList",
-    "ClinicalTrialNormalized",
-    "MMTrialMatch",
+    "MMClinical",
+    "MMGenomic",
     "MMPatientRef",
+    "MMTrialMatch",
     "MMTrialMatchExport",
 ]

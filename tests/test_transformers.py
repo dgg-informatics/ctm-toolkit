@@ -1,14 +1,13 @@
 """Transformer tests — no MongoDB required."""
 from pathlib import Path
 
-
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_amc_xml_to_normalized():
+    from ctm.schemas.matchminer.clinical_trial import ClinicalTrialNormalized
     from ctm.transformers.amc_xml_to_raw import load
     from ctm.transformers.raw_amc_to_ctml import to_ctml_dict
-    from ctm.schemas.matchminer.clinical_trial import ClinicalTrialNormalized
 
     raw_trials = load(FIXTURES / "test-trials-amc-v0.0.1.xml")
     assert len(raw_trials) == 1

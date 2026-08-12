@@ -17,17 +17,15 @@ data/real/*
 data/dump/*
 !data/dump/.gitkeep
 
-# data/raw/ — patient workbooks are PHI. Deny every .xlsx by default and
-# allowlist only the blank templates, so a new patient file is never exposed
-# by having been named something the ignore rules did not anticipate.
-data/raw/*.xlsx
-!data/raw/patient_data_template.xlsx
-!data/raw/west_trial_template.xlsx
-!data/raw/sparrow_trials_raw.xlsx
-data/raw/~$*
-!data/raw/.gitkeep
+# data/ holds nothing tracked any more — the committed reference workbook is
+# tests/fixtures/test-pt-data-v0.0.1.xlsx. Everything here is a local working
+# copy, and patient workbooks are PHI, so deny the whole tree by default.
+data/raw/*
 data/mock/*
-!data/mock/.gitkeep
+
+# scripts/make_template.py writes a blank workbook into the working directory;
+# once filled in it is PHI, so it is never committable.
+/patient_data_template.xlsx
 
 # output/ — generated preview artifacts, never commit
 output/*

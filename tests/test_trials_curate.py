@@ -124,7 +124,7 @@ def test_scan_biomarkers_cache_miss_calls_client_and_caches():
 
 
 def test_scan_biomarkers_cache_hit_skips_client():
-    from ctm.transformers.trials_curate import scan_biomarkers, _cache_key, _trial_full_eligibility_text
+    from ctm.transformers.trials_curate import _cache_key, _trial_full_eligibility_text, scan_biomarkers
 
     trial = _trial_with_eligibility()
     text = _trial_full_eligibility_text(trial)

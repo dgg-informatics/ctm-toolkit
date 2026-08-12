@@ -1,0 +1,166 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT04871542",
+      "orgStudyIdInfo": {
+        "id": "S2013"
+      },
+      "secondaryIdInfos": [
+        {
+          "id": "NCI-2021-01262",
+          "type": "REGISTRY",
+          "domain": "CTRP (Clinical Trial Reporting Program)"
+        },
+        {
+          "id": "S2013",
+          "type": "OTHER",
+          "domain": "SWOG"
+        },
+        {
+          "id": "SWOG-S2013",
+          "type": "OTHER",
+          "domain": "DCP"
+        },
+        {
+          "id": "S2013",
+          "type": "OTHER",
+          "domain": "CTEP"
+        },
+        {
+          "id": "UG1CA189974",
+          "type": "NIH",
+          "link": "https://reporter.nih.gov/quickSearch/UG1CA189974"
+        }
+      ],
+      "organization": {
+        "fullName": "SWOG Cancer Research Network",
+        "class": "NETWORK"
+      },
+      "briefTitle": "Immune Checkpoint Inhibitor Toxicity Risk Prediction in Solid Tumors",
+      "officialTitle": "Immune Checkpoint Inhibitor Toxicity (I-CHECKIT): A Prospective Observational Study"
+    },
+    "statusModule": {
+      "statusVerifiedDate": "2026-02",
+      "overallStatus": "RECRUITING",
+      "expandedAccessInfo": {
+        "hasExpandedAccess": false
+      },
+      "startDateStruct": {
+        "date": "2021-09-13",
+        "type": "ACTUAL"
+      },
+      "primaryCompletionDateStruct": {
+        "date": "2026-09-30",
+        "type": "ESTIMATED"
+      },
+      "completionDateStruct": {
+        "date": "2028-03-14",
+        "type": "ESTIMATED"
+      },
+      "studyFirstSubmitDate": "2021-04-29",
+      "studyFirstSubmitQcDate": "2021-04-29",
+      "studyFirstPostDateStruct": {
+        "date": "2021-05-04",
+        "type": "ACTUAL"
+      },
+      "lastUpdateSubmitDate": "2026-05-04",
+      "lastUpdatePostDateStruct": {
+        "date": "2026-05-05",
+        "type": "ACTUAL"
+      }
+    },
+    "sponsorCollaboratorsModule": {
+      "responsibleParty": {
+        "type": "SPONSOR"
+      },
+      "leadSponsor": {
+        "name": "SWOG Cancer Research Network",
+        "class": "NETWORK"
+      },
+      "collaborators": [
+        {
+          "name": "National Cancer Institute (NCI)",
+          "class": "NIH"
+        }
+      ]
+    },
+    "descriptionModule": {
+      "briefSummary": "This study examines how certain risk factors (such as age, gender, other medical conditions, and the type of immunotherapy used to treat the cancer) affect whether a patient with a malignant solid tumor will develop mild or serious side effects from the immunotherapy medications. Immunotherapy is the type of treatment that helps the body's immune system fight cancer. In the future, this information may help doctors make better decisions about cancer treatments.",
+      "detailedDescription": "PRIMARY OBJECTIVE:\n\nI. To both develop and independently validate a risk prediction model for Common Terminology Criteria for Adverse Events (CTCAE) grade 3 or higher non-hematological immune-related adverse events (irAEs) in the first year of immune checkpoint inhibitor (ICI)-based therapy for the treatment of solid tumors.\n\nSECONDARY OBJECTIVES:\n\nI. To prospectively assess the incidence of any grade of non-hematological irAEs and grade 4 hematological irAEs on ICI-based therapy.\n\nII. To observe the trajectory of patient-reported quality of life and health preferences over 12 months.\n\nIII. To observe the trajectory of patient-reported adverse events over 12 months using serial assessment with select Patient-Reported Outcomes version of the Common Terminology Criteria for Adverse Events (PRO-CTCAE) measures.\n\nIV. To measure the burden of chronic, grade 1 and 2 toxicities using methods such as toxicity over time (ToxT).\n\nV. To track patterns of treatment of irAEs and patterns of toxicity resolution.\n\nTRANSLATIONAL MEDICINE OBJECTIVES:\n\nI. To evaluate the cytokine toxicity (CYTOX) score, a composite measure derived from 11 different cytokine levels, both prior to ICI-based therapy and after 1 cycle of ICI-based therapy as a predictive signature for the development of irAEs.\n\nII. To establish a repository of archival tissue and blood/serum specimens for potential predictive and/or prognostic markers of irAE risk.\n\nADDITIONAL OBJECTIVE:\n\nI. To assess the feasibility of using electronic (e)PRO in a multi-center clinical trial setting.\n\nOUTLINE:\n\nPatients undergo collection of a tissue sample at the start of their routine cancer treatment. Patients complete questionnaires at the start of cancer treatment, weeks 4, 12, 24, and 52. Patients will have the option of providing blood samples at several time points during the study."
+    },
+    "conditionsModule": {
+      "conditions": [
+        "Malignant Solid Neoplasm"
+      ]
+    },
+    "designModule": {
+      "studyType": "OBSERVATIONAL",
+      "designInfo": {
+        "observationalModel": "COHORT",
+        "timePerspective": "PROSPECTIVE"
+      },
+      "bioSpec": {
+        "retention": "SAMPLES_WITH_DNA",
+        "description": "Tissue, blood, plasma, buffy coat"
+      },
+      "enrollmentInfo": {
+        "count": 2062,
+        "type": "ESTIMATED"
+      }
+    },
+    "armsInterventionsModule": {
+      "armGroups": [
+        {
+          "label": "Observational (biospecimen collection, questionnaire)",
+          "description": "Patients undergo collection of a tissue sample at the start of their routine cancer treatment. Patients complete questionnaires at the start of cancer treatment, weeks 4, 12, 24, and 52. Patients will have the option of providing blood samples at several time points during the study.",
+          "interventionNames": [
+            "Procedure: Biospecimen Collection",
+            "Other: Questionnaire Administration"
+          ]
+        }
+      ],
+      "interventions": [
+        {
+          "type": "PROCEDURE",
+          "name": "Biospecimen Collection",
+          "description": "Undergo collection of blood sample",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, questionnaire)"
+          ],
+          "otherNames": [
+            "Biological Sample Collection"
+          ]
+        },
+        {
+          "type": "OTHER",
+          "name": "Questionnaire Administration",
+          "description": "Complete questionnaires",
+          "armGroupLabels": [
+            "Observational (biospecimen collection, questionnaire)"
+          ]
+        }
+      ]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Inclusion Criteria:\n\n* Participants must be planning to receive ICI-based therapy for a solid tumor malignancy. This therapy must be given according to Food and Drug Administration (FDA) label or National Comprehensive Cancer Network (NCCN) guidelines at Category 1 or 2A and not in the context of a clinical trial\n* Participants who have received prior ICI-based therapy must have completed ICI based therapy at least 180 days prior to registration\n* Participants must not have discontinued any prior ICI-based therapy (if applicable) because of irAE\n* Participants must not have received chemotherapy, biologic, or targeted-therapy within 21 days prior to registration\n* Participants must have recovered from side effects of prior therapy to the following standards per treating physician's discretion:\n\n  * =\\< Grade 1 for any non-hematologic side effects (excluding neuropathy and alopecia); lab-related parameters of liver and renal function will be considered at the discretion of the treating physician)\n  * =\\< Grade 2 for neuropathy and/or alopecia\n  * Grade 3 or less for any hematologic side effects\n* Participants must be planning to begin standard of care ICI-based therapy within 3 calendar days after registration\n* Participants must not be planning to receive ICI-based therapy in combination with chemotherapy or any other non-ICI therapy for treatment of their cancer\n* Participants must be at least 18 years of age\n* Participants must complete their history and physical examination within 28 days prior to registration\n* Participants who can complete the S2013 Feasibility Questionnaire in English or Spanish must participate at the scheduled assessments\n* Participants must be able to complete Patient-Reported Outcome (PRO) instruments in English, Spanish, or French and must be planning to complete PROs at all scheduled assessments\n* Participants must complete the pre-registration (baseline) PRO forms within 14 days prior to registration\n* Participants must be willing to participate in PRO data collection\n\n  * Note: Prior to registration, participants must decide on their method (paper or electronic) of completing their follow-up questionnaires. Participants who elect electronic (ePRO) completion must have an iPhone, Android phone, or tablet with cellular or WiFi connectivity in order to download the Patient Cloud mobile applications onto the device (personal device or a site provisioned device for multi-users)\n* Participants must be offered the opportunity to participate in the optional specimen banking\n* Note: As a part of the OPEN registration process the treating institution's identity is provided in order to ensure that the current (within 365 days) date of institutional review board approval for this study has been entered in the system.\n\n  * Participants must be informed of the investigational nature of this study and must sign and give informed consent in accordance with institutional and federal guidelines",
+      "healthyVolunteers": false,
+      "sex": "ALL",
+      "minimumAge": "18 Years",
+      "stdAges": [
+        "ADULT",
+        "OLDER_ADULT"
+      ],
+      "studyPopulation": "Patients planning to receive ICI-based therapy for a solid tumor malignancy.",
+      "samplingMethod": "NON_PROBABILITY_SAMPLE"
+    },
+    "contactsLocationsModule": {
+      "overallOfficials": [
+        {
+          "name": "Edgar Poe",
+          "affiliation": "SWOG Cancer Research Network",
+          "role": "PRINCIPAL_INVESTIGATOR"
+        }
+      ]
+    }
+  }
+}

@@ -38,7 +38,13 @@ def main() -> None:
     parser.add_argument("--nct",    default=None, metavar="ID", nargs="+", help="Process only trials matching these NCT or protocol numbers")
     args = parser.parse_args()
 
-    from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names, load_cache, process_trial, save_cache
+    from ctm.transformers.eligibility_to_ctml import (
+        build_client,
+        fetch_oncotree_names,
+        load_cache,
+        process_trial,
+        save_cache,
+    )
 
     cache_file = Path(args.cache) if args.cache else cache_path(_DEFAULT_CACHE)
 

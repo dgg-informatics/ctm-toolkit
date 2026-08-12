@@ -235,8 +235,8 @@ def _cmd_raw_to_mm(args) -> None:
 
 def _cmd_trials(args) -> None:
     from ctm.transformers.amc_xml_to_raw import load as load_amc
+    from ctm.transformers.ctgov_to_raw import from_search_response, from_study
     from ctm.transformers.raw_amc_to_ctml import to_ctml_dict as amc_to_ctml
-    from ctm.transformers.ctgov_to_raw import from_study, from_search_response
     from ctm.transformers.raw_ctgov_to_ctml import to_ctml_dict as ctgov_to_ctml
 
     trials: list[dict] = []
@@ -273,8 +273,8 @@ def _cmd_trials(args) -> None:
         trials.extend(ctgov_to_ctml(t) for t in raw_ct)
 
     if args.sparrow:
-        from ctm.transformers.sparrow_xlsx_to_raw import load as load_sparrow
         from ctm.transformers.raw_sparrow_to_ctml import to_ctml_dict as sparrow_to_ctml
+        from ctm.transformers.sparrow_xlsx_to_raw import load as load_sparrow
         sparrow_path = Path(args.sparrow)
         if not sparrow_path.exists():
             print(f"Error: file not found: {sparrow_path}", file=sys.stderr)
@@ -292,8 +292,8 @@ def _cmd_trials(args) -> None:
                 print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
 
     if args.west:
-        from ctm.transformers.west_xlsx_to_raw import load as load_west
         from ctm.transformers.raw_west_to_ctml import to_ctml_dict as west_to_ctml
+        from ctm.transformers.west_xlsx_to_raw import load as load_west
         west_path = Path(args.west)
         if not west_path.exists():
             print(f"Error: file not found: {west_path}", file=sys.stderr)
