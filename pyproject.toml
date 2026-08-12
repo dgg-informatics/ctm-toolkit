@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["clinical-trials", "matchminer", "oncology", "ctml", "normalization"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Healthcare Industry",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -40,13 +40,10 @@ preview = [
 ]
 llm = [
     "openai",
-    "python-dotenv",
 ]
+# Self-referential so it can never drift out of sync with the extras above.
 all = [
-    "weasyprint",
-    "livereload",
-    "openai",
-    "python-dotenv",
+    "ctm-toolkit[report,preview,llm]",
 ]
 # Test/lint tooling. An extra rather than a PEP 735 dependency-group so plain
 # `pip install ".[dev]"` works in the Dockerfile without a pip 25.1+ floor.

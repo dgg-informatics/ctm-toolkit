@@ -17,8 +17,13 @@ data/real/*
 data/dump/*
 !data/dump/.gitkeep
 
-# data/raw/ — most files committed; xlsx contains patient data, never commit
-data/raw/patient_data_template.xlsx
+# data/raw/ — patient workbooks are PHI. Deny every .xlsx by default and
+# allowlist only the blank templates, so a new patient file is never exposed
+# by having been named something the ignore rules did not anticipate.
+data/raw/*.xlsx
+!data/raw/patient_data_template.xlsx
+!data/raw/west_trial_template.xlsx
+!data/raw/sparrow_trials_raw.xlsx
 data/raw/~$*
 !data/raw/.gitkeep
 data/mock/*

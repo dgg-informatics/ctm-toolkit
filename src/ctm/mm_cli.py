@@ -1,8 +1,8 @@
 """ctm-mm — MatchMiner import tooling CLI.
 
 Usage:
-  ctm-mm patients PATH/TO/patient_data_template.xlsx [options]
-  ctm-mm trials [--sparrow YAML] [--amc YAML] [--west YAML] --out PATH
+  ctm-mm patients PATH/TO/patient_data.xlsx [options]
+  ctm-mm trials [--amc XML] [--ct JSON] [--sparrow XLSX] [--west XLSX] --out PATH
   ctm-mm trials-diff --new JSON --master JSON --out-prefix PREFIX
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
@@ -49,8 +49,12 @@ def main() -> None:
     )
     p_trials.add_argument("--amc", metavar="XML", help="Path to AMC trials XML export")
     p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
-    p_trials.add_argument("--sparrow", metavar="XLSX", help="Path to Sparrow marketing trials Excel sheet")
-    p_trials.add_argument("--west", metavar="FILE", help="Path to West trials (not yet implemented)")
+    p_trials.add_argument("--sparrow", metavar="XLSX",
+                          help="Path to the Sparrow marketing trials Excel sheet (NCT numbers are "
+                               "resolved against ClinicalTrials.gov)")
+    p_trials.add_argument("--west", metavar="XLSX",
+                          help="Path to the UMH-West trials Excel template (NCT numbers are "
+                               "resolved against ClinicalTrials.gov)")
     p_trials.add_argument("--out", metavar="PATH", required=True,
                           help="Save MatchMiner CTML JSON output to file")
 
