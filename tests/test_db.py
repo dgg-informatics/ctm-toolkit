@@ -233,7 +233,7 @@ def test_replace_collection_drops_then_indexes_then_inserts():
     collection = _FakeCollection()
     docs = [{"trial_hash": "a" * 64, "entity": "amc", "trial_key": "2021.070"}]
 
-    replace_collection(_FakeDb(collection), "03_diff_trials", docs,
+    replace_collection(_FakeDb(collection), "02_diff_trials", docs,
                        DIFF_UNIQUE_KEY, DIFF_LOOKUP_KEYS)
 
     assert collection.dropped
@@ -251,7 +251,7 @@ def test_replace_collection_inserts_unordered():
     from ctm.db import DIFF_UNIQUE_KEY, replace_collection
 
     collection = _FakeCollection()
-    replace_collection(_FakeDb(collection), "03_diff_trials",
+    replace_collection(_FakeDb(collection), "02_diff_trials",
                        [{"trial_hash": "a" * 64}], DIFF_UNIQUE_KEY)
 
     assert collection.ordered is False
@@ -265,17 +265,105 @@ def test_replace_collection_refuses_unkeyed_documents_without_dropping():
     docs = [{"trial_hash": "a" * 64}, {"entity": "amc"}]  # second has no trial_hash
 
     with pytest.raises(ValueError, match="trial_hash"):
-        replace_collection(_FakeDb(collection), "03_diff_trials", docs, DIFF_UNIQUE_KEY)
+        replace_collection(_FakeDb(collection), "02_diff_trials", docs, DIFF_UNIQUE_KEY)
 
     assert not collection.dropped
     assert collection.inserted is None
+
+
+def test_prepare_collection_refuses_a_collection_no_stage_owns():
+    """05_manual_curated_trials holds days of a curator's hand edits. A stage that
+    dropped it would discard them with no warning and no recovery."""
+    from ctm.db import DIFF_UNIQUE_KEY, MANUAL_COLLECTION, prepare_collection
+
+    collection = _FakeCollection()
+
+    with pytest.raises(ValueError, match="not a machine-written collection"):
+        prepare_collection(_FakeDb(collection), MANUAL_COLLECTION, DIFF_UNIQUE_KEY)
+
+    assert not collection.dropped
+
+
+def test_manual_collection_is_excluded_from_machine_written():
+    from ctm import db as ctm_db
+
+    assert ctm_db.MANUAL_COLLECTION not in ctm_db.MACHINE_WRITTEN
+    for owned in (ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION,
+                  ctm_db.CTML_COLLECTION, ctm_db.CURATED_COLLECTION):
+        assert owned in ctm_db.MACHINE_WRITTEN
+
+
+def test_collection_map_is_ordered_by_pipeline_stage():
+    """Ordinal prefixes are the reason renames cascade; keep the map honest."""
+    from ctm import db as ctm_db
+
+    names = [
+        ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION, ctm_db.CTML_COLLECTION,
+        ctm_db.CURATED_COLLECTION, ctm_db.MANUAL_COLLECTION,
+        ctm_db.DEFAULT_MASTER_COLLECTION,
+    ]
+    assert names == sorted(names), "prefixes must sort into pipeline order"
+    assert [n.split("_")[0] for n in names] == ["01", "02", "03", "04", "05", "06"]
+
+
+def test_upsert_doc_replaces_on_the_unique_key():
+    from ctm.db import DIFF_UNIQUE_KEY, upsert_doc
+
+    class _Recorder:
+        def __init__(self):
+            self.calls = []
+
+        def replace_one(self, filt, doc, upsert=False):
+            self.calls.append((filt, doc, upsert))
+
+    collection = _Recorder()
+    upsert_doc(collection, {"trial_hash": "a" * 64, "x": 1}, DIFF_UNIQUE_KEY)
+
+    filt, doc, upsert = collection.calls[0]
+    assert filt == {"trial_hash": "a" * 64}
+    assert upsert is True
+    assert doc["x"] == 1
+
+
+def test_upsert_doc_refuses_an_unkeyed_document():
+    from ctm.db import DIFF_UNIQUE_KEY, upsert_doc
+
+    with pytest.raises(ValueError, match="trial_hash"):
+        upsert_doc(object(), {"x": 1}, DIFF_UNIQUE_KEY)
+
+
+def test_inherited_run_date_takes_the_value_from_source_documents():
+    """A stage must not read the clock: the weekly cycle spans days, so
+    date.today() at each stage splits one run across several run_dates."""
+    from ctm.db import inherited_run_date
+
+    docs = [{"run_date": "2026-08-17"}, {"run_date": "2026-08-17"}]
+    assert inherited_run_date(docs) == "2026-08-17"
+    # Even when "today" is something else entirely.
+    assert inherited_run_date(docs, fallback="2026-09-01") == "2026-08-17"
+
+
+def test_inherited_run_date_rejects_mixed_runs():
+    from ctm.db import inherited_run_date
+
+    with pytest.raises(ValueError, match="multiple run_dates"):
+        inherited_run_date([{"run_date": "2026-08-17"}, {"run_date": "2026-08-24"}])
+
+
+def test_inherited_run_date_falls_back_when_sources_carry_none():
+    from ctm.db import inherited_run_date
+
+    assert inherited_run_date([{"x": 1}], fallback="2026-08-17") == "2026-08-17"
+
+    with pytest.raises(ValueError, match="no run_date"):
+        inherited_run_date([{"x": 1}])
 
 
 def test_replace_collection_handles_an_empty_batch():
     from ctm.db import DIFF_UNIQUE_KEY, replace_collection
 
     collection = _FakeCollection()
-    replace_collection(_FakeDb(collection), "03_diff_trials", [], DIFF_UNIQUE_KEY)
+    replace_collection(_FakeDb(collection), "02_diff_trials", [], DIFF_UNIQUE_KEY)
 
     assert collection.dropped
     assert collection.inserted is None
