@@ -118,16 +118,17 @@ def test_scan_biomarkers_cache_miss_calls_client_and_caches():
         "reference": "BRCA1 mutation",
         "biomarker": "BRCA1",
         "type": "snv",
+        "section": "eligibility",  # default when the model omits it
         "in_kb": True,
     }]
     assert len(cache) == 1
 
 
 def test_scan_biomarkers_cache_hit_skips_client():
-    from ctm.transformers.trials_curate import _cache_key, _trial_full_eligibility_text, scan_biomarkers
+    from ctm.transformers.trials_curate import _cache_key, _trial_scan_text, scan_biomarkers
 
     trial = _trial_with_eligibility()
-    text = _trial_full_eligibility_text(trial)
+    text = _trial_scan_text(trial)
     key = _cache_key("NCT00000001", text)
     cache = {key: [{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1 mutation"}]}
     client = _FakeClient([])  # no responses queued — a call would raise IndexError
@@ -136,6 +137,92 @@ def test_scan_biomarkers_cache_hit_skips_client():
 
     assert client.call_count == 0
     assert hits[0]["biomarker"] == "BRCA1"
+
+
+def test_scan_text_includes_titles_keywords_and_curator_genes():
+    """Biomarker language lives in places the criteria never restate: a title can
+    embed the requirement outright, and _raw.octsu_genes_interest is a
+    curator-authored gene list nothing else in the pipeline reads."""
+    from ctm.transformers.trials_curate import _trial_scan_text
+
+    trial = {
+        "nct_id": "NCT00000003",
+        "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
+        "_summary": {
+            "short_title": "Olaparib in BRCA-mutant pancreatic cancer",
+            "long_title": "A Study in Patients with a Pathogenic BRCA1, BRCA2 or PALB2 Mutation",
+            "disease_keywords": ["Metastatic HER2-Negative Breast Carcinoma"],
+        },
+        "_raw": {"octsu_genes_interest": "IDH1 (R132); IDH2 (R172)"},
+    }
+
+    text = _trial_scan_text(trial)
+
+    assert "PALB2" in text
+    assert "BRCA-mutant" in text
+    assert "HER2-Negative" in text
+    assert "IDH1 (R132); IDH2 (R172)" in text
+    assert "Age >= 18" in text
+    # Labelled, so the model can attribute each hit to a section.
+    for label in ("TRIAL TITLES:", "DISEASE KEYWORDS:",
+                  "CURATOR GENES OF INTEREST:", "ELIGIBILITY CRITERIA:"):
+        assert label in text
+
+
+def test_scan_text_omits_absent_sections():
+    from ctm.transformers.trials_curate import _trial_scan_text
+
+    trial = _trial_with_eligibility()
+    text = _trial_scan_text(trial)
+
+    assert "ELIGIBILITY CRITERIA:" in text
+    assert "TRIAL TITLES:" not in text
+    assert "DISEASE KEYWORDS:" not in text
+    assert "CURATOR GENES OF INTEREST:" not in text
+
+
+def test_scan_biomarkers_finds_a_title_only_biomarker():
+    """A trial whose only biomarker mention is in its title used to be invisible
+    to this scan — the eligibility criteria never restate it."""
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    trial = {
+        "nct_id": "NCT00000004",
+        "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
+        "_summary": {"long_title": "Olaparib for Resected Pancreatic Cancer with a PALB2 Mutation"},
+    }
+    client = _FakeClient([
+        '[{"biomarker": "PALB2", "type": "snv", "reference": "PALB2 Mutation", "section": "titles"}]'
+    ])
+
+    hits = scan_biomarkers(trial, client, {}, known_genes={"PALB2"})
+
+    assert client.call_count == 1
+    assert hits[0]["biomarker"] == "PALB2"
+    assert hits[0]["section"] == "titles"
+
+
+def test_scan_biomarkers_scans_curator_genes_with_no_eligibility_text():
+    """octsu_genes_interest alone is enough to warrant a call: previously an empty
+    eligibility list short-circuited before the gene list was ever read."""
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    trial = {
+        "nct_id": "NCT00000005",
+        "protocol_no": None,
+        "eligibility": {"inclusion": [], "exclusion": []},
+        "_raw": {"octsu_genes_interest": "FLT3"},
+    }
+    client = _FakeClient([
+        '[{"biomarker": "FLT3", "type": "snv", "reference": "FLT3", "section": "genes_of_interest"}]'
+    ])
+
+    hits = scan_biomarkers(trial, client, {}, known_genes={"FLT3"})
+
+    assert client.call_count == 1
+    assert hits[0]["section"] == "genes_of_interest"
 
 
 def test_scan_biomarkers_empty_eligibility_returns_empty_no_call():
