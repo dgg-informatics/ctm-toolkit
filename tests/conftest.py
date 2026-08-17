@@ -31,6 +31,26 @@ def load_ctgov_study(nct_id: str) -> dict:
 
 
 @pytest.fixture(autouse=True)
+def no_real_env(monkeypatch):
+    """Never ingest the developer's real .env, and never inherit exported config.
+
+    ``load_env()`` mutates ``os.environ`` for the whole pytest process, so one
+    test reaching ``main()`` leaks real MONGO_* / UMGPT_* values into every test
+    that runs after it. That is not theoretical: it let a trials-curate test
+    write a live ``04_curated_trials`` collection into a real dated database.
+
+    Patched where the name is *used*, for the same reason as ``fetch`` below —
+    both CLIs do a module-level ``from ctm.paths import load_env``, so patching
+    ``ctm.paths.load_env`` would leave them calling the real one.
+    """
+    for module in ("ctm.mm_cli", "ctm.ctml_cli"):
+        monkeypatch.setattr(f"{module}.load_env", lambda: None)
+    for name in ("MONGO_HOST", "MONGO_PORT", "MONGO_DBNAME",
+                 "MONGO_MASTER_DBNAME", "MONGO_MASTER_COLLECTION"):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def no_network(monkeypatch):
     """Any real HTTP call is a test bug — fail with a message that says so."""
     def _blocked(*args, **kwargs):
