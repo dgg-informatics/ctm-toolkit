@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ctm-toolkit"
-version = "1.0.0"
+version = "1.1.0"
 description = "Clinical trial data normalization and report generation toolkit"
 readme = "README.md"
 license = { text = "MIT" }
@@ -41,9 +41,12 @@ preview = [
 llm = [
     "openai",
 ]
+db = [
+    "pymongo",
+]
 # Self-referential so it can never drift out of sync with the extras above.
 all = [
-    "ctm-toolkit[report,preview,llm]",
+    "ctm-toolkit[report,preview,llm,db]",
 ]
 # Test/lint tooling. An extra rather than a PEP 735 dependency-group so plain
 # `pip install ".[dev]"` works in the Dockerfile without a pip 25.1+ floor.

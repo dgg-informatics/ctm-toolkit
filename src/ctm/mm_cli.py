@@ -3,7 +3,7 @@
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
   ctm-mm trials [--amc XML] [--ct JSON] [--sparrow XLSX] [--west XLSX] --out PATH
-  ctm-mm trials-diff --new JSON --master JSON --out-prefix PREFIX
+  ctm-mm trials-diff --new JSON --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
   ctm-mm trials-merge --unchanged JSON --changed JSON --out JSON
@@ -16,6 +16,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
 from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path, load_env
@@ -66,10 +67,29 @@ def main() -> None:
     )
     p_trials_diff.add_argument("--new", required=True, metavar="JSON",
                                help="Fresh normalized trials JSON from ctm-mm trials")
-    p_trials_diff.add_argument("--master", required=True, metavar="JSON",
-                               help="Previous dated master trials JSON (missing/empty is fine on the first-ever run)")
-    p_trials_diff.add_argument("--out-prefix", required=True, metavar="PREFIX",
-                               help="Output path prefix; writes PREFIX-unchanged.json, PREFIX-changed.json, PREFIX-deleted.json")
+    p_trials_diff.add_argument("--master", metavar="JSON",
+                               help="Previous master trials JSON. Omit to read the master from "
+                                    "MONGO_MASTER_COLLECTION in MONGO_MASTER_DBNAME instead")
+    # Default True through the 1.x line so the file-based pipeline keeps working
+    # while stages migrate one at a time. Flipping this single default to False,
+    # across every migrated stage at once, is the 2.0.0 breaking change.
+    p_trials_diff.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
+                               help="Write the three JSON files in addition to MongoDB "
+                                    "(default: enabled). --no-disk stores to MongoDB only")
+    p_trials_diff.add_argument("--out-prefix", metavar="PREFIX",
+                               help="Output path prefix; writes PREFIX-unchanged.json, "
+                                    "PREFIX-changed.json, PREFIX-deleted.json. Required unless --no-disk")
+    p_trials_diff.add_argument("--db", metavar="NAME",
+                               help="Override MONGO_DBNAME for this run's 03_diff_trials collection")
+    p_trials_diff.add_argument("--master-db", dest="master_db", metavar="NAME",
+                               help="Override MONGO_MASTER_DBNAME — the database the master is read from")
+    p_trials_diff.add_argument("--master-collection", dest="master_collection", metavar="NAME",
+                               help="Override MONGO_MASTER_COLLECTION (default 06_master_trials)")
+    p_trials_diff.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                               help="Run date stamped on stored documents (default: today)")
+    p_trials_diff.add_argument("--allow-empty-master", dest="allow_empty_master", action="store_true",
+                               help="Permit an empty master; every trial routes to 'changed'. "
+                                    "Only correct on the first-ever run")
 
     p_trials_curate = sub.add_parser(
         "trials-curate",
@@ -325,23 +345,94 @@ def _cmd_trials(args) -> None:
     print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
 
 
+def _read_master(args, config) -> tuple[list[dict], str]:
+    """The previous master plus a human-readable description of where it came from.
+
+    A file given via --master wins over the master collection. A --master path
+    that does not exist is an error rather than an empty master: the old
+    `if exists() else []` fallback meant a typo silently routed every trial to
+    `changed`, re-running full curation.
+    """
+    from ctm import db as ctm_db
+
+    if args.master:
+        master_path = Path(args.master)
+        if not master_path.exists():
+            print(f"Error: master file not found: {master_path}", file=sys.stderr)
+            sys.exit(1)
+        return json.loads(master_path.read_text()), str(master_path)
+
+    db_name = args.master_db or config["master_dbname"]
+    collection = args.master_collection or config["master_collection"]
+    trials = ctm_db.read_collection(ctm_db.get_database(config, db_name), collection)
+    return trials, f"{db_name}.{collection}"
+
+
 def _cmd_trials_diff(args) -> None:
+    from ctm import db as ctm_db
     from ctm.trials_lifecycle import split_by_eligibility
 
-    new_trials = json.loads(Path(args.new).read_text())
+    # Validated up front: a missing variable should fail before any files are
+    # written, not after. MONGO_MASTER_DBNAME is only required when the master
+    # comes from Mongo and --master-db has not already named the database.
+    # --out-prefix is meaningless with --no-disk, and disk output cannot write
+    # without it. Rejecting both mismatches beats silently producing no files.
+    if args.disk and not args.out_prefix:
+        print("Error: --out-prefix is required (pass --no-disk to store only to MongoDB)",
+              file=sys.stderr)
+        sys.exit(1)
+    if args.out_prefix and not args.disk:
+        print("Error: --out-prefix has no effect with --no-disk", file=sys.stderr)
+        sys.exit(1)
 
-    master_path = Path(args.master)
-    master_trials = json.loads(master_path.read_text()) if master_path.exists() else []
+    config = ctm_db.mongo_config(require_master=not args.master and not args.master_db)
+    run_date = args.run_date or date.today().isoformat()
+    target_db = args.db or config["dbname"]
+
+    new_trials = json.loads(Path(args.new).read_text())
+    master_trials, master_source = _read_master(args, config)
+
+    if not master_trials and not args.allow_empty_master:
+        print(
+            f"Error: master is empty ({master_source}). Every trial would route to "
+            "'changed', re-running full curation. Pass --allow-empty-master if this "
+            "really is the first-ever run.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    print(f"Master: {len(master_trials)} trial(s) from {master_source}", file=sys.stderr)
+    print(f"Target: {target_db}.{ctm_db.DIFF_COLLECTION} (run_date {run_date})", file=sys.stderr)
 
     unchanged, changed, deleted = split_by_eligibility(new_trials, master_trials)
 
-    prefix = args.out_prefix
-    Path(f"{prefix}-unchanged.json").write_text(json.dumps(unchanged, indent=2, default=str))
-    Path(f"{prefix}-changed.json").write_text(json.dumps(changed, indent=2, default=str))
-    Path(f"{prefix}-deleted.json").write_text(json.dumps(deleted, indent=2, default=str))
-
     print(f"{len(unchanged)} unchanged, {len(changed)} changed, {len(deleted)} deleted", file=sys.stderr)
-    print(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json", file=sys.stderr)
+
+    # Files before Mongo when asked for: a standalone mongod is not a replica
+    # set, so there is no transaction to roll back a partial write, and complete
+    # files on disk keep the command safely re-runnable.
+    if args.disk:
+        prefix = args.out_prefix
+        Path(f"{prefix}-unchanged.json").write_text(json.dumps(unchanged, indent=2, default=str))
+        Path(f"{prefix}-changed.json").write_text(json.dumps(changed, indent=2, default=str))
+        Path(f"{prefix}-deleted.json").write_text(json.dumps(deleted, indent=2, default=str))
+        print(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json",
+              file=sys.stderr)
+
+    # Stamped copies, so the files above stay byte-identical to pre-Mongo output.
+    docs = [
+        ctm_db.stamp(trial, "ctm-mm trials-diff", run_date, diff_status=status)
+        for status, bucket in (("unchanged", unchanged), ("changed", changed), ("deleted", deleted))
+        for trial in bucket
+    ]
+    ctm_db.replace_collection(
+        ctm_db.get_database(config, target_db),
+        ctm_db.DIFF_COLLECTION,
+        docs,
+        ctm_db.DIFF_UNIQUE_KEY,
+        ctm_db.DIFF_LOOKUP_KEYS,
+    )
+    print(f"Stored {len(docs)} doc(s) → {target_db}.{ctm_db.DIFF_COLLECTION}", file=sys.stderr)
 
 
 def _cmd_trials_curate(args) -> None:

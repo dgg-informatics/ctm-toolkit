@@ -55,6 +55,22 @@ ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm  # format for 
 (`UMGPT_MODEL` is optional, defaults to `gpt-4o`). LLM responses are cached in
 `~/.cache/ctm/` — override with `CTM_CACHE_DIR` or `XDG_CACHE_HOME`.
 
+#### MongoDB configuration
+
+`ctm-mm trials-diff` stores its output in MongoDB by default. Install with
+`uv pip install 'ctm-toolkit[db]'` and set these in the same `.env`:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `MONGO_HOST` | yes | e.g. `localhost` |
+| `MONGO_PORT` | yes | e.g. `27018` (the `docker-compose` mongo service maps `27018:27017`) |
+| `MONGO_DBNAME` | yes | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated; `--db NAME` overrides it without editing `.env` |
+| `MONGO_MASTER_DBNAME` | only without `--master` | The master trial list's database. Deliberately **not** per-run — the master is rolling current state, so it has a fixed address. No default: a default here would silently resolve to an empty database and route every trial to `changed` |
+| `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
+
+These are CTM's own Mongo settings. MatchMiner's credentials are separate and
+still come from `SECRETS_JSON.json` — see "MatchMiner Preparation and Running".
+
 ```bash
 # Step 3: Run the LLM (UMGPT) to help match MatchMiner's Clinical Trial Markup Language (CTML) format
 ctm-ctml --trials nct-normalized.json --out ctml-draft.json --limit 2
@@ -231,11 +247,14 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
    1. `$ ctm-mm trials --amc <amc.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out normalized-2026-07-14.json`
 2. Diff the fresh normalization against last week's master:
    1. `$ ctm-mm trials-diff --new normalized-2026-07-14.json --master 2026-07-13-trials.json --out-prefix 2026-07-14`  # --new is the normalized data and --master is the most recent manually curated data
-   2. Writes three files:
-      - `2026-07-14-unchanged.json` — eligibility identical to the master's copy. Already has curated match nodes carried forward from `2026-07-13-trials.json` untouched; every other field (status, title, etc.) is refreshed. **No LLM call, no manual review needed for these.**
-      - `2026-07-14-changed.json` — eligibility differs, or the trial is brand new. Not yet curated — this is the only file that needs the next two steps.
-      - `2026-07-14-deleted.json` — trials present in last week's master but absent from this week's sheets. Kept as a permanent record; nothing automated acts on it.
-   3. On the very first run there's no master yet — point `--master` at a nonexistent or empty-list file and everything routes to `2026-07-14-changed.json`.
+   2. Produces three buckets:
+      - `unchanged` — eligibility identical to the master's copy. Already has curated match nodes carried forward from `2026-07-13-trials.json` untouched; every other field (status, title, etc.) is refreshed. **No LLM call, no manual review needed for these.**
+      - `changed` — eligibility differs, or the trial is brand new. Not yet curated — this is the only bucket that needs the next two steps.
+      - `deleted` — trials present in last week's master but absent from this week's sheets. Kept as a permanent record; nothing automated acts on it.
+   3. Writes `2026-07-14-unchanged.json`, `-changed.json`, and `-deleted.json` as before, **and** stores the same split in MongoDB — the `03_diff_trials` collection of `MONGO_DBNAME`, one document per trial carrying `diff_status`, `run_date`, and `processed_with`. See "MongoDB configuration" below.
+   4. `--no-disk` skips the files and stores only to MongoDB. Not useful yet: the next steps (`ctm-ctml`, `trials-curate`, `trials-merge`) still read file paths, so the chain needs the files until they migrate too. Disk output stays the default for the whole `1.x` line; it becomes opt-in at `2.0.0`, once every stage can read from Mongo.
+   5. The master is read from the `06_master_trials` collection in `MONGO_MASTER_DBNAME` unless `--master` names a file. `--master-db` and `--master-collection` override either half.
+   6. On the very first run there's no master yet — pass `--allow-empty-master` and everything routes to `changed`. Without it, an empty master is a hard error, since silently routing every trial to `changed` means re-running the full LLM curation.
 
 > [!NOTE]
 > **Fringe case — a trial changes source (`entity`) between cycles.** The identity key used to match a trial across cycles depends on `entity`: `protocol_no` for AMC, `nct_id` for everything else. If a trial moves from AMC to being tracked via West/Sparrow (or vice versa) — e.g. AMC drops it from their sheet and it starts showing up via ClinicalTrials.gov instead — its key changes basis even if the trial itself hasn't meaningfully changed. It'll show up as both `deleted` (under its old key) and `changed` (under its new key), even if `eligibility` is byte-identical to before. This is intentional, not a bug: a source migration is a real event worth a quick human glance rather than being silently absorbed as "unchanged." (The already-curated match tree isn't lost — it's just sitting in the previous dated master, so it's a quick copy-paste during the manual review of the "new" entry rather than starting from scratch.)
