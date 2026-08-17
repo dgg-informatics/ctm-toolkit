@@ -80,7 +80,7 @@ def main() -> None:
                                help="Output path prefix; writes PREFIX-unchanged.json, "
                                     "PREFIX-changed.json, PREFIX-deleted.json. Required unless --no-disk")
     p_trials_diff.add_argument("--db", metavar="NAME",
-                               help="Override MONGO_DBNAME for this run's 03_diff_trials collection")
+                               help="Override MONGO_DBNAME for this run's 02_diff_trials collection")
     p_trials_diff.add_argument("--master-db", dest="master_db", metavar="NAME",
                                help="Override MONGO_MASTER_DBNAME — the database the master is read from")
     p_trials_diff.add_argument("--master-collection", dest="master_collection", metavar="NAME",

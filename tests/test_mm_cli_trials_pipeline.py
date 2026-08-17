@@ -148,7 +148,7 @@ def test_cmd_trials_diff_stores_all_three_buckets_in_one_collection(tmp_path, fa
     _cmd_trials_diff(args)
 
     written = fake_mongo["written"]
-    assert written["name"] == DIFF_COLLECTION == "03_diff_trials"
+    assert written["name"] == DIFF_COLLECTION == "02_diff_trials"
     assert written["unique_key"] == "trial_hash"
     assert written["lookup_keys"] == ("entity", "trial_key")
 
