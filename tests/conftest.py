@@ -43,7 +43,7 @@ def no_real_env(monkeypatch):
     both CLIs do a module-level ``from ctm.paths import load_env``, so patching
     ``ctm.paths.load_env`` would leave them calling the real one.
     """
-    for module in ("ctm.mm_cli", "ctm.ctml_cli"):
+    for module in ("ctm.mm_cli", "ctm.llm_cli"):
         monkeypatch.setattr(f"{module}.load_env", lambda: None)
     for name in ("MONGO_HOST", "MONGO_PORT", "MONGO_DBNAME",
                  "MONGO_MASTER_DBNAME", "MONGO_MASTER_COLLECTION"):

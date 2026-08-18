@@ -40,25 +40,6 @@ def test_trial_id_falls_back_to_protocol_no():
     assert _trial_id(trial) == "2021.070"
 
 
-def test_union_match_nodes_filters_null_and_flattens():
-    from ctm.transformers.trials_curate import union_match_nodes
-    suggestions = [
-        {"source": "inclusion", "suggested_node": {"clinical": {"age_numerical": ">=18"}}},
-        {"source": "exclusion", "suggested_node": None},
-        {"source": "summary", "suggested_node": {"genomic": {"hugo_symbol": "BRCA1"}}},
-    ]
-    result = union_match_nodes(suggestions)
-    assert result == [
-        {"clinical": {"age_numerical": ">=18"}},
-        {"genomic": {"hugo_symbol": "BRCA1"}},
-    ]
-
-
-def test_union_match_nodes_empty_input():
-    from ctm.transformers.trials_curate import union_match_nodes
-    assert union_match_nodes([]) == []
-
-
 def test_load_known_genes(tmp_path):
     from ctm.transformers.trials_curate import load_known_genes
     kb_path = tmp_path / "kb.json"
@@ -264,68 +245,64 @@ def _full_trial(nct_id="NCT00000003"):
     }
 
 
-def test_curate_trial_builds_llm_curation_with_all_three_subfields():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_writes_only_its_own_key():
+    """The invariant that makes this stage safe to re-run on curated trials."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
     trial = _full_trial()
-    # curate_trial calls suggest_node (summary) first, then scan_biomarkers —
-    # two responses queued in that order.
-    client = _FakeClient([
-        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
-        '[]',
-    ])
+    client = _FakeClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]'])
 
-    result = curate_trial(trial, client, cache={}, known_genes={"BRCA1"}, valid_oncotree=set())
+    result = annotate_biomarkers(trial, client, cache={}, known_genes={"BRCA1"})
 
-    assert "_llm_curation" in result
-    curation = result["_llm_curation"]
-    assert "_ctml_suggestions" in curation
-    assert "biomarker_references" in curation
-    assert "final_suggested_ctml" in curation
+    assert result["_llm_curation"]["biomarker_references"][0]["biomarker"] == "BRCA1"
+    # No match-node work: that belongs to `ctm-llm general`.
+    assert "final_suggested_ctml" not in result["_llm_curation"]
 
 
-def test_curate_trial_removes_top_level_ctml_suggestions():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_makes_one_call_not_two():
+    """The title suggestion moved to `general`, so only the scan remains here."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
-    trial = _full_trial()
-    client = _FakeClient(['null', '[]'])
+    client = _FakeClient(['[]'])  # a second call would raise IndexError
+    annotate_biomarkers(_full_trial(), client, cache={}, known_genes=set())
 
-    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
-
-    assert "_ctml_suggestions" not in result
+    assert client.call_count == 1
 
 
-def test_curate_trial_summary_source_labeled_correctly():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_preserves_existing_llm_curation():
+    """Re-running on an already-drafted trial must not discard `general`'s work.
+    The old fused curate_trial rebuilt the whole block, which is exactly how a
+    master rescan destroyed _ctml_suggestions."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
     trial = _full_trial()
-    client = _FakeClient([
-        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
-        '[]',
-    ])
+    trial["_llm_curation"] = {
+        "_ctml_suggestions": [
+            {"source": "inclusion", "text": "Age >= 18",
+             "suggested_node": {"clinical": {"age_numerical": ">=18"}}},
+            {"source": "summary", "text": "title",
+             "suggested_node": {"genomic": {"hugo_symbol": "BRCA1"}}},
+        ],
+    }
+    client = _FakeClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]'])
 
-    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
+    result = annotate_biomarkers(trial, client, cache={}, known_genes={"BRCA1"})
 
-    suggestions = result["_llm_curation"]["_ctml_suggestions"]
-    summary_entries = [s for s in suggestions if s["source"] == "summary"]
-    assert len(summary_entries) == 1
-    assert summary_entries[0]["text"] == "A Study of Olaparib in Patients with a BRCA1 Mutation"
-    assert summary_entries[0]["suggested_node"] == {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}
-    assert summary_entries[0]["transferred_to_match"] is False
+    assert len(result["_llm_curation"]["_ctml_suggestions"]) == 2
+    assert len(result["_llm_curation"]["biomarker_references"]) == 1
 
 
-def test_curate_trial_final_suggested_ctml_unions_criterion_and_summary():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_overwrites_only_stale_biomarkers():
+    """A refresh replaces biomarker_references rather than appending to it."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
     trial = _full_trial()
-    client = _FakeClient([
-        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
-        '[]',
-    ])
+    trial["_llm_curation"] = {
+        "_ctml_suggestions": [{"source": "inclusion", "suggested_node": None}],
+        "biomarker_references": [{"biomarker": "STALE", "type": "snv"}],
+    }
+    client = _FakeClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]'])
 
-    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
+    refs = annotate_biomarkers(trial, client, cache={}, known_genes=set())["_llm_curation"]["biomarker_references"]
 
-    final = result["_llm_curation"]["final_suggested_ctml"]
-    assert {"clinical": {"age_numerical": ">=18"}} in final
-    assert {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}} in final
-    assert len(final) == 2
+    assert [r["biomarker"] for r in refs] == ["BRCA1"]
