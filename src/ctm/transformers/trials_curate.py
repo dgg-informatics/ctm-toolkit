@@ -1,11 +1,15 @@
-"""LLM curation synthesis stage — runs after ctm-ctml.
+"""Biomarker-reference scan — the `ctm-llm biomarkers` stage.
 
-For each trial, adds a biomarker-reference scan (an LLM pass over the full
-eligibility text, cross-checked against a curated gene/variant knowledge
-base) and a title-derived suggestion (running the same suggest_node()
-ctm-ctml already uses, but against _summary.long_title instead of a single
-criterion), then restructures the trial's LLM-derived fields under
-_llm_curation with a unioned final_suggested_ctml.
+An LLM pass over a trial's titles, disease keywords, curator gene list and
+eligibility text, cross-checked against a curated gene/variant knowledge base,
+producing ``_llm_curation.biomarker_references``.
+
+Scope is deliberately narrow. This module used to also draft a match node from
+``_summary.long_title`` and assemble the whole ``_llm_curation`` block, which put
+a match-node call inside the biomarker stage and meant re-running it on an
+already-curated trial destroyed the other stage's work. The title suggestion now
+lives with the rest of the match-node drafting in ``eligibility_to_ctml``, and
+``annotate_biomarkers`` writes exactly one key.
 
 BIOMARKER_SYSTEM_PROMPT and _parse_json_array below are moved verbatim from
 scripts/scan_biomarker_mentions.py (validated against real trial data before
@@ -16,7 +20,7 @@ import json
 import os
 from pathlib import Path
 
-from .eligibility_to_ctml import _criterion_full_text, suggest_node
+from .eligibility_to_ctml import _criterion_full_text
 
 BIOMARKER_SYSTEM_PROMPT = """You are scanning clinical trial text for genetic and molecular biomarker requirements.
 
@@ -146,11 +150,6 @@ def load_known_genes(kb_path: Path) -> set[str]:
     return {g["name"].upper() for g in kb}
 
 
-def union_match_nodes(ctml_suggestions: list[dict]) -> list[dict]:
-    """Every non-null suggested_node across all sources, flattened. No dedup."""
-    return [s["suggested_node"] for s in ctml_suggestions if s.get("suggested_node")]
-
-
 def scan_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> list[dict]:
     """One LLM call per trial (cache-checked first) scanning the trial's titles,
     disease keywords, curator gene list and eligibility text for
@@ -197,30 +196,23 @@ def scan_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> 
     return results
 
 
-def curate_trial(trial: dict, client, cache: dict, known_genes: set[str], valid_oncotree: set[str]) -> dict:
-    """Restructure one ctm-ctml-drafted trial into the _llm_curation shape:
-    adds a summary-sourced suggestion to _ctml_suggestions, scans for
-    biomarker references, moves _ctml_suggestions under _llm_curation, and
-    unions everything into final_suggested_ctml. Mutates and returns trial.
+def annotate_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> dict:
+    """Attach ``_llm_curation.biomarker_references`` to one trial. Mutates and returns it.
+
+    The whole of the `ctm-llm biomarkers` job, and deliberately nothing more.
+
+    It **merges** into ``_llm_curation``, writing only its own key. That is the
+    invariant that makes this safe to run on an already-curated trial — including a
+    master, where re-running the old fused ``curate_trial`` destroyed
+    ``_ctml_suggestions`` because it rebuilt the whole block. Never widen this to
+    touch another stage's field.
+
+    Note there is no ``valid_oncotree`` parameter: the biomarker scan does not
+    produce match nodes, so this stage needs no OncoTree lookup at all.
     """
-    suggestions = trial.get("_ctml_suggestions", [])
-
-    long_title = trial.get("_summary", {}).get("long_title")
-    if long_title:
-        summary_node = suggest_node(long_title, "summary", cache, client, valid_oncotree)
-        suggestions.append({
-            "source": "summary",
-            "text": long_title,
-            "suggested_node": summary_node,
-            "transferred_to_match": False,
-        })
-
-    biomarker_hits = scan_biomarkers(trial, client, cache, known_genes)
-
-    trial.pop("_ctml_suggestions", None)
-    trial["_llm_curation"] = {
-        "_ctml_suggestions": suggestions,
-        "biomarker_references": biomarker_hits,
-        "final_suggested_ctml": union_match_nodes(suggestions),
-    }
+    curation = trial.get("_llm_curation")
+    if not isinstance(curation, dict):
+        curation = {}
+        trial["_llm_curation"] = curation
+    curation["biomarker_references"] = scan_biomarkers(trial, client, cache, known_genes)
     return trial

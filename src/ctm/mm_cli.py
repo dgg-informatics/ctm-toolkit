@@ -19,7 +19,7 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
-from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path, load_env
+from ctm.paths import cache_dir, cache_path, load_env
 
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
@@ -93,11 +93,11 @@ def main() -> None:
 
     p_trials_curate = sub.add_parser(
         "trials-curate",
-        help="Add LLM biomarker-reference scan + title-derived suggestion + union to a ctm-ctml draft",
+        help="[DEPRECATED] Use `ctm-llm biomarkers`. Forwards there; removed in 2.0.0",
     )
     p_trials_curate.add_argument("--trials", metavar="JSON",
-                                 help="ctm-ctml draft trials JSON (has _ctml_suggestions per trial). "
-                                      "Omit to read the 03_ctml_drafted_trials collection")
+                                 help="Drafted trials JSON. Omit to read the "
+                                      "03_ctml_drafted_trials collection")
     p_trials_curate.add_argument("--out", metavar="JSON",
                                  help="Output path for the curated trials JSON. Required unless --no-disk")
     p_trials_curate.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
@@ -107,8 +107,8 @@ def main() -> None:
     p_trials_curate.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
                                  help="Override the run_date inherited from the source documents")
     p_trials_curate.add_argument("--cache", default=None, metavar="JSON",
-                                 help="Shared cache file for biomarker-scan and summary-suggestion LLM "
-                                      f"calls (default: {cache_dir() / _CURATE_CACHE})")
+                                 help="Biomarker-scan LLM response cache "
+                                      f"(default: {cache_dir() / _CURATE_CACHE})")
     p_trials_curate.add_argument("--kb", default=None, metavar="JSON",
                                  help="Known gene/variant knowledge base (default: the copy shipped "
                                       "with the package)")
@@ -443,81 +443,29 @@ def _cmd_trials_diff(args) -> None:
 
 
 def _cmd_trials_curate(args) -> None:
-    from ctm import db as ctm_db
-    from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names
-    from ctm.transformers.trials_curate import curate_trial, load_cache, load_known_genes, save_cache
+    """DEPRECATED shim forwarding to `ctm-llm biomarkers`.
 
-    if args.disk and not args.out:
-        print("Error: --out is required (pass --no-disk to store only to MongoDB)", file=sys.stderr)
-        sys.exit(1)
-    if args.out and not args.disk:
-        print("Error: --out has no effect with --no-disk", file=sys.stderr)
-        sys.exit(1)
+    Rebuilds the equivalent argv rather than calling the implementation directly,
+    so the alias exercises exactly the same code path a real `ctm-llm biomarkers`
+    invocation does and cannot drift from it. Removed in 2.0.0.
+    """
+    from ctm.llm_cli import main as llm_main
 
-    config = ctm_db.mongo_config()
-    target_db = args.db or config["dbname"]
-
-    if args.trials:
-        trials = json.loads(Path(args.trials).read_text())
-        source = args.trials
-    else:
-        trials = ctm_db.read_collection(
-            ctm_db.get_database(config, target_db), ctm_db.CTML_COLLECTION,
-            keep_metadata=True,
-        )
-        source = f"{target_db}.{ctm_db.CTML_COLLECTION}"
-        if not trials:
-            print(f"No trials in {source}. Run ctm-ctml first, or pass --trials.",
-                  file=sys.stderr)
-            sys.exit(1)
-
-    print(f"Read {len(trials)} trial(s) from {source}", file=sys.stderr)
-
-    run_date = args.run_date or ctm_db.inherited_run_date(
-        trials, fallback=date.today().isoformat()
+    print(
+        "DEPRECATED: `ctm-mm trials-curate` is now `ctm-llm biomarkers` and will be "
+        "removed in 2.0.0. Forwarding...",
+        file=sys.stderr,
     )
-    # Upstream provenance has served its purpose now that run_date is known; it
-    # must not reach the JSON file, and is re-stamped rather than inherited.
-    trials = [ctm_db.strip_metadata(trial) for trial in trials]
 
-    kb_path = Path(args.kb) if args.kb else DEFAULT_KB_PATH
-    known_genes = load_known_genes(kb_path)
-    print(f"{len(known_genes)} known genes loaded from {kb_path}", file=sys.stderr)
-
-    print("Fetching OncoTree names...", file=sys.stderr)
-    valid_oncotree = fetch_oncotree_names()
-    print(f"  {len(valid_oncotree)} valid tumor types loaded", file=sys.stderr)
-
-    client = build_client()
-    cache_file = Path(args.cache) if args.cache else cache_path(_CURATE_CACHE)
-    cache = load_cache(cache_file)
-
-    target = ctm_db.prepare_collection(
-        ctm_db.get_database(config, target_db),
-        ctm_db.CURATED_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
-    )
-    print(f"Target: {target_db}.{ctm_db.CURATED_COLLECTION} (run_date {run_date})",
-          file=sys.stderr)
-
-    for i, trial in enumerate(trials, 1):
-        trial_id = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
-        print(f"[{i}/{len(trials)}] {trial_id}", file=sys.stderr)
-        curate_trial(trial, client, cache, known_genes, valid_oncotree)
-        save_cache(cache, cache_file)  # save after each trial so progress survives interruption
-        # Stored per trial for the same reason the cache is: this stage spends LLM
-        # calls per trial, so an interruption must not discard completed work.
-        ctm_db.upsert_doc(
-            target,
-            ctm_db.stamp(trial, "ctm-mm trials-curate", run_date),
-            ctm_db.DIFF_UNIQUE_KEY,
-        )
-
-    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.CURATED_COLLECTION}",
-          file=sys.stderr)
-
-    if args.disk:
-        Path(args.out).write_text(json.dumps(trials, indent=2, default=str))
-        print(f"Saved {len(trials)} trial(s) → {args.out}", file=sys.stderr)
+    argv = ["biomarkers"]
+    for flag, value in (("--trials", args.trials), ("--out", args.out),
+                        ("--cache", args.cache), ("--kb", args.kb),
+                        ("--db", args.db), ("--run-date", args.run_date)):
+        if value:
+            argv += [flag, str(value)]
+    if not args.disk:
+        argv.append("--no-disk")
+    llm_main(argv)
 
 
 def _cmd_trials_confidence_split(args) -> None:

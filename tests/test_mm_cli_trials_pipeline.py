@@ -528,5 +528,51 @@ def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mon
 
     result = json.loads(out_path.read_text())
     assert len(result) == 1
-    assert "_llm_curation" in result[0]
-    assert "_ctml_suggestions" not in result[0]
+    # The deprecated alias reaches `ctm-llm biomarkers`, which writes exactly one
+    # key and leaves every other field — including a legacy top-level
+    # _ctml_suggestions — untouched.
+    assert "biomarker_references" in result[0]["_llm_curation"]
+    assert "final_suggested_ctml" not in result[0]["_llm_curation"]
+
+
+def test_cmd_trials_curate_alias_only_makes_the_biomarker_call(tmp_path, monkeypatch, fake_mongo):
+    """The alias must reach `biomarkers`, not the old fused stage: one call, and no
+    OncoTree fetch, since biomarker references are not match nodes."""
+    from ctm import mm_cli
+
+    trials_path = tmp_path / "draft.json"
+    trials_path.write_text(json.dumps([{
+        "nct_id": "NCT00000009", "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": "BRCA1 mutation", "sub_criteria": []}], "exclusion": []},
+        "_summary": {"long_title": "A Study in Patients with a BRCA1 Mutation"},
+    }]))
+    kb_path = tmp_path / "kb.json"
+    kb_path.write_text(json.dumps([{"name": "BRCA1"}]))
+
+    calls = []
+
+    class _OneCallClient:
+        def __init__(self):
+            self.chat = self
+            self.completions = self
+
+        def create(self, **kwargs):
+            from types import SimpleNamespace
+            calls.append(kwargs)
+            return SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content='[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]')
+            )])
+
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client", lambda: _OneCallClient())
+
+    def _no_oncotree():
+        raise AssertionError("biomarkers must not fetch OncoTree")
+
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.fetch_oncotree_names", _no_oncotree)
+
+    mm_cli._cmd_trials_curate(_curate_args(
+        trials=str(trials_path), out=str(tmp_path / "out.json"),
+        cache=str(tmp_path / "c.json"), kb=str(kb_path),
+    ))
+
+    assert len(calls) == 1
