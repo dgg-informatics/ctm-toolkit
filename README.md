@@ -7,7 +7,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | Command | Purpose |
 | --- | --- |
 | `ctm-mm patients` | Excel workbook → MatchMiner-compatible `{clinical, genomic, extras}` JSON |
-| `ctm-mm trials` | AMC XML / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
+| `ctm-mm trials` | AMC XML / DDOTS API / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
 | `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm biomarkers`; removed in 2.0.0 |
 | `ctm-mm trials-confidence-split` | **[beta]** Bucket curated trials into auto-pass / needs-a-human |
@@ -56,6 +56,41 @@ ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm  # format for 
 **Copy `.env.example` to `.env` and fill in `UMGPT_API_KEY` and `UMGPT_BASE_URL`**
 (`UMGPT_MODEL` is optional, defaults to `gpt-4o`). LLM responses are cached in
 `~/.cache/ctm/` — override with `CTM_CACHE_DIR` or `XDG_CACHE_HOME`.
+
+#### DDOTS (Sparrow trial list)
+
+`ctm-mm trials --ddots` pulls the Sparrow trial list from DDOTS, Sparrow's own
+protocol registry, replacing the hand-maintained marketing Excel sheet. Install
+nothing extra; set these in `.env`:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `DDOTS_API_KEY` | for `--ddots` with no path | API key |
+| `DDOTS_SECRET_KEY` | for `--ddots` with no path | Secret key |
+| `DDOTS_BASE_URL` | no | Defaults to `https://www.ddotscredit.com/rest/protocol/get` |
+
+```bash
+ctm-mm trials --ddots --out normalized.json              # query the API
+ctm-mm trials --ddots ddots-dump.json --out normalized.json   # replay a saved response
+```
+
+Both forms behave identically after the fetch: the NCT number from each DDOTS
+protocol is resolved against ClinicalTrials.gov, which supplies all clinical
+content **including eligibility**, and the full DDOTS payload is stored under
+`_raw._ddots`. Trials get `entity = "sparrow-api"`, distinct from the legacy
+`--sparrow` sheet path's `"sparrow"`, so both can run during the migration and a
+trial's provenance is unambiguous.
+
+> [!NOTE]
+> DDOTS eligibility text is stored but deliberately **not** used for the normalized
+> `eligibility` structure. Across real payloads it arrives in at least three
+> incompatible layouts, sometimes flattens `>=`/`<=` to `=`, and is sometimes
+> explicitly abridged ("PLEASE SEE THE CURRENT VERSION OF PROTOCOL FOR FULL
+> ELIGIBILITY LIST"). Teaching the LLM stage to read it is planned follow-up work;
+> storing it now means that can happen without another API pull.
+>
+> DDOTS credentials travel as **query parameters**, so the secret would appear in
+> any logged URL. `ddots_to_raw` never prints the request URL — keep it that way.
 
 #### MongoDB configuration
 

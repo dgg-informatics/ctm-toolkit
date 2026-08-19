@@ -89,6 +89,25 @@ def fake_mongo(monkeypatch):
     return captured
 
 
+def _trials_args(*argv):
+    """A `trials` Namespace built by the real parser.
+
+    Hand-rolling argparse.Namespace here meant every new source flag broke this
+    test with an AttributeError; going through the parser keeps defaults in one
+    place and makes a missing flag impossible.
+    """
+    import sys as _sys
+    from unittest.mock import patch
+
+    from ctm import mm_cli
+
+    captured = {}
+    with patch.object(mm_cli, "_cmd_trials", lambda a: captured.setdefault("args", a)), \
+         patch.object(_sys, "argv", ["ctm-mm", "trials", *argv]):
+        mm_cli.main()
+    return captured["args"]
+
+
 def test_cmd_trials_stamps_trial_hash(tmp_path, monkeypatch):
     from ctm.mm_cli import _cmd_trials
 
@@ -105,7 +124,7 @@ def test_cmd_trials_stamps_trial_hash(tmp_path, monkeypatch):
     </PROTOCOL_SUMMARY>""")
     out_path = tmp_path / "out.json"
 
-    args = argparse.Namespace(amc=str(amc_xml), ct=None, sparrow=None, west=None, out=str(out_path))
+    args = _trials_args("--amc", str(amc_xml), "--out", str(out_path))
     _cmd_trials(args)
 
     trials = json.loads(out_path.read_text())

@@ -69,7 +69,10 @@ def stub_ctgov(monkeypatch):
     def _fetch(nct_id: str):
         return from_study(load_ctgov_study(nct_id))
 
-    # patch where the name is *used*, not where it is defined
+    # patch where the name is *used*, not where it is defined. Every module that
+    # does `from .ctgov_to_raw import fetch` needs its own entry here — a missing
+    # one shows up as no_network's "attempted a real network call".
     monkeypatch.setattr("ctm.transformers.raw_west_to_ctml.fetch", _fetch)
     monkeypatch.setattr("ctm.transformers.raw_sparrow_to_ctml.fetch", _fetch)
+    monkeypatch.setattr("ctm.transformers.raw_ddots_to_ctml.fetch", _fetch)
     return _fetch

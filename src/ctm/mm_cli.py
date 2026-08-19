@@ -2,7 +2,7 @@
 
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
-  ctm-mm trials [--amc XML] [--ct JSON] [--sparrow XLSX] [--west XLSX] --out PATH
+  ctm-mm trials [--amc XML] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] --out PATH
   ctm-mm trials-diff --new JSON --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
@@ -23,6 +23,9 @@ from ctm.paths import cache_dir, cache_path, load_env
 
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
+
+# Sentinel for a bare `--ddots` (no path): query the API rather than read a file.
+_DDOTS_FETCH = "<fetch>"
 
 
 def main() -> None:
@@ -54,7 +57,19 @@ def main() -> None:
     p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
     p_trials.add_argument("--sparrow", metavar="XLSX",
                           help="Path to the Sparrow marketing trials Excel sheet (NCT numbers are "
-                               "resolved against ClinicalTrials.gov)")
+                               "resolved against ClinicalTrials.gov). Superseded by --ddots")
+    # Optional value: bare --ddots queries the API, --ddots FILE replays a saved
+    # response. Omitting it entirely still means "no sparrow-api trials this run",
+    # so a forgotten flag never triggers a live pull.
+    p_trials.add_argument("--ddots", metavar="JSON", nargs="?", const=_DDOTS_FETCH,
+                          help="Pull the Sparrow trial list from the DDOTS API (needs "
+                               "DDOTS_API_KEY and DDOTS_SECRET_KEY in .env). Pass a path to "
+                               "replay a saved /protocol response instead. NCT numbers are "
+                               "resolved against ClinicalTrials.gov; entity is 'sparrow-api'")
+    p_trials.add_argument("--ddots-status-short", dest="ddots_status_short", metavar="CODE",
+                          default="O",
+                          help="DDOTS status_short filter for a bare --ddots fetch (default: O = open). "
+                               "Pass an empty string for every status")
     p_trials.add_argument("--west", metavar="XLSX",
                           help="Path to the UMH-West trials Excel template (NCT numbers are "
                                "resolved against ClinicalTrials.gov)")
@@ -320,6 +335,33 @@ def _cmd_trials(args) -> None:
             except Exception as exc:
                 print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
 
+    if args.ddots:
+        from ctm.transformers import ddots_to_raw
+        from ctm.transformers.raw_ddots_to_ctml import to_ctml_dict as ddots_to_ctml
+
+        if args.ddots == _DDOTS_FETCH:
+            print("Querying the DDOTS API ...", file=sys.stderr)
+            payload = ddots_to_raw.fetch(status_short=args.ddots_status_short or None)
+            raw_ddots = ddots_to_raw.to_raw_trials(payload)
+        else:
+            ddots_path = Path(args.ddots)
+            if not ddots_path.exists():
+                print(f"Error: file not found: {ddots_path}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Reading DDOTS JSON {ddots_path} ...", file=sys.stderr)
+            raw_ddots = ddots_to_raw.load(ddots_path)
+
+        print(f"  {len(raw_ddots)} DDOTS trial(s) with NCT numbers — "
+              "fetching from ClinicalTrials.gov ...", file=sys.stderr)
+        for t in raw_ddots:
+            try:
+                trials.append(ddots_to_ctml(t))
+                print(f"    fetched {t.nct_id}", file=sys.stderr)
+            except ValueError as exc:
+                print(f"  Warning: {exc} (skipping)", file=sys.stderr)
+            except Exception as exc:
+                print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
+
     if args.west:
         from ctm.transformers.raw_west_to_ctml import to_ctml_dict as west_to_ctml
         from ctm.transformers.west_xlsx_to_raw import load as load_west
@@ -340,7 +382,8 @@ def _cmd_trials(args) -> None:
                 print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
 
     if not trials:
-        print("Error: no trial sources provided (use --amc, --ct, --sparrow, or --west)", file=sys.stderr)
+        print("Error: no trials normalized (use --amc, --ct, --ddots, --sparrow, or --west)",
+              file=sys.stderr)
         sys.exit(1)
 
     from ctm.trials_lifecycle import compute_trial_hash
