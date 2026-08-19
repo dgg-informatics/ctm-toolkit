@@ -9,11 +9,13 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-mm patients` | Excel workbook → MatchMiner-compatible `{clinical, genomic, extras}` JSON |
 | `ctm-mm trials` | AMC XML or normalized JSON / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
-| `ctm-mm trials-curate` | LLM biomarker scan + title-derived suggestions on a `ctm-ctml` draft |
+| `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm biomarkers`; removed in 2.0.0 |
 | `ctm-mm trials-confidence-split` | **[beta]** Bucket curated trials into auto-pass / needs-a-human |
 | `ctm-mm trials-merge` | Merge carried-forward and freshly-curated trials into a new dated master |
-| `ctm-ctml` | LLM pass turning eligibility free text into suggested CTML match nodes |
-| `ctm-fetch` | Fetch a single trial from ClinicalTrials.gov by NCT ID, or AMC's full trial list from its OnCORE feed |
+| `ctm-llm general` | LLM pass drafting CTML match nodes from each eligibility criterion and the trial title |
+| `ctm-llm biomarkers` | LLM scan for biomarker references across titles, disease keywords, curator genes and criteria |
+| `ctm-ctml` | **[deprecated]** Alias for `ctm-llm general`; removed in 2.0.0 |
+| `ctm-fetch` | Fetch a single trial from ClinicalTrials.gov by NCT ID |
 | `ctm-meta` | Multi-section CSV comparing coverage, overlap, and status across trial sources |
 | `ctm-report` | Build the trial-match report as a PDF, or serve a live-reload preview |
 
@@ -88,7 +90,7 @@ still come from `SECRETS_JSON.json` — see "MatchMiner Preparation and Running"
 
 ```bash
 # Step 3: Run the LLM (UMGPT) to help match MatchMiner's Clinical Trial Markup Language (CTML) format
-ctm-ctml --trials nct-normalized.json --out ctml-draft.json --limit 2
+ctm-llm general --trials nct-normalized.json --out ctml-draft.json --limit 2
 ```
 
 Step 4: **Manual Processing**
@@ -239,7 +241,7 @@ This process is much more complex since we have 4 data sources (Sparrow, West, A
    3. `--amc` also accepts a raw OnCORE XML export (`--amc trials-amc.xml`), which is how this worked before the feed was wired up.
    4. Above produces what we call a **staging file:** a .JSON file that is very similar to Clinical Trial Markup Language (CTML) format, but it is staged to be more suitable for the next LLM stage
 2. Next, we run the LLM (UMGPT) on the above *staged file* to help us automate our conversion from raw to CTML-formatted data
-   1. `ctm-ctml --trials trials-all-normalized.json --out trials-all-llm-draft.json`
+   1. `ctm-llm general --trials trials-all-normalized.json --out trials-all-llm-draft.json`
    2. **Note:** if you just want to run the LLM on 1 trial, you can specify the `--nct <nct_number>` flag.
    3. **Note:** if you just want to run the LLM on the first N trials, you can specify the `--limit <N>` flag, such as `--limit 10`
    4. It is recommended you make a copy of this output file to retain the original output and have a separate file for doing your manual edits. Such as `cp trials-all-llm-draft.json trials-all-llm-edited.json`
@@ -275,8 +277,8 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
       - `unchanged` — eligibility identical to the master's copy. Already has curated match nodes carried forward from `2026-07-13-trials.json` untouched; every other field (status, title, etc.) is refreshed. **No LLM call, no manual review needed for these.**
       - `changed` — eligibility differs, or the trial is brand new. Not yet curated — this is the only bucket that needs the next two steps.
       - `deleted` — trials present in last week's master but absent from this week's sheets. Kept as a permanent record; nothing automated acts on it.
-   3. Writes `2026-07-14-unchanged.json`, `-changed.json`, and `-deleted.json` as before, **and** stores the same split in MongoDB — the `03_diff_trials` collection of `MONGO_DBNAME`, one document per trial carrying `diff_status`, `run_date`, and `processed_with`. See "MongoDB configuration" below.
-   4. `--no-disk` skips the files and stores only to MongoDB. Not useful yet: the next steps (`ctm-ctml`, `trials-curate`, `trials-merge`) still read file paths, so the chain needs the files until they migrate too. Disk output stays the default for the whole `1.x` line; it becomes opt-in at `2.0.0`, once every stage can read from Mongo.
+   3. Writes `2026-07-14-unchanged.json`, `-changed.json`, and `-deleted.json` as before, **and** stores the same split in MongoDB — the `02_diff_trials` collection of `MONGO_DBNAME`, one document per trial carrying `diff_status`, `run_date`, and `processed_with`. See "MongoDB configuration" below.
+   4. `--no-disk` skips the files and stores only to MongoDB. Not useful yet: the next steps (`ctm-llm general`, `ctm-llm biomarkers`, `trials-merge`) still read file paths, so the chain needs the files until they migrate too. Disk output stays the default for the whole `1.x` line; it becomes opt-in at `2.0.0`, once every stage can read from Mongo.
    5. The master is read from the `06_master_trials` collection in `MONGO_MASTER_DBNAME` unless `--master` names a file. `--master-db` and `--master-collection` override either half.
    6. On the very first run there's no master yet — pass `--allow-empty-master` and everything routes to `changed`. Without it, an empty master is a hard error, since silently routing every trial to `changed` means re-running the full LLM curation.
 
@@ -284,13 +286,13 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 > **Fringe case — a trial changes source (`entity`) between cycles.** The identity key used to match a trial across cycles depends on `entity`: `protocol_no` for AMC, `nct_id` for everything else. If a trial moves from AMC to being tracked via West/Sparrow (or vice versa) — e.g. AMC drops it from their sheet and it starts showing up via ClinicalTrials.gov instead — its key changes basis even if the trial itself hasn't meaningfully changed. It'll show up as both `deleted` (under its old key) and `changed` (under its new key), even if `eligibility` is byte-identical to before. This is intentional, not a bug: a source migration is a real event worth a quick human glance rather than being silently absorbed as "unchanged." (The already-curated match tree isn't lost — it's just sitting in the previous dated master, so it's a quick copy-paste during the manual review of the "new" entry rather than starting from scratch.)
 
 3. Run the LLM + manual curation, same as the first-time flow, but only on the changed file:
-   1. `$ ctm-ctml --trials 2026-07-14-changed.json --out 2026-07-14-changed-draft.json`
+   1. `$ ctm-llm general --trials 2026-07-14-changed.json --out 2026-07-14-changed-draft.json`  # or omit --trials to read the 02_diff_trials `changed` documents straight from Mongo
    2. `--nct`/`--limit` aren't needed here — the file is already scoped to just the changed trials.
-   3. `$ ctm-mm trials-curate --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json`  # cross-checks biomarker mentions against the known-gene KB and adds a title-only LLM pass, then collects everything into an `_llm_curation` field for the reviewer to work from. Caches to `~/.cache/ctm/` and uses the gene/variant KB shipped inside the package, so neither `--cache` nor `--kb` needs setting.
-   4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field written by `trials-curate` as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
+   3. `$ ctm-llm biomarkers --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json`  # cross-checks biomarker mentions against the known-gene KB and writes them to `_llm_curation.biomarker_references`. Caches to `~/.cache/ctm/` and uses the gene/variant KB shipped inside the package, so neither `--cache` nor `--kb` needs setting.
+   4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
 
 > [!WARNING]
-> **`ctm-mm trials-confidence-split` is a beta/experimental command.** It tries to split a `trials-curate` output into a "safe to auto-pass" bucket and a "needs a human curator" bucket, based on whether the trial already has a diagnosis in its match clause and whether its `biomarker_references` are all of caller-specified low-actionability types (`--allowed-biomarker-types`). The optional `--recover-diagnosis` flag makes a further LLM pass over `_raw.full_title`/`_raw.summary_obj` for trials missing a diagnosis. The thresholds and prompt are still being tuned by hand against real trial batches — don't treat its output as a substitute for the manual review step above yet. The intent is to eventually fold this logic directly into `trials-curate` itself rather than keep it a separate pass.
+> **`ctm-mm trials-confidence-split` is a beta/experimental command.** It tries to split a `ctm-llm biomarkers` output into a "safe to auto-pass" bucket and a "needs a human curator" bucket, based on whether the trial already has a diagnosis in its match clause and whether its `biomarker_references` are all of caller-specified low-actionability types (`--allowed-biomarker-types`). The optional `--recover-diagnosis` flag makes a further LLM pass over `_raw.full_title`/`_raw.summary_obj` for trials missing a diagnosis. The thresholds and prompt are still being tuned by hand against real trial batches — don't treat its output as a substitute for the manual review step above yet. The intent is to eventually fold this logic directly into `ctm-llm` (likely as a third subcommand) rather than keep it a separate pass.
 
 4. Merge the carried-forward and freshly-curated trials into the new master:
    1. `$ ctm-mm trials-merge --unchanged 2026-07-14-unchanged.json --changed 2026-07-14-changed-curated.json --out 2026-07-14-trials.json`
@@ -567,7 +569,7 @@ the page. Output is written to `./output/` relative to where you run the command
   - `templates/` — `report.html` is the base page, `_*.html` are the per-section includes
   - `static/report.css` — shared styling, including the `@page` rule for PDF page size/margins
   - `content/methods.json` — the Methods prose rendered into every report
-  - `refs/` — gene/variant knowledge base used by `ctm-mm trials-curate`
+  - `refs/` — gene/variant knowledge base used by `ctm-llm biomarkers`
   - `paths.py` — resolves packaged reference data and the per-user cache directory
   - `reports/builder.py` — loads JSON data and renders the Jinja2 template to HTML
   - `report_cli.py` — the `ctm-report` CLI; builds a PDF or serves a live-reload preview

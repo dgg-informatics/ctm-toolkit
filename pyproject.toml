@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ctm-toolkit"
-version = "1.1.0"
+version = "1.2.0"
 description = "Clinical trial data normalization and report generation toolkit"
 readme = "README.md"
 license = { text = "MIT" }
@@ -60,6 +60,8 @@ ctm-mm = "ctm.mm_cli:main"
 ctm-report = "ctm.report_cli:main"
 ctm-fetch = "ctm.fetch_cli:main"
 ctm-meta = "ctm.meta_cli:main"
+ctm-llm = "ctm.llm_cli:main"
+# Deprecated aliases forwarding to ctm-llm; removed in 2.0.0.
 ctm-ctml = "ctm.ctml_cli:main"
 
 [tool.hatch.build.targets.wheel]

@@ -40,25 +40,6 @@ def test_trial_id_falls_back_to_protocol_no():
     assert _trial_id(trial) == "2021.070"
 
 
-def test_union_match_nodes_filters_null_and_flattens():
-    from ctm.transformers.trials_curate import union_match_nodes
-    suggestions = [
-        {"source": "inclusion", "suggested_node": {"clinical": {"age_numerical": ">=18"}}},
-        {"source": "exclusion", "suggested_node": None},
-        {"source": "summary", "suggested_node": {"genomic": {"hugo_symbol": "BRCA1"}}},
-    ]
-    result = union_match_nodes(suggestions)
-    assert result == [
-        {"clinical": {"age_numerical": ">=18"}},
-        {"genomic": {"hugo_symbol": "BRCA1"}},
-    ]
-
-
-def test_union_match_nodes_empty_input():
-    from ctm.transformers.trials_curate import union_match_nodes
-    assert union_match_nodes([]) == []
-
-
 def test_load_known_genes(tmp_path):
     from ctm.transformers.trials_curate import load_known_genes
     kb_path = tmp_path / "kb.json"
@@ -118,16 +99,17 @@ def test_scan_biomarkers_cache_miss_calls_client_and_caches():
         "reference": "BRCA1 mutation",
         "biomarker": "BRCA1",
         "type": "snv",
+        "section": "eligibility",  # default when the model omits it
         "in_kb": True,
     }]
     assert len(cache) == 1
 
 
 def test_scan_biomarkers_cache_hit_skips_client():
-    from ctm.transformers.trials_curate import _cache_key, _trial_full_eligibility_text, scan_biomarkers
+    from ctm.transformers.trials_curate import _cache_key, _trial_scan_text, scan_biomarkers
 
     trial = _trial_with_eligibility()
-    text = _trial_full_eligibility_text(trial)
+    text = _trial_scan_text(trial)
     key = _cache_key("NCT00000001", text)
     cache = {key: [{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1 mutation"}]}
     client = _FakeClient([])  # no responses queued — a call would raise IndexError
@@ -136,6 +118,92 @@ def test_scan_biomarkers_cache_hit_skips_client():
 
     assert client.call_count == 0
     assert hits[0]["biomarker"] == "BRCA1"
+
+
+def test_scan_text_includes_titles_keywords_and_curator_genes():
+    """Biomarker language lives in places the criteria never restate: a title can
+    embed the requirement outright, and _raw.octsu_genes_interest is a
+    curator-authored gene list nothing else in the pipeline reads."""
+    from ctm.transformers.trials_curate import _trial_scan_text
+
+    trial = {
+        "nct_id": "NCT00000003",
+        "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
+        "_summary": {
+            "short_title": "Olaparib in BRCA-mutant pancreatic cancer",
+            "long_title": "A Study in Patients with a Pathogenic BRCA1, BRCA2 or PALB2 Mutation",
+            "disease_keywords": ["Metastatic HER2-Negative Breast Carcinoma"],
+        },
+        "_raw": {"octsu_genes_interest": "IDH1 (R132); IDH2 (R172)"},
+    }
+
+    text = _trial_scan_text(trial)
+
+    assert "PALB2" in text
+    assert "BRCA-mutant" in text
+    assert "HER2-Negative" in text
+    assert "IDH1 (R132); IDH2 (R172)" in text
+    assert "Age >= 18" in text
+    # Labelled, so the model can attribute each hit to a section.
+    for label in ("TRIAL TITLES:", "DISEASE KEYWORDS:",
+                  "CURATOR GENES OF INTEREST:", "ELIGIBILITY CRITERIA:"):
+        assert label in text
+
+
+def test_scan_text_omits_absent_sections():
+    from ctm.transformers.trials_curate import _trial_scan_text
+
+    trial = _trial_with_eligibility()
+    text = _trial_scan_text(trial)
+
+    assert "ELIGIBILITY CRITERIA:" in text
+    assert "TRIAL TITLES:" not in text
+    assert "DISEASE KEYWORDS:" not in text
+    assert "CURATOR GENES OF INTEREST:" not in text
+
+
+def test_scan_biomarkers_finds_a_title_only_biomarker():
+    """A trial whose only biomarker mention is in its title used to be invisible
+    to this scan — the eligibility criteria never restate it."""
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    trial = {
+        "nct_id": "NCT00000004",
+        "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
+        "_summary": {"long_title": "Olaparib for Resected Pancreatic Cancer with a PALB2 Mutation"},
+    }
+    client = _FakeClient([
+        '[{"biomarker": "PALB2", "type": "snv", "reference": "PALB2 Mutation", "section": "titles"}]'
+    ])
+
+    hits = scan_biomarkers(trial, client, {}, known_genes={"PALB2"})
+
+    assert client.call_count == 1
+    assert hits[0]["biomarker"] == "PALB2"
+    assert hits[0]["section"] == "titles"
+
+
+def test_scan_biomarkers_scans_curator_genes_with_no_eligibility_text():
+    """octsu_genes_interest alone is enough to warrant a call: previously an empty
+    eligibility list short-circuited before the gene list was ever read."""
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    trial = {
+        "nct_id": "NCT00000005",
+        "protocol_no": None,
+        "eligibility": {"inclusion": [], "exclusion": []},
+        "_raw": {"octsu_genes_interest": "FLT3"},
+    }
+    client = _FakeClient([
+        '[{"biomarker": "FLT3", "type": "snv", "reference": "FLT3", "section": "genes_of_interest"}]'
+    ])
+
+    hits = scan_biomarkers(trial, client, {}, known_genes={"FLT3"})
+
+    assert client.call_count == 1
+    assert hits[0]["section"] == "genes_of_interest"
 
 
 def test_scan_biomarkers_empty_eligibility_returns_empty_no_call():
@@ -177,68 +245,64 @@ def _full_trial(nct_id="NCT00000003"):
     }
 
 
-def test_curate_trial_builds_llm_curation_with_all_three_subfields():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_writes_only_its_own_key():
+    """The invariant that makes this stage safe to re-run on curated trials."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
     trial = _full_trial()
-    # curate_trial calls suggest_node (summary) first, then scan_biomarkers —
-    # two responses queued in that order.
-    client = _FakeClient([
-        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
-        '[]',
-    ])
+    client = _FakeClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]'])
 
-    result = curate_trial(trial, client, cache={}, known_genes={"BRCA1"}, valid_oncotree=set())
+    result = annotate_biomarkers(trial, client, cache={}, known_genes={"BRCA1"})
 
-    assert "_llm_curation" in result
-    curation = result["_llm_curation"]
-    assert "_ctml_suggestions" in curation
-    assert "biomarker_references" in curation
-    assert "final_suggested_ctml" in curation
+    assert result["_llm_curation"]["biomarker_references"][0]["biomarker"] == "BRCA1"
+    # No match-node work: that belongs to `ctm-llm general`.
+    assert "final_suggested_ctml" not in result["_llm_curation"]
 
 
-def test_curate_trial_removes_top_level_ctml_suggestions():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_makes_one_call_not_two():
+    """The title suggestion moved to `general`, so only the scan remains here."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
-    trial = _full_trial()
-    client = _FakeClient(['null', '[]'])
+    client = _FakeClient(['[]'])  # a second call would raise IndexError
+    annotate_biomarkers(_full_trial(), client, cache={}, known_genes=set())
 
-    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
-
-    assert "_ctml_suggestions" not in result
+    assert client.call_count == 1
 
 
-def test_curate_trial_summary_source_labeled_correctly():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_preserves_existing_llm_curation():
+    """Re-running on an already-drafted trial must not discard `general`'s work.
+    The old fused curate_trial rebuilt the whole block, which is exactly how a
+    master rescan destroyed _ctml_suggestions."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
     trial = _full_trial()
-    client = _FakeClient([
-        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
-        '[]',
-    ])
+    trial["_llm_curation"] = {
+        "_ctml_suggestions": [
+            {"source": "inclusion", "text": "Age >= 18",
+             "suggested_node": {"clinical": {"age_numerical": ">=18"}}},
+            {"source": "summary", "text": "title",
+             "suggested_node": {"genomic": {"hugo_symbol": "BRCA1"}}},
+        ],
+    }
+    client = _FakeClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]'])
 
-    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
+    result = annotate_biomarkers(trial, client, cache={}, known_genes={"BRCA1"})
 
-    suggestions = result["_llm_curation"]["_ctml_suggestions"]
-    summary_entries = [s for s in suggestions if s["source"] == "summary"]
-    assert len(summary_entries) == 1
-    assert summary_entries[0]["text"] == "A Study of Olaparib in Patients with a BRCA1 Mutation"
-    assert summary_entries[0]["suggested_node"] == {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}
-    assert summary_entries[0]["transferred_to_match"] is False
+    assert len(result["_llm_curation"]["_ctml_suggestions"]) == 2
+    assert len(result["_llm_curation"]["biomarker_references"]) == 1
 
 
-def test_curate_trial_final_suggested_ctml_unions_criterion_and_summary():
-    from ctm.transformers.trials_curate import curate_trial
+def test_annotate_biomarkers_overwrites_only_stale_biomarkers():
+    """A refresh replaces biomarker_references rather than appending to it."""
+    from ctm.transformers.trials_curate import annotate_biomarkers
 
     trial = _full_trial()
-    client = _FakeClient([
-        '{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}}',
-        '[]',
-    ])
+    trial["_llm_curation"] = {
+        "_ctml_suggestions": [{"source": "inclusion", "suggested_node": None}],
+        "biomarker_references": [{"biomarker": "STALE", "type": "snv"}],
+    }
+    client = _FakeClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]'])
 
-    result = curate_trial(trial, client, cache={}, known_genes=set(), valid_oncotree=set())
+    refs = annotate_biomarkers(trial, client, cache={}, known_genes=set())["_llm_curation"]["biomarker_references"]
 
-    final = result["_llm_curation"]["final_suggested_ctml"]
-    assert {"clinical": {"age_numerical": ">=18"}} in final
-    assert {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "MUTATION"}} in final
-    assert len(final) == 2
+    assert [r["biomarker"] for r in refs] == ["BRCA1"]

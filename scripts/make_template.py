@@ -384,6 +384,39 @@ add_sheet(wb, "guardant360_findings", [
 ])
 
 
+# ── foundation_findings ───────────────────────────────────────────────────────
+add_sheet(wb, "foundation_findings", [
+    ("pt_uuid",                  "id"),
+    ("report_uuid",              "id"),
+    ("accession_no",             "plain"),
+    ("gene",                     "canonical"),
+    ("protein",                  "canonical"),
+    ("nucleotide",               "canonical"),
+    ("variant_type",             "canonical"),
+    ("result_summary",           "canonical"),
+    ("raw_section",              "raw"),
+    ("raw_biomarker",            "raw"),
+    ("raw_method",               "raw"),
+    ("raw_analyte",              "raw"),
+    ("raw_result",               "raw"),
+    ("raw_benefit",              "raw"),
+    ("raw_therapy_assoc",        "raw"),
+    ("raw_biomarker_level",      "raw"),
+    ("raw_variant_interpretation", "raw"),
+    ("raw_protein_alteration",   "raw"),
+    ("raw_exon",                 "raw"),
+    ("raw_dna_alteration",       "raw"),
+    ("raw_frequency_pct",        "raw"),
+    ("raw_genotype",             "raw"),
+    ("raw_hla_class",            "raw"),
+], example=[
+    0, 0, "FMI-000000", "EGFR", "p.L858R", "c.2573T>G", "mutation", "detected",
+    "Genomic Findings", "EGFR L858R", "NGS", "DNA", "Detected", "Yes",
+    "osimertinib", None, "Known short variant", "L858R", 21, "2573T>G",
+    42.1, None, None,
+])
+
+
 # ── tumor_biomarkers ──────────────────────────────────────────────────────────
 add_sheet(wb, "tumor_biomarkers", [
     ("pt_uuid",            "id"),

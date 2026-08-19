@@ -208,7 +208,8 @@ def _criterion_full_text(criterion: dict, depth: int = 0) -> str:
     return "\n".join(lines)
 
 
-def process_trial(trial: dict, cache: dict, client, valid_oncotree: set[str]) -> dict:
+def criterion_suggestions(trial: dict, cache: dict, client, valid_oncotree: set[str]) -> list[dict]:
+    """One suggestion per top-level eligibility criterion, in document order."""
     # One item per top-level criterion; sub_criteria are included in the text
     items = []
     for source in ("inclusion", "exclusion"):
@@ -227,4 +228,48 @@ def process_trial(trial: dict, cache: dict, client, valid_oncotree: set[str]) ->
             cached = sum(1 for s, t in items[:i] if _cache_key(f"{s}:{t}") in cache)
             print(f"  {pct}% ({i}/{total}, {cached} cached)", file=__import__("sys").stderr, flush=True)
 
-    return {**trial, "_ctml_suggestions": suggestions}
+    return suggestions
+
+
+def title_suggestion(trial: dict, cache: dict, client, valid_oncotree: set[str]) -> dict | None:
+    """A suggestion drafted from ``_summary.long_title``, or None if absent.
+
+    Same prompt and same output shape as a criterion suggestion — the title is
+    just another piece of text that can state a requirement, and sometimes states
+    one the criteria never restate ("...in Patients with a Pathogenic BRCA1,
+    BRCA2 or PALB2 Mutation"). It lived in the biomarker stage until the CLI was
+    partitioned, which put a match-node call in the collection named for
+    biomarkers.
+    """
+    long_title = (trial.get("_summary") or {}).get("long_title")
+    if not long_title:
+        return None
+    return {
+        "source": "summary",
+        "text": long_title,
+        "suggested_node": suggest_node(long_title, "summary", cache, client, valid_oncotree),
+        "transferred_to_match": False,
+    }
+
+
+def draft_trial(trial: dict, cache: dict, client, valid_oncotree: set[str]) -> dict:
+    """Every match-node suggestion for one trial, under ``_llm_curation``.
+
+    This is the whole of the `ctm-llm general` job: criterion suggestions plus the
+    title suggestion, which share a prompt and an output shape. Written straight
+    to ``_llm_curation._ctml_suggestions`` rather than to a top-level
+    ``_ctml_suggestions`` that a later stage has to relocate.
+
+    Merges into any existing ``_llm_curation`` instead of replacing it, so running
+    this after the biomarker stage does not discard ``biomarker_references``.
+    """
+    suggestions = criterion_suggestions(trial, cache, client, valid_oncotree)
+    title = title_suggestion(trial, cache, client, valid_oncotree)
+    if title:
+        suggestions.append(title)
+
+    drafted = {k: v for k, v in trial.items() if k != "_ctml_suggestions"}
+    curation = dict(drafted.get("_llm_curation") or {})
+    curation["_ctml_suggestions"] = suggestions
+    drafted["_llm_curation"] = curation
+    return drafted

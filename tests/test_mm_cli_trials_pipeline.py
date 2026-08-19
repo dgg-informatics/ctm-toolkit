@@ -35,6 +35,18 @@ def _diff_args(**overrides):
     return args
 
 
+def _curate_args(**overrides):
+    """A trials-curate Namespace with every argparse-supplied field present."""
+    defaults = {
+        "trials": None, "out": None, "cache": None, "kb": None,
+        "disk": None, "db": None, "run_date": None,
+    }
+    args = argparse.Namespace(**{**defaults, **overrides})
+    if args.disk is None:
+        args.disk = args.out is not None
+    return args
+
+
 @pytest.fixture
 def fake_mongo(monkeypatch):
     """Capture Mongo reads/writes without a server. Returns the captured state."""
@@ -44,15 +56,25 @@ def fake_mongo(monkeypatch):
         captured["opened"].append(db_name or config["dbname"])
         return f"<db {db_name or config['dbname']}>"
 
-    def _read_collection(db, name):
+    def _read_collection(db, name, query=None, keep_metadata=False):
         captured["read_from"] = (db, name)
-        return captured["master"]
+        captured.setdefault("queries", []).append({"name": name, "query": query})
+        # Per-collection sources for the chained stages; `master` is the default
+        # so the trials-diff tests keep reading the way they always did.
+        return captured.get("collections", {}).get(name, captured["master"])
 
     def _replace_collection(db, name, docs, unique_key, lookup_keys=()):
         captured["written"] = {
             "db": db, "name": name, "docs": docs,
             "unique_key": unique_key, "lookup_keys": lookup_keys,
         }
+
+    def _prepare_collection(db, name, unique_key, lookup_keys=()):
+        captured["prepared"] = {"db": db, "name": name, "unique_key": unique_key}
+        return f"<collection {name}>"
+
+    def _upsert_doc(collection, doc, unique_key):
+        captured.setdefault("upserted", []).append({"collection": collection, "doc": doc})
 
     monkeypatch.setenv("MONGO_HOST", "localhost")
     monkeypatch.setenv("MONGO_PORT", "27018")
@@ -62,6 +84,8 @@ def fake_mongo(monkeypatch):
     monkeypatch.setattr("ctm.db.get_database", _get_database)
     monkeypatch.setattr("ctm.db.read_collection", _read_collection)
     monkeypatch.setattr("ctm.db.replace_collection", _replace_collection)
+    monkeypatch.setattr("ctm.db.prepare_collection", _prepare_collection)
+    monkeypatch.setattr("ctm.db.upsert_doc", _upsert_doc)
     return captured
 
 
@@ -148,7 +172,7 @@ def test_cmd_trials_diff_stores_all_three_buckets_in_one_collection(tmp_path, fa
     _cmd_trials_diff(args)
 
     written = fake_mongo["written"]
-    assert written["name"] == DIFF_COLLECTION == "03_diff_trials"
+    assert written["name"] == DIFF_COLLECTION == "02_diff_trials"
     assert written["unique_key"] == "trial_hash"
     assert written["lookup_keys"] == ("entity", "trial_key")
 
@@ -462,7 +486,7 @@ def test_cmd_trials_merge_concatenates_to_out(tmp_path):
     assert [t["protocol_no"] for t in master] == ["2015.063", "2021.070"]
 
 
-def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch):
+def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mongo):
     from ctm import mm_cli
 
     trials = [{
@@ -498,10 +522,57 @@ def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch):
     monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client", lambda: _FakeClient())
     monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.fetch_oncotree_names", lambda: set())
 
-    args = argparse.Namespace(trials=str(trials_path), out=str(out_path), cache=str(cache_path), kb=str(kb_path))
+    args = _curate_args(trials=str(trials_path), out=str(out_path),
+                        cache=str(cache_path), kb=str(kb_path))
     mm_cli._cmd_trials_curate(args)
 
     result = json.loads(out_path.read_text())
     assert len(result) == 1
-    assert "_llm_curation" in result[0]
-    assert "_ctml_suggestions" not in result[0]
+    # The deprecated alias reaches `ctm-llm biomarkers`, which writes exactly one
+    # key and leaves every other field — including a legacy top-level
+    # _ctml_suggestions — untouched.
+    assert "biomarker_references" in result[0]["_llm_curation"]
+    assert "final_suggested_ctml" not in result[0]["_llm_curation"]
+
+
+def test_cmd_trials_curate_alias_only_makes_the_biomarker_call(tmp_path, monkeypatch, fake_mongo):
+    """The alias must reach `biomarkers`, not the old fused stage: one call, and no
+    OncoTree fetch, since biomarker references are not match nodes."""
+    from ctm import mm_cli
+
+    trials_path = tmp_path / "draft.json"
+    trials_path.write_text(json.dumps([{
+        "nct_id": "NCT00000009", "protocol_no": None,
+        "eligibility": {"inclusion": [{"text": "BRCA1 mutation", "sub_criteria": []}], "exclusion": []},
+        "_summary": {"long_title": "A Study in Patients with a BRCA1 Mutation"},
+    }]))
+    kb_path = tmp_path / "kb.json"
+    kb_path.write_text(json.dumps([{"name": "BRCA1"}]))
+
+    calls = []
+
+    class _OneCallClient:
+        def __init__(self):
+            self.chat = self
+            self.completions = self
+
+        def create(self, **kwargs):
+            from types import SimpleNamespace
+            calls.append(kwargs)
+            return SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content='[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]')
+            )])
+
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client", lambda: _OneCallClient())
+
+    def _no_oncotree():
+        raise AssertionError("biomarkers must not fetch OncoTree")
+
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.fetch_oncotree_names", _no_oncotree)
+
+    mm_cli._cmd_trials_curate(_curate_args(
+        trials=str(trials_path), out=str(tmp_path / "out.json"),
+        cache=str(tmp_path / "c.json"), kb=str(kb_path),
+    ))
+
+    assert len(calls) == 1
