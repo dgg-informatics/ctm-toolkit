@@ -10,6 +10,7 @@ from ..schemas.raw.models import (
     RawAmbryFinding,
     RawAmcNgsFinding,
     RawCarisFinding,
+    RawFoundationFinding,
     RawGuardant360Finding,
     RawHenryFordFinding,
     RawMayoFinding,
@@ -108,6 +109,10 @@ def normalize_guardant360(row: RawGuardant360Finding, source: str = "guardant360
     return _finding(row, source)
 
 
+def normalize_foundation(row: RawFoundationFinding, source: str = "foundation") -> Finding:
+    return _finding(row, source)
+
+
 def normalize_tumor_biomarker(row: RawTumorBiomarker, source: str = "tumor_biomarker") -> Finding:
     return _finding(row, source)
 
@@ -123,5 +128,6 @@ SHEET_NORMALIZERS = {
     "mayo_findings":        (RawMayoFinding,       normalize_mayo),
     "henry_ford_findings":  (RawHenryFordFinding,  normalize_henry_ford),
     "guardant360_findings": (RawGuardant360Finding, normalize_guardant360),
+    "foundation_findings":  (RawFoundationFinding, normalize_foundation),
     "tumor_biomarkers":     (RawTumorBiomarker,    normalize_tumor_biomarker),
 }
