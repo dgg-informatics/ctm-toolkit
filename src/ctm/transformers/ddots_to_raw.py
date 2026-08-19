@@ -58,8 +58,15 @@ DEFAULT_RETURN_FIELDS = (
     "coordinator_email",
     "department_name",
     "hospital",
+    "hospital_id",
     "hospital_email",
 )
+
+# The DDOTS instance is shared across institutions — a payload's credentialing
+# notes name Trinity Health, Sparrow, Genesys, Hurley and Lehigh Valley among
+# others. An unscoped query therefore returns other hospitals' protocols, which
+# this pipeline would then stamp entity="sparrow-api". 18 is Sparrow.
+DEFAULT_HOSPITAL_ID = "18"
 
 # "O" = open. DDOTS also returns e.g. "P" (permanently closed), "C" (closed).
 DEFAULT_STATUS_SHORT = "O"
@@ -106,6 +113,7 @@ def rows(payload: dict) -> list[dict]:
 
 def build_url(api_key: str, secret_key: str, *, base_url: str = BASE_URL,
               status_short: str | None = DEFAULT_STATUS_SHORT,
+              hospital_id: str | None = DEFAULT_HOSPITAL_ID,
               return_fields: tuple[str, ...] = DEFAULT_RETURN_FIELDS,
               **extra) -> str:
     """The full request URL. Kept separate so it can be tested without a network."""
@@ -114,6 +122,8 @@ def build_url(api_key: str, secret_key: str, *, base_url: str = BASE_URL,
         "api_secret_key": secret_key,
         "return_fields": ",".join(return_fields),
     }
+    if hospital_id:
+        params["hospital_id"] = hospital_id
     if status_short:
         params["status_short"] = status_short
     params.update({k: v for k, v in extra.items() if v is not None})
@@ -130,6 +140,7 @@ def _credentials() -> tuple[str, str]:
 
 
 def fetch(*, status_short: str | None = DEFAULT_STATUS_SHORT,
+          hospital_id: str | None = None,
           return_fields: tuple[str, ...] = DEFAULT_RETURN_FIELDS,
           timeout: int = 60, **extra) -> dict:
     """GET the /protocol endpoint and return the raw payload.
@@ -140,8 +151,12 @@ def fetch(*, status_short: str | None = DEFAULT_STATUS_SHORT,
     """
     api_key, secret_key = _credentials()
     base_url = os.environ.get("DDOTS_BASE_URL", BASE_URL)
-    url = build_url(api_key, secret_key, base_url=base_url,
-                    status_short=status_short, return_fields=return_fields, **extra)
+    # Resolution order: explicit argument, DDOTS_HOSPITAL_ID, then the Sparrow
+    # default. Never unscoped unless a caller passes hospital_id="" deliberately.
+    if hospital_id is None:
+        hospital_id = os.environ.get("DDOTS_HOSPITAL_ID") or DEFAULT_HOSPITAL_ID
+    url = build_url(api_key, secret_key, base_url=base_url, status_short=status_short,
+                    hospital_id=hospital_id, return_fields=return_fields, **extra)
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:
             return json.loads(response.read())

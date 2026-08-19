@@ -407,6 +407,7 @@ class RawDdotsTrial(BaseModel):
 
     department_name: str | None = None
     hospital: str | None = None
+    hospital_id: int | str | None = None        # queried on, to scope to one institution
     hospital_email: str | None = None
 
     nct_link: str | None = None

@@ -66,6 +66,12 @@ def main() -> None:
                                "DDOTS_API_KEY and DDOTS_SECRET_KEY in .env). Pass a path to "
                                "replay a saved /protocol response instead. NCT numbers are "
                                "resolved against ClinicalTrials.gov; entity is 'sparrow-api'")
+    p_trials.add_argument("--ddots-hospital-id", dest="ddots_hospital_id", metavar="ID",
+                          default=None,
+                          help="DDOTS hospital_id to scope a bare --ddots fetch (default: "
+                               "DDOTS_HOSPITAL_ID, else 18 = Sparrow). The registry is shared "
+                               "across institutions, so an unscoped query returns other "
+                               "hospitals' protocols")
     p_trials.add_argument("--ddots-status-short", dest="ddots_status_short", metavar="CODE",
                           default="O",
                           help="DDOTS status_short filter for a bare --ddots fetch (default: O = open). "
@@ -341,7 +347,10 @@ def _cmd_trials(args) -> None:
 
         if args.ddots == _DDOTS_FETCH:
             print("Querying the DDOTS API ...", file=sys.stderr)
-            payload = ddots_to_raw.fetch(status_short=args.ddots_status_short or None)
+            payload = ddots_to_raw.fetch(
+                status_short=args.ddots_status_short or None,
+                hospital_id=args.ddots_hospital_id,
+            )
             raw_ddots = ddots_to_raw.to_raw_trials(payload)
         else:
             ddots_path = Path(args.ddots)

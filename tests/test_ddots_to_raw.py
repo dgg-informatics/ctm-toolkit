@@ -179,6 +179,81 @@ def test_build_url_omits_the_status_filter_when_asked():
     assert "status_short" in params(build_url("K", "S", status_short=None))["return_fields"][0]
 
 
+def test_build_url_scopes_to_one_hospital_by_default():
+    """The DDOTS instance is shared across institutions, so an unscoped query
+    returns other hospitals' protocols — which this pipeline would then stamp
+    entity="sparrow-api"."""
+    import urllib.parse
+
+    from ctm.transformers.ddots_to_raw import DEFAULT_HOSPITAL_ID, build_url
+
+    params = urllib.parse.parse_qs(urllib.parse.urlparse(build_url("K", "S")).query)
+
+    assert params["hospital_id"] == [DEFAULT_HOSPITAL_ID] == ["18"]
+    # Also requested back, so a payload can be checked against what was asked for.
+    assert "hospital_id" in params["return_fields"][0]
+
+
+def test_build_url_can_be_deliberately_unscoped():
+    import urllib.parse
+
+    from ctm.transformers.ddots_to_raw import build_url
+
+    params = urllib.parse.parse_qs(
+        urllib.parse.urlparse(build_url("K", "S", hospital_id=None)).query)
+    assert "hospital_id" not in params
+
+
+def test_fetch_hospital_id_resolution_order(monkeypatch):
+    """Explicit argument, then DDOTS_HOSPITAL_ID, then the Sparrow default — so a
+    fetch is never accidentally unscoped."""
+    import urllib.parse
+
+    from ctm.transformers import ddots_to_raw
+
+    monkeypatch.setenv("DDOTS_API_KEY", "k")
+    monkeypatch.setenv("DDOTS_SECRET_KEY", "s")
+    seen = []
+    monkeypatch.setattr(ddots_to_raw.urllib.request, "urlopen",
+                        lambda url, timeout=None: seen.append(url) or (_ for _ in ()).throw(
+                            RuntimeError("stop")))
+
+    def hospital_of(url):
+        return urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("hospital_id")
+
+    monkeypatch.delenv("DDOTS_HOSPITAL_ID", raising=False)
+    with pytest.raises(RuntimeError):
+        ddots_to_raw.fetch()
+    assert hospital_of(seen[-1]) == ["18"], "falls back to the Sparrow default"
+
+    monkeypatch.setenv("DDOTS_HOSPITAL_ID", "42")
+    with pytest.raises(RuntimeError):
+        ddots_to_raw.fetch()
+    assert hospital_of(seen[-1]) == ["42"], "DDOTS_HOSPITAL_ID wins over the default"
+
+    with pytest.raises(RuntimeError):
+        ddots_to_raw.fetch(hospital_id="99")
+    assert hospital_of(seen[-1]) == ["99"], "an explicit argument wins over the env"
+
+
+def test_cmd_trials_passes_the_hospital_id_flag_through(monkeypatch, tmp_path):
+    from ctm.mm_cli import _cmd_trials
+    from ctm.transformers import ddots_to_raw
+
+    captured = {}
+    monkeypatch.setattr(ddots_to_raw, "fetch",
+                        lambda **kw: captured.update(kw) or _payload())
+    monkeypatch.setattr("ctm.transformers.raw_ddots_to_ctml.fetch",
+                        lambda nct_id: (_ for _ in ()).throw(ValueError("no ctgov in this test")))
+
+    args = _trials_args("--out", str(tmp_path / "o.json"), "--ddots",
+                        "--ddots-hospital-id", "7", "--ddots-status-short", "C")
+    with pytest.raises(SystemExit):   # every trial skipped, so no trials normalized
+        _cmd_trials(args)
+
+    assert captured == {"hospital_id": "7", "status_short": "C"}
+
+
 def test_fetch_requires_credentials(monkeypatch):
     from ctm.transformers.ddots_to_raw import fetch
 

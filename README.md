@@ -68,6 +68,7 @@ nothing extra; set these in `.env`:
 | `DDOTS_API_KEY` | for `--ddots` with no path | API key |
 | `DDOTS_SECRET_KEY` | for `--ddots` with no path | Secret key |
 | `DDOTS_BASE_URL` | no | Defaults to `https://www.ddotscredit.com/rest/protocol/get` |
+| `DDOTS_HOSPITAL_ID` | no | Scopes the query to one institution. Defaults to `18` (Sparrow) |
 
 ```bash
 ctm-mm trials --ddots --out normalized.json              # query the API
@@ -91,6 +92,13 @@ trial's provenance is unambiguous.
 >
 > DDOTS credentials travel as **query parameters**, so the secret would appear in
 > any logged URL. `ddots_to_raw` never prints the request URL — keep it that way.
+
+> [!IMPORTANT]
+> The DDOTS registry is **shared across institutions** — one payload's credentialing
+> notes name Trinity Health, Sparrow, Genesys, Hurley and Lehigh Valley. Queries are
+> therefore scoped with `hospital_id=18` (Sparrow) by default; an unscoped query
+> returns other hospitals' protocols, which this pipeline would then label
+> `entity="sparrow-api"`. Override with `DDOTS_HOSPITAL_ID` or `--ddots-hospital-id`.
 
 #### MongoDB configuration
 
