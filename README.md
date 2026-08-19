@@ -7,7 +7,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | Command | Purpose |
 | --- | --- |
 | `ctm-mm patients` | Excel workbook → MatchMiner-compatible `{clinical, genomic, extras}` JSON |
-| `ctm-mm trials` | AMC XML / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
+| `ctm-mm trials` | AMC XML or normalized JSON / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
 | `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm biomarkers`; removed in 2.0.0 |
 | `ctm-mm trials-confidence-split` | **[beta]** Bucket curated trials into auto-pass / needs-a-human |
@@ -38,9 +38,16 @@ sample row for every findings sheet.
 #### Clinical Trial Data Prep
 
 ```bash
-# Step 2: Normalize trial data from AMC's XML, Sparrow/West's XLSX, and/or ClinicalTrials.gov JSON
-ctm-mm trials --amc <amc_trials.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out trials.json
+# Step 1 (AMC): Pull AMC's full trial list from its OnCORE feed. Raw records are
+# archived to MongoDB's 00_raw_trials; the output is already normalized.
+ctm-fetch --amc --output amc-normalized.json
+
+# Step 2: Normalize trial data from AMC, Sparrow/West's XLSX, and/or ClinicalTrials.gov JSON
+ctm-mm trials --amc <amc-normalized.json> --sparrow <sparrow.xlsx> --west <west.xlsx> --out trials.json
 ```
+
+`--amc` takes either the normalized JSON from `ctm-fetch --amc` or a raw OnCORE
+XML export, so a hand-supplied XML file still works exactly as before.
 
 **Note: We can also fetch trials directly from ClinicalTrials.gov without any template:**
 
@@ -59,8 +66,9 @@ ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm  # format for 
 
 #### MongoDB configuration
 
-`ctm-mm trials-diff` stores its output in MongoDB by default. Install with
-`uv pip install 'ctm-toolkit[db]'` and set these in the same `.env`:
+`ctm-fetch --amc` and `ctm-mm trials-diff` store their output in MongoDB by
+default. Install with `uv pip install 'ctm-toolkit[db]'` and set these in the
+same `.env`:
 
 | Variable | Required | Purpose |
 |---|---|---|
@@ -69,6 +77,13 @@ ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm  # format for 
 | `MONGO_DBNAME` | yes | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated; `--db NAME` overrides it without editing `.env` |
 | `MONGO_MASTER_DBNAME` | only without `--master` | The master trial list's database. Deliberately **not** per-run — the master is rolling current state, so it has a fixed address. No default: a default here would silently resolve to an empty database and route every trial to `changed` |
 | `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
+
+Collections written to the per-run database, in pipeline order:
+
+| Collection | Written by | Contents |
+|---|---|---|
+| `00_raw_trials` | `ctm-fetch --amc` | One document per trial exactly as the source published it, before any normalization. Keyed on `protocol_no`; stamped with `entity`, `run_date`, `processed_with`. `--no-store` skips it |
+| `03_diff_trials` | `ctm-mm trials-diff` | One document per trial carrying `diff_status`, `run_date`, and `processed_with` |
 
 These are CTM's own Mongo settings. MatchMiner's credentials are separate and
 still come from `SECRETS_JSON.json` — see "MatchMiner Preparation and Running".
@@ -127,7 +142,7 @@ After you fill out the template excel sheet, please be careful of:
 
 #### Clinical Trial Data
 
-Clinical trial data comes from automated sources for AMC and Sparrow. For AMC, an export of the OnCORE database is retrieved in the form of an XML file. For Sparrow, an Excel document is emailed each month.
+Clinical trial data comes from automated sources for AMC and Sparrow. For AMC, an export of the OnCORE database is published as an XML feed at `https://octsu.med.umich.edu/xmlfeed/clinical_trial_list_healthcare_provider.xml` and pulled by `ctm-fetch --amc`. The feed is a full snapshot of every AMC trial — there is no per-trial endpoint and no pagination. The URL is hardcoded in `src/ctm/transformers/amc_feed_to_raw.py`; the raw records fetched from it are archived to the `00_raw_trials` collection of `MONGO_DBNAME`, which is the durable copy of what a given run consumed. For Sparrow, an Excel document is emailed each month.
 
 For UMH-West, an Excel sheet is emailed in a format that is incomplete and requires manual processing immediately, so we re-record West trial data into our own sheet rather than consuming the file we receive as-is.
 
@@ -215,14 +230,16 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
 
 ** Raw --> CTML-Normalized Trial Data**
 
-Starting input (3 files): [**amc-trials.xml**, **sparrow-trials.xlsx**, **west-trials.xlsx**] (raw source from entities)
+Starting input: AMC's OnCORE feed (pulled, not a file) plus 2 emailed files — [**sparrow-trials.xlsx**, **west-trials.xlsx**]
 Ending output (1 file): **all-trials-llm-edited.json**
 
 This process is much more complex since we have 4 data sources (Sparrow, West, AMC, and ClinicalTrials.gov)
 
-1. For AMC, West, and Sparrow you can point to their corresponding XML or XLSX file to create a structure very similar to Matchminer:
-   1. `$ ctm-mm trials --amc trials-amc.xml --sparrow trials-sparrow.xlsx --west trials-west.xlsx --out trials-all-normalized.json`
-   2. Above produces what we call a **staging file:** a .JSON file that is very similar to Clinical Trial Markup Language (CTML) format, but it is staged to be more suitable for the next LLM stage
+1. AMC comes from its OnCORE feed; West and Sparrow from the XLSX files they send:
+   1. `$ ctm-fetch --amc --output trials-amc.json`  # pulls every AMC trial; raw records archived to 00_raw_trials
+   2. `$ ctm-mm trials --amc trials-amc.json --sparrow trials-sparrow.xlsx --west trials-west.xlsx --out trials-all-normalized.json`
+   3. `--amc` also accepts a raw OnCORE XML export (`--amc trials-amc.xml`), which is how this worked before the feed was wired up.
+   4. Above produces what we call a **staging file:** a .JSON file that is very similar to Clinical Trial Markup Language (CTML) format, but it is staged to be more suitable for the next LLM stage
 2. Next, we run the LLM (UMGPT) on the above *staged file* to help us automate our conversion from raw to CTML-formatted data
    1. `ctm-llm general --trials trials-all-normalized.json --out trials-all-llm-draft.json`
    2. **Note:** if you just want to run the LLM on 1 trial, you can specify the `--nct <nct_number>` flag.
@@ -238,6 +255,11 @@ This process is much more complex since we have 4 data sources (Sparrow, West, A
 > If you have a raw JSON doc from clinicaltrials.gov, you can normalize it with the same command as you'd normalize AMC/Sparrow/West trials:
 > `$ ctm-mm trials --ct <raw-ctgov.json> --out to-normalized.json`
 
+> [!NOTE]
+> For AMC data, `ctm-fetch --amc` pulls the entire trial list from the OnCORE feed:
+> `$ ctm-fetch --amc --output amc-normalized.json`
+> Unlike `--nct`, this output is *always* normalized CTML (a JSON list, one entry per trial), so `--fmt-mm` does not apply. The raw pre-normalization records are archived to `00_raw_trials` in `MONGO_DBNAME`, so the `MONGO_*` variables must be set — pass `--no-store` to skip archiving, `--db NAME` to override the target database, and `--run-date` to override the stamped date. Feed the result into the normalization step with `ctm-mm trials --amc amc-normalized.json`.
+
 ### Updating Trials
 
 AMC, Sparrow, and West each send a refreshed trial sheet roughly weekly. Re-running the full LLM + manual-curation pass on every trial every week is wasteful — most trials haven't changed. `ctm-mm trials-diff` / `ctm-mm trials-merge` let you skip that work for anything whose eligibility criteria are unchanged, while keeping a permanent dated record of every trial set.
@@ -245,8 +267,10 @@ AMC, Sparrow, and West each send a refreshed trial sheet roughly weekly. Re-runn
 Starting input: a fresh combined normalization + the previous dated **master** trials file (e.g. `2026-07-13-trials.json` — the curated output from last week's run, already loaded into MatchMiner).
 Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 
-1. Normalize the new raw sheets, same as the first-time flow:
-   1. `$ ctm-mm trials --amc <amc.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out normalized-2026-07-14.json`
+1. Pull the current AMC list, then normalize it alongside the new raw sheets:
+   1. `$ ctm-fetch --amc --output amc-2026-07-14.json`  # full snapshot from the OnCORE feed; raw records archived to 00_raw_trials
+   2. `$ ctm-mm trials --amc amc-2026-07-14.json --sparrow <sparrow.xlsx> --west <west.xlsx> --out normalized-2026-07-14.json`
+   3. A raw OnCORE XML export still works in place of step 1.1's output if you have one — `--amc` accepts either.
 2. Diff the fresh normalization against last week's master:
    1. `$ ctm-mm trials-diff --new normalized-2026-07-14.json --master 2026-07-13-trials.json --out-prefix 2026-07-14`  # --new is the normalized data and --master is the most recent manually curated data
    2. Produces three buckets:
@@ -368,7 +392,7 @@ mongosh "mongodb://localhost:27018/<dated_db>" scripts/create_default_views.js
 
 ### Integration patterns
 
-- **Pattern A (AMC):** XML → raw schema → `ClinicalTrialNormalized` directly. No CTGov lookup.
+- **Pattern A (AMC):** XML → raw schema → `ClinicalTrialNormalized` directly. No CTGov lookup. The XML comes from the OnCORE feed via `amc_feed_to_raw.fetch()`, or from a file via `amc_xml_to_raw.load()`; both hand off to the same `_from_root()` parser.
 - **Pattern B (Sparrow, West):** Excel provides NCT IDs → each trial is fetched from CTGov → normalized via the CTGov pipeline → source metadata merged into `_raw`.
 
 ### What is auto-populated vs. what needs manual curation

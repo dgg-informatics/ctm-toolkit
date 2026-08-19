@@ -19,6 +19,20 @@ Two different databases are in play, and the distinction is the whole design:
 import os
 from importlib.metadata import version
 
+RAW_COLLECTION = "00_raw_trials"
+DIFF_COLLECTION = "03_diff_trials"
+DEFAULT_MASTER_COLLECTION = "06_master_trials"
+
+# Raw source records are archived before normalization, so neither of
+# DIFF_UNIQUE_KEY's inputs exists yet: there is no `_raw` blob to hash and no
+# `entity`/`nct_id` pair for trial_key() to read. protocol_no is AMC's own
+# identity — the same field trial_key() uses for AMC trials downstream — and
+# OnCORE assigns exactly one per protocol.
+RAW_UNIQUE_KEY = "protocol_no"
+
+# Non-unique. nct_number is the raw field name; it becomes nct_id only after
+# normalization.
+RAW_LOOKUP_KEYS = ("entity", "nct_number")
 # The pipeline's collections, frozen. Ordinal prefixes encode stage position, so
 # inserting a stage renumbers everything after it and renames every reader — this
 # map exists so that stops happening. They also sort the pipeline's collections
@@ -174,6 +188,26 @@ def stamp(doc: dict, stage: str, run_date: str, **extra) -> dict:
     return stamped
 
 
+def stamp_raw(doc: dict, stage: str, run_date: str, entity: str) -> dict:
+    """Storage-ready copy of a *raw* source record, for RAW_COLLECTION.
+
+    Separate from :func:`stamp` rather than a flag on it, because both of that
+    function's derivations are undefined before normalization: compute_trial_hash
+    reads a `_raw` blob a raw record does not have, and trial_key reads an
+    `entity`/`nct_id` pair it has not been given yet.
+
+    ``entity`` is stamped rather than inferred so the collection can hold more
+    than one source's raw records without them becoming indistinguishable.
+    """
+    stamped = strip_metadata(doc)
+    stamped["entity"] = entity
+    stamped["processed_with"] = f"{stage} {toolkit_version()}"
+    stamped["run_date"] = run_date
+    return stamped
+
+
+def read_collection(db, name: str) -> list[dict]:
+    """Every document in ``name``, metadata stripped. Empty list if absent."""
 def inherited_run_date(docs: list[dict], fallback: str | None = None) -> str:
     """The run_date carried by ``docs``, so a stage stays on its run's timeline.
 

@@ -2,7 +2,7 @@
 
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
-  ctm-mm trials [--amc XML] [--ct JSON] [--sparrow XLSX] [--west XLSX] --out PATH
+  ctm-mm trials [--amc XML|JSON] [--ct JSON] [--sparrow XLSX] [--west XLSX] --out PATH
   ctm-mm trials-diff --new JSON --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
@@ -50,7 +50,9 @@ def main() -> None:
         "trials",
         help="Normalize raw trial sources → MatchMiner CTML JSON",
     )
-    p_trials.add_argument("--amc", metavar="XML", help="Path to AMC trials XML export")
+    p_trials.add_argument("--amc", metavar="XML|JSON",
+                          help="Path to a raw AMC trials XML export, or to normalized "
+                               "AMC JSON produced by `ctm-fetch --amc`")
     p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
     p_trials.add_argument("--sparrow", metavar="XLSX",
                           help="Path to the Sparrow marketing trials Excel sheet (NCT numbers are "
@@ -275,10 +277,24 @@ def _cmd_trials(args) -> None:
         if not amc_path.exists():
             print(f"Error: file not found: {amc_path}", file=sys.stderr)
             sys.exit(1)
-        print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
-        raw_trials = load_amc(amc_path)
-        print(f"  {len(raw_trials)} AMC trial(s)", file=sys.stderr)
-        trials.extend(amc_to_ctml(t) for t in raw_trials)
+        # Two accepted formats, mirroring how --ct sniffs its three:
+        #   .xml   raw OnCORE export
+        #   .json  already-normalized output of `ctm-fetch --amc`
+        suffix = amc_path.suffix.lower()
+        if suffix == ".json":
+            print(f"Reading normalized AMC JSON {amc_path} ...", file=sys.stderr)
+            amc_trials = json.loads(amc_path.read_text())
+            print(f"  {len(amc_trials)} AMC trial(s)", file=sys.stderr)
+            trials.extend(amc_trials)
+        elif suffix == ".xml":
+            print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
+            raw_trials = load_amc(amc_path)
+            print(f"  {len(raw_trials)} AMC trial(s)", file=sys.stderr)
+            trials.extend(amc_to_ctml(t) for t in raw_trials)
+        else:
+            print(f"Error: --amc expects a .xml or .json file, got: {amc_path}",
+                  file=sys.stderr)
+            sys.exit(1)
 
     if args.ct:
         from ctm.schemas.raw.models import RawCTGovTrial
