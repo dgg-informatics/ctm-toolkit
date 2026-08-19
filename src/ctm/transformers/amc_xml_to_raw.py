@@ -8,6 +8,8 @@ from pathlib import Path
 
 from ..schemas.raw.models import RawAMCTrial
 
+ROOT_TAG = "PROTOCOL_SUMMARY"
+
 _TAG_MAP = {
     "amc_id": "ID",
     "protocol_no": "NO",
@@ -53,12 +55,21 @@ def _parse_categories(proto: ET.Element) -> list[dict]:
     return cats
 
 
-def load(path: str | Path) -> list[RawAMCTrial]:
-    """Parse *path* and return one RawAMCTrial per <PROTOCOL> element."""
-    root = ET.parse(path).getroot()
+def from_root(root: ET.Element) -> list[RawAMCTrial]:
+    """One RawAMCTrial per <PROTOCOL> child of *root*.
+
+    Public so callers holding a parsed tree can reuse this without going back
+    through a file — :mod:`amc_feed_to_raw` parses an HTTP response itself in
+    order to inspect the root tag before trusting the document.
+    """
     trials: list[RawAMCTrial] = []
     for proto in root.findall("PROTOCOL"):
         raw = {field: _text(proto, xml_tag) for field, xml_tag in _TAG_MAP.items() if field != "categorys"}
         raw["categorys"] = _parse_categories(proto)
         trials.append(RawAMCTrial.model_validate(raw))
     return trials
+
+
+def load(path: str | Path) -> list[RawAMCTrial]:
+    """Parse *path* and return one RawAMCTrial per <PROTOCOL> element."""
+    return from_root(ET.parse(path).getroot())
