@@ -2,7 +2,7 @@
 
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
-  ctm-mm trials [--amc XML] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] --out PATH
+  ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] --out PATH
   ctm-mm trials-diff --new JSON --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
@@ -24,8 +24,11 @@ from ctm.paths import cache_dir, cache_path, load_env
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
 
-# Sentinel for a bare `--ddots` (no path): query the API rather than read a file.
+# Sentinels for a bare `--ddots` / `--amc` (no path): pull from the source rather
+# than read a file. Omitting the flag entirely still means "skip this source", so a
+# forgotten flag never triggers a live pull.
 _DDOTS_FETCH = "<fetch>"
+_AMC_FETCH = "<fetch>"
 
 
 def main() -> None:
@@ -53,7 +56,9 @@ def main() -> None:
         "trials",
         help="Normalize raw trial sources → MatchMiner CTML JSON",
     )
-    p_trials.add_argument("--amc", metavar="XML", help="Path to AMC trials XML export")
+    p_trials.add_argument("--amc", metavar="XML", nargs="?", const=_AMC_FETCH,
+                          help="Pull AMC trials from the OCTSU XML feed (override with "
+                               "AMC_FEED_URL). Pass a path to read a local export instead")
     p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
     p_trials.add_argument("--sparrow", metavar="XLSX",
                           help="Path to the Sparrow marketing trials Excel sheet (NCT numbers are "
@@ -66,6 +71,12 @@ def main() -> None:
                                "DDOTS_API_KEY and DDOTS_SECRET_KEY in .env). Pass a path to "
                                "replay a saved /protocol response instead. NCT numbers are "
                                "resolved against ClinicalTrials.gov; entity is 'sparrow-api'")
+    p_trials.add_argument("--ddots-hospital-id", dest="ddots_hospital_id", metavar="ID",
+                          default=None,
+                          help="DDOTS hospital_id to scope a bare --ddots fetch (default: "
+                               "DDOTS_HOSPITAL_ID, else 18 = Sparrow). The registry is shared "
+                               "across institutions, so an unscoped query returns other "
+                               "hospitals' protocols")
     p_trials.add_argument("--ddots-status-short", dest="ddots_status_short", metavar="CODE",
                           default="O",
                           help="DDOTS status_short filter for a bare --ddots fetch (default: O = open). "
@@ -286,12 +297,23 @@ def _cmd_trials(args) -> None:
     trials: list[dict] = []
 
     if args.amc:
-        amc_path = Path(args.amc)
-        if not amc_path.exists():
-            print(f"Error: file not found: {amc_path}", file=sys.stderr)
-            sys.exit(1)
-        print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
-        raw_trials = load_amc(amc_path)
+        from ctm.transformers import amc_xml_to_raw
+
+        if args.amc == _AMC_FETCH:
+            print("Fetching the AMC XML feed ...", file=sys.stderr)
+            try:
+                raw_trials = amc_xml_to_raw.fetch()
+            except RuntimeError as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            amc_path = Path(args.amc)
+            if not amc_path.exists():
+                print(f"Error: file not found: {amc_path}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
+            raw_trials = load_amc(amc_path)
+
         print(f"  {len(raw_trials)} AMC trial(s)", file=sys.stderr)
         trials.extend(amc_to_ctml(t) for t in raw_trials)
 
@@ -341,7 +363,20 @@ def _cmd_trials(args) -> None:
 
         if args.ddots == _DDOTS_FETCH:
             print("Querying the DDOTS API ...", file=sys.stderr)
-            payload = ddots_to_raw.fetch(status_short=args.ddots_status_short or None)
+            try:
+                payload = ddots_to_raw.fetch(
+                    status_short=args.ddots_status_short or None,
+                    hospital_id=args.ddots_hospital_id,
+                )
+            except ddots_to_raw.DdotsApiError as exc:
+                # Reported in a 200 body, so say plainly that no trials were read
+                # rather than letting it read as an empty result set.
+                print(f"Error: {exc}", file=sys.stderr)
+                if exc.is_rate_limited:
+                    print("  DDOTS rate-limits requests — wait before retrying.",
+                          file=sys.stderr)
+                sys.exit(1)
+
             raw_ddots = ddots_to_raw.to_raw_trials(payload)
         else:
             ddots_path = Path(args.ddots)
@@ -349,7 +384,12 @@ def _cmd_trials(args) -> None:
                 print(f"Error: file not found: {ddots_path}", file=sys.stderr)
                 sys.exit(1)
             print(f"Reading DDOTS JSON {ddots_path} ...", file=sys.stderr)
-            raw_ddots = ddots_to_raw.load(ddots_path)
+            try:
+                raw_ddots = ddots_to_raw.load(ddots_path)
+            except ddots_to_raw.DdotsApiError as exc:
+                print(f"Error: {ddots_path} holds a DDOTS error response, not trial data: {exc}",
+                      file=sys.stderr)
+                sys.exit(1)
 
         print(f"  {len(raw_ddots)} DDOTS trial(s) with NCT numbers — "
               "fetching from ClinicalTrials.gov ...", file=sys.stderr)

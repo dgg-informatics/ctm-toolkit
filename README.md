@@ -7,7 +7,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | Command | Purpose |
 | --- | --- |
 | `ctm-mm patients` | Excel workbook → MatchMiner-compatible `{clinical, genomic, extras}` JSON |
-| `ctm-mm trials` | AMC XML / DDOTS API / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
+| `ctm-mm trials` | AMC feed or XML / DDOTS API / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
 | `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm biomarkers`; removed in 2.0.0 |
 | `ctm-mm trials-confidence-split` | **[beta]** Bucket curated trials into auto-pass / needs-a-human |
@@ -57,6 +57,32 @@ ctm-fetch --nct NCT03067181 --output nct-normalized.json --fmt-mm  # format for 
 (`UMGPT_MODEL` is optional, defaults to `gpt-4o`). LLM responses are cached in
 `~/.cache/ctm/` — override with `CTM_CACHE_DIR` or `XDG_CACHE_HOME`.
 
+#### AMC (OCTSU trial feed)
+
+`ctm-mm trials --amc` pulls the AMC trial list from the OCTSU XML feed. Passing a
+path reads a local export instead, exactly as before:
+
+```bash
+ctm-mm trials --amc --out normalized.json                  # fetch the feed
+ctm-mm trials --amc amc-export.xml --out normalized.json   # read a local export
+```
+
+No credentials. Override the URL with `AMC_FEED_URL` to point at a staging copy.
+Omitting `--amc` entirely still means "no AMC trials this run", so a forgotten flag
+never triggers a live pull.
+
+Every trial carries `_raw.fetched_at`, the UTC timestamp of the pull, shared across
+all trials in one fetch. Note this is distinct from the `fetched_at` on
+ClinicalTrials.gov-sourced trials: they are separate calls to separate services, so
+each records its own.
+
+> [!NOTE]
+> A fetch that yields no `<PROTOCOL>` elements is treated as an error, not an empty
+> feed. A served error page can be perfectly well-formed XML —
+> `<html><body>503 …</body></html>` parses cleanly and contains no protocols — which
+> would otherwise be indistinguishable from a genuinely empty feed. `--amc <file>`
+> stays tolerant of an empty export, since that file is yours.
+
 #### DDOTS (Sparrow trial list)
 
 `ctm-mm trials --ddots` pulls the Sparrow trial list from DDOTS, Sparrow's own
@@ -68,6 +94,7 @@ nothing extra; set these in `.env`:
 | `DDOTS_API_KEY` | for `--ddots` with no path | API key |
 | `DDOTS_SECRET_KEY` | for `--ddots` with no path | Secret key |
 | `DDOTS_BASE_URL` | no | Defaults to `https://www.ddotscredit.com/rest/protocol/get` |
+| `DDOTS_HOSPITAL_ID` | no | Scopes the query to one institution. Defaults to `18` (Sparrow) |
 
 ```bash
 ctm-mm trials --ddots --out normalized.json              # query the API
@@ -91,6 +118,21 @@ trial's provenance is unambiguous.
 >
 > DDOTS credentials travel as **query parameters**, so the secret would appear in
 > any logged URL. `ddots_to_raw` never prints the request URL — keep it that way.
+
+> [!WARNING]
+> **DDOTS rate-limits requests, and reports it inside a `200` response** as
+> `{"COLUMNS": ["CALLDSN", "ERRORTEXT"], "DATA": [["429", "Too Many Requests"]]}`.
+> The loader detects that envelope and fails loudly on both the live and the
+> replay path — without it, a throttled pull parses to zero trials and reads as
+> "Sparrow has no open trials". If you need to iterate without spending requests,
+> save a response yourself and replay it with `--ddots <path>`.
+
+> [!IMPORTANT]
+> The DDOTS registry is **shared across institutions** — one payload's credentialing
+> notes name Trinity Health, Sparrow, Genesys, Hurley and Lehigh Valley. Queries are
+> therefore scoped with `hospital_id=18` (Sparrow) by default; an unscoped query
+> returns other hospitals' protocols, which this pipeline would then label
+> `entity="sparrow-api"`. Override with `DDOTS_HOSPITAL_ID` or `--ddots-hospital-id`.
 
 #### MongoDB configuration
 

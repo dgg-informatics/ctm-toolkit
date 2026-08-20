@@ -407,14 +407,23 @@ class RawDdotsTrial(BaseModel):
 
     department_name: str | None = None
     hospital: str | None = None
+    hospital_id: int | str | None = None        # queried on, to scope to one institution
     hospital_email: str | None = None
 
     nct_link: str | None = None
     documents: dict | None = None               # parsed from the JSON-in-JSON string
 
+    # UTC timestamp of the DDOTS pull. Distinct from the ClinicalTrials.gov
+    # fetched_at on the same trial: the two are separate calls to separate APIs,
+    # and dating one from the other would be a guess.
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+
 
 class RawAMCTrial(BaseModel):
     model_config = ConfigDict(extra='allow')
+    # UTC timestamp of the pull, so a trial records when its source data was
+    # obtained rather than leaving it inferred from the ClinicalTrials.gov call.
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     amc_id: str | None = None                   # <ID>
     protocol_no: str | None = None              # <NO>
     nct_number: str | None = None               # <NCT_NUMBER>
