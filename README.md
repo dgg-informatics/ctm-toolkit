@@ -299,6 +299,7 @@ This process is much more complex since we have 4 data sources (Sparrow, West, A
 
 1. For AMC, West, and Sparrow you can point to their corresponding XML or XLSX file to create a structure very similar to Matchminer:
    1. `$ ctm-mm trials --amc trials-amc.xml --sparrow trials-sparrow.xlsx --west trials-west.xlsx --out trials-all-normalized.json`
+   1. Also stores the verbatim source records in `00_raw_trials` and the normalization in `01_normalized_trials`, keyed on the same `trial_hash` so the two join. `--no-disk` skips the JSON file.
    2. Above produces what we call a **staging file:** a .JSON file that is very similar to Clinical Trial Markup Language (CTML) format, but it is staged to be more suitable for the next LLM stage
 2. Next, we run the LLM (UMGPT) on the above *staged file* to help us automate our conversion from raw to CTML-formatted data
    1. `ctm-llm general --trials trials-all-normalized.json --out trials-all-llm-draft.json`
@@ -325,7 +326,7 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 1. Normalize the new raw sheets, same as the first-time flow:
    1. `$ ctm-mm trials --amc <amc.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out normalized-2026-07-14.json`
 2. Diff the fresh normalization against last week's master:
-   1. `$ ctm-mm trials-diff --new normalized-2026-07-14.json --master 2026-07-13-trials.json --out-prefix 2026-07-14`  # --new is the normalized data and --master is the most recent manually curated data
+   1. `$ ctm-mm trials-diff --new normalized-2026-07-14.json --master 2026-07-13-trials.json --out-prefix 2026-07-14`  # omit `--new` to read `01_normalized_trials` instead  # --new is the normalized data and --master is the most recent manually curated data
    2. Produces three buckets:
       - `unchanged` — eligibility identical to the master's copy. Already has curated match nodes carried forward from `2026-07-13-trials.json` untouched; every other field (status, title, etc.) is refreshed. **No LLM call, no manual review needed for these.**
       - `changed` — eligibility differs, or the trial is brand new. Not yet curated — this is the only bucket that needs the next two steps.

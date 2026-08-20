@@ -47,48 +47,6 @@ def _curate_args(**overrides):
     return args
 
 
-@pytest.fixture
-def fake_mongo(monkeypatch):
-    """Capture Mongo reads/writes without a server. Returns the captured state."""
-    captured = {"master": [], "written": None, "opened": []}
-
-    def _get_database(config, db_name=None):
-        captured["opened"].append(db_name or config["dbname"])
-        return f"<db {db_name or config['dbname']}>"
-
-    def _read_collection(db, name, query=None, keep_metadata=False):
-        captured["read_from"] = (db, name)
-        captured.setdefault("queries", []).append({"name": name, "query": query})
-        # Per-collection sources for the chained stages; `master` is the default
-        # so the trials-diff tests keep reading the way they always did.
-        return captured.get("collections", {}).get(name, captured["master"])
-
-    def _replace_collection(db, name, docs, unique_key, lookup_keys=()):
-        captured["written"] = {
-            "db": db, "name": name, "docs": docs,
-            "unique_key": unique_key, "lookup_keys": lookup_keys,
-        }
-
-    def _prepare_collection(db, name, unique_key, lookup_keys=()):
-        captured["prepared"] = {"db": db, "name": name, "unique_key": unique_key}
-        return f"<collection {name}>"
-
-    def _upsert_doc(collection, doc, unique_key):
-        captured.setdefault("upserted", []).append({"collection": collection, "doc": doc})
-
-    monkeypatch.setenv("MONGO_HOST", "localhost")
-    monkeypatch.setenv("MONGO_PORT", "27018")
-    monkeypatch.setenv("MONGO_DBNAME", "2026-08-17_test")
-    monkeypatch.setenv("MONGO_MASTER_DBNAME", "ctm_master_test")
-    monkeypatch.delenv("MONGO_MASTER_COLLECTION", raising=False)
-    monkeypatch.setattr("ctm.db.get_database", _get_database)
-    monkeypatch.setattr("ctm.db.read_collection", _read_collection)
-    monkeypatch.setattr("ctm.db.replace_collection", _replace_collection)
-    monkeypatch.setattr("ctm.db.prepare_collection", _prepare_collection)
-    monkeypatch.setattr("ctm.db.upsert_doc", _upsert_doc)
-    return captured
-
-
 def _trials_args(*argv):
     """A `trials` Namespace built by the real parser.
 
@@ -108,7 +66,7 @@ def _trials_args(*argv):
     return captured["args"]
 
 
-def test_cmd_trials_stamps_trial_hash(tmp_path, monkeypatch):
+def test_cmd_trials_stamps_trial_hash(tmp_path, monkeypatch, fake_mongo):
     from ctm.mm_cli import _cmd_trials
 
     amc_xml = tmp_path / "amc.xml"
@@ -595,3 +553,165 @@ def test_cmd_trials_curate_alias_only_makes_the_biomarker_call(tmp_path, monkeyp
     ))
 
     assert len(calls) == 1
+
+
+def test_cmd_trials_stores_normalized_output_in_the_first_collection(tmp_path, fake_mongo):
+    """01_normalized_trials is the head of the chain, so every later stage's
+    run_date traces back to what this stage stamped."""
+    from ctm.db import NORMALIZED_COLLECTION
+    from ctm.mm_cli import _cmd_trials
+
+    amc_xml = tmp_path / "amc.xml"
+    amc_xml.write_text("""<PROTOCOL_SUMMARY>
+      <PROTOCOL>
+        <NO>2021.070</NO>
+        <NCT_NUMBER>NCT04858334</NCT_NUMBER>
+        <STATUS>OPEN TO ACCRUAL</STATUS>
+        <TITLE>Test Trial</TITLE>
+        <ELIGIBILITY>Inclusion Criteria:
+~Age &gt;= 18</ELIGIBILITY>
+      </PROTOCOL>
+    </PROTOCOL_SUMMARY>""")
+    out = tmp_path / "out.json"
+
+    _cmd_trials(_trials_args("--amc", str(amc_xml), "--out", str(out),
+                             "--run-date", "2026-08-20"))
+
+    written = fake_mongo["written"]
+    assert written["name"] == NORMALIZED_COLLECTION == "01_normalized_trials"
+    assert written["unique_key"] == "trial_hash"
+    assert [d["run_date"] for d in written["docs"]] == ["2026-08-20"]
+    assert written["docs"][0]["processed_with"].startswith("ctm-mm trials ")
+
+    # Storage metadata must not leak into the JSON file.
+    for trial in json.loads(out.read_text()):
+        for field in ("run_date", "processed_with", "trial_key", "_id"):
+            assert field not in trial
+
+
+def test_cmd_trials_no_disk_writes_only_to_mongo(tmp_path, fake_mongo):
+    from ctm.mm_cli import _cmd_trials
+
+    amc_xml = tmp_path / "amc.xml"
+    amc_xml.write_text("""<PROTOCOL_SUMMARY><PROTOCOL><NO>2021.070</NO>
+      <NCT_NUMBER>NCT04858334</NCT_NUMBER><STATUS>OPEN TO ACCRUAL</STATUS>
+      <TITLE>T</TITLE><ELIGIBILITY>Inclusion Criteria:
+~Age &gt;= 18</ELIGIBILITY></PROTOCOL></PROTOCOL_SUMMARY>""")
+
+    _cmd_trials(_trials_args("--amc", str(amc_xml), "--no-disk"))
+
+    assert list(tmp_path.glob("*.json")) == []
+    assert len(fake_mongo["written"]["docs"]) == 1
+
+
+def test_cmd_trials_out_without_disk_is_an_error(tmp_path, fake_mongo):
+    from ctm.mm_cli import _cmd_trials
+
+    args = _trials_args("--amc", "x.xml", "--no-disk", "--out", str(tmp_path / "o.json"))
+    with pytest.raises(SystemExit):
+        _cmd_trials(args)
+    assert fake_mongo["written"] is None
+
+
+def test_cmd_trials_diff_reads_new_from_the_normalized_collection(tmp_path, fake_mongo):
+    """--new becomes optional: omit it and the diff reads what ctm-mm trials stored."""
+    from ctm.db import NORMALIZED_COLLECTION
+    from ctm.mm_cli import _cmd_trials_diff
+
+    eligibility = {"inclusion": [], "exclusion": []}
+    normalized = [
+        {"entity": "amc", "protocol_no": "2015.063", "nct_id": None,
+         "eligibility": eligibility, "treatment_list": {"step": []},
+         "trial_hash": "1" * 64, "_raw": {},
+         # Stamped by ctm-mm trials; the diff should inherit this run_date.
+         "run_date": "2026-08-20", "processed_with": "ctm-mm trials 1.2.0"},
+    ]
+    fake_mongo["collections"] = {NORMALIZED_COLLECTION: normalized}
+    fake_mongo["master"] = [
+        {"entity": "amc", "protocol_no": "2015.063", "nct_id": None,
+         "eligibility": eligibility, "treatment_list": {"step": []},
+         "trial_hash": "0" * 64, "_raw": {}},
+    ]
+
+    args = _diff_args(out_prefix=str(tmp_path / "2026-08-20"),
+                      master=None, run_date=None)
+    _cmd_trials_diff(args)
+
+    assert fake_mongo["queries"][0]["name"] == NORMALIZED_COLLECTION
+    # run_date inherited from the normalized documents, not read from the clock.
+    assert [d["run_date"] for d in fake_mongo["written"]["docs"]] == ["2026-08-20"]
+
+    unchanged = json.loads((tmp_path / "2026-08-20-unchanged.json").read_text())
+    assert [t["protocol_no"] for t in unchanged] == ["2015.063"]
+    # Upstream provenance stripped rather than carried into the files.
+    assert "processed_with" not in unchanged[0]
+
+
+def test_cmd_trials_diff_empty_normalized_collection_is_an_error(tmp_path, fake_mongo, capsys):
+    from ctm.db import NORMALIZED_COLLECTION
+    from ctm.mm_cli import _cmd_trials_diff
+
+    fake_mongo["collections"] = {NORMALIZED_COLLECTION: []}
+
+    with pytest.raises(SystemExit):
+        _cmd_trials_diff(_diff_args(out_prefix=str(tmp_path / "x"), master=None))
+    assert "Run ctm-mm trials first" in capsys.readouterr().err
+
+
+def test_cmd_trials_diff_new_file_still_wins(tmp_path, fake_mongo):
+    """The file path stays available, and a nonexistent one errors rather than
+    silently falling back to the collection."""
+    from ctm.mm_cli import _cmd_trials_diff
+
+    with pytest.raises(SystemExit):
+        _cmd_trials_diff(_diff_args(new=str(tmp_path / "missing.json"),
+                                    out_prefix=str(tmp_path / "x")))
+
+
+def test_cmd_trials_stores_the_verbatim_source_records(tmp_path, fake_mongo, monkeypatch):
+    """00_raw_trials keeps what each source actually said, keyed on the same
+    trial_hash as its normalization so the two collections join exactly."""
+    from ctm.db import NORMALIZED_COLLECTION, RAW_COLLECTION
+    from ctm.mm_cli import _cmd_trials
+
+    written = []
+    monkeypatch.setattr(
+        "ctm.db.replace_collection",
+        lambda db, name, docs, unique_key, lookup_keys=(): written.append((name, docs)))
+
+    amc_xml = tmp_path / "amc.xml"
+    amc_xml.write_text("""<PROTOCOL_SUMMARY><PROTOCOL><NO>2021.070</NO>
+      <NCT_NUMBER>NCT04858334</NCT_NUMBER><STATUS>OPEN TO ACCRUAL</STATUS>
+      <TITLE>T</TITLE><ELIGIBILITY>Inclusion Criteria:
+~Age &gt;= 18</ELIGIBILITY></PROTOCOL></PROTOCOL_SUMMARY>""")
+
+    _cmd_trials(_trials_args("--amc", str(amc_xml), "--out", str(tmp_path / "o.json")))
+
+    by_name = dict(written)
+    assert RAW_COLLECTION == "00_raw_trials"
+    assert set(by_name) == {RAW_COLLECTION, NORMALIZED_COLLECTION}
+
+    raw_doc = by_name[RAW_COLLECTION][0]
+    normalized_doc = by_name[NORMALIZED_COLLECTION][0]
+
+    # The join key.
+    assert raw_doc["trial_hash"] == normalized_doc["trial_hash"]
+    # Verbatim source content, plus just enough to identify it without a join.
+    assert raw_doc["_raw"]["protocol_no"] == "2021.070"
+    assert raw_doc["entity"] == "amc"
+    # Not a second copy of the normalization.
+    assert "eligibility" not in raw_doc
+    assert "treatment_list" not in raw_doc
+
+
+def test_raw_collection_is_stage_owned():
+    """A stage clears its target by dropping it, so 00_raw_trials must be declared
+    machine-written or prepare_collection refuses to touch it."""
+    from ctm import db as ctm_db
+
+    assert ctm_db.RAW_COLLECTION in ctm_db.MACHINE_WRITTEN
+    names = [ctm_db.RAW_COLLECTION, ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION,
+             ctm_db.CTML_COLLECTION, ctm_db.CURATED_COLLECTION, ctm_db.MANUAL_COLLECTION,
+             ctm_db.DEFAULT_MASTER_COLLECTION]
+    assert names == sorted(names), "prefixes must sort into pipeline order"
+    assert [n.split("_")[0] for n in names] == ["00", "01", "02", "03", "04", "05", "06"]

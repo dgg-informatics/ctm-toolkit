@@ -76,3 +76,64 @@ def stub_ctgov(monkeypatch):
     monkeypatch.setattr("ctm.transformers.raw_sparrow_to_ctml.fetch", _fetch)
     monkeypatch.setattr("ctm.transformers.raw_ddots_to_ctml.fetch", _fetch)
     return _fetch
+
+
+@pytest.fixture
+def fake_mongo(monkeypatch):
+    """Capture Mongo reads/writes without a server. Returns the captured state."""
+    captured = {"master": [], "written": None, "opened": []}
+
+    def _get_database(config, db_name=None):
+        captured["opened"].append(db_name or config["dbname"])
+        return f"<db {db_name or config['dbname']}>"
+
+    def _read_collection(db, name, query=None, keep_metadata=False):
+        captured["read_from"] = (db, name)
+        captured.setdefault("queries", []).append({"name": name, "query": query})
+        # Per-collection sources for the chained stages; `master` is the default
+        # so the trials-diff tests keep reading the way they always did.
+        return captured.get("collections", {}).get(name, captured["master"])
+
+    def _replace_collection(db, name, docs, unique_key, lookup_keys=()):
+        captured["written"] = {
+            "db": db, "name": name, "docs": docs,
+            "unique_key": unique_key, "lookup_keys": lookup_keys,
+        }
+
+    def _prepare_collection(db, name, unique_key, lookup_keys=()):
+        captured["prepared"] = {"db": db, "name": name, "unique_key": unique_key}
+        return f"<collection {name}>"
+
+    def _upsert_doc(collection, doc, unique_key):
+        captured.setdefault("upserted", []).append({"collection": collection, "doc": doc})
+
+    monkeypatch.setenv("MONGO_HOST", "localhost")
+    monkeypatch.setenv("MONGO_PORT", "27018")
+    monkeypatch.setenv("MONGO_DBNAME", "2026-08-17_test")
+    monkeypatch.setenv("MONGO_MASTER_DBNAME", "ctm_master_test")
+    monkeypatch.delenv("MONGO_MASTER_COLLECTION", raising=False)
+    monkeypatch.setattr("ctm.db.get_database", _get_database)
+    monkeypatch.setattr("ctm.db.read_collection", _read_collection)
+    monkeypatch.setattr("ctm.db.replace_collection", _replace_collection)
+    monkeypatch.setattr("ctm.db.prepare_collection", _prepare_collection)
+    monkeypatch.setattr("ctm.db.upsert_doc", _upsert_doc)
+    return captured
+
+
+def _trials_args(*argv):
+    """A `trials` Namespace built by the real parser.
+
+    Hand-rolling argparse.Namespace here meant every new source flag broke this
+    test with an AttributeError; going through the parser keeps defaults in one
+    place and makes a missing flag impossible.
+    """
+    import sys as _sys
+    from unittest.mock import patch
+
+    from ctm import mm_cli
+
+    captured = {}
+    with patch.object(mm_cli, "_cmd_trials", lambda a: captured.setdefault("args", a)), \
+         patch.object(_sys, "argv", ["ctm-mm", "trials", *argv]):
+        mm_cli.main()
+    return captured["args"]

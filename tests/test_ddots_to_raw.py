@@ -323,7 +323,7 @@ def test_fetch_hospital_id_resolution_order(monkeypatch):
     assert hospital_of(seen[-1]) == ["99"], "an explicit argument wins over the env"
 
 
-def test_cmd_trials_passes_the_hospital_id_flag_through(monkeypatch, tmp_path):
+def test_cmd_trials_passes_the_hospital_id_flag_through(monkeypatch, tmp_path, fake_mongo):
     from ctm.mm_cli import _cmd_trials
     from ctm.transformers import ddots_to_raw
 
@@ -406,7 +406,7 @@ def test_omitting_ddots_does_not_fetch():
     assert args.ddots_status_short == "O"
 
 
-def test_cmd_trials_ddots_dump_produces_sparrow_api_trials(tmp_path, stub_ctgov):
+def test_cmd_trials_ddots_dump_produces_sparrow_api_trials(tmp_path, stub_ctgov, fake_mongo):
     """End to end: DDOTS supplies the trial list, ClinicalTrials.gov supplies the
     clinical content, and the DDOTS payload is kept under its own _raw key.
 
@@ -433,7 +433,7 @@ def test_cmd_trials_ddots_dump_produces_sparrow_api_trials(tmp_path, stub_ctgov)
 
 
 def test_ddots_eligibility_is_stored_but_not_used_for_the_normalized_structure(
-        tmp_path, stub_ctgov):
+        tmp_path, stub_ctgov, fake_mongo):
     """The deliberate boundary of this PR: eligibility still comes from
     ClinicalTrials.gov, so the diff key and the LLM stage are unaffected. The DDOTS
     text is retained so the LLM can be taught to read it later without re-pulling.
@@ -454,7 +454,7 @@ def test_ddots_eligibility_is_stored_but_not_used_for_the_normalized_structure(
     assert "<br />" in trial["_raw"]["_ddots"]["eligibility"]
 
 
-def test_legacy_sparrow_path_is_untouched(tmp_path, stub_ctgov):
+def test_legacy_sparrow_path_is_untouched(tmp_path, stub_ctgov, fake_mongo):
     """Both sources can run in one pass; they are distinguished by entity and by
     which _raw key carries their payload."""
     import json as _json

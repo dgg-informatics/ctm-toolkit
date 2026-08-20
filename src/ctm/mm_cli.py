@@ -3,7 +3,7 @@
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
   ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] --out PATH
-  ctm-mm trials-diff --new JSON --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
+  ctm-mm trials-diff [--new JSON] --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
   ctm-mm trials-merge --unchanged JSON --changed JSON --out JSON
@@ -84,15 +84,24 @@ def main() -> None:
     p_trials.add_argument("--west", metavar="XLSX",
                           help="Path to the UMH-West trials Excel template (NCT numbers are "
                                "resolved against ClinicalTrials.gov)")
-    p_trials.add_argument("--out", metavar="PATH", required=True,
-                          help="Save MatchMiner CTML JSON output to file")
+    p_trials.add_argument("--out", metavar="PATH",
+                          help="Save MatchMiner CTML JSON output to file. Required unless --no-disk")
+    # Default True through the 1.x line, like every other migrated stage.
+    p_trials.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
+                          help="Write the JSON output in addition to MongoDB (default: enabled)")
+    p_trials.add_argument("--db", metavar="NAME",
+                          help="Override MONGO_DBNAME for this run's 00_raw_trials and "
+                               "01_normalized_trials collections")
+    p_trials.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                          help="Run date stamped on stored documents (default: today)")
 
     p_trials_diff = sub.add_parser(
         "trials-diff",
         help="Split a fresh trial normalization into unchanged/changed/deleted vs. the previous master",
     )
-    p_trials_diff.add_argument("--new", required=True, metavar="JSON",
-                               help="Fresh normalized trials JSON from ctm-mm trials")
+    p_trials_diff.add_argument("--new", metavar="JSON",
+                               help="Fresh normalized trials JSON from ctm-mm trials. Omit to read "
+                                    "the 01_normalized_trials collection instead")
     p_trials_diff.add_argument("--master", metavar="JSON",
                                help="Previous master trials JSON. Omit to read the master from "
                                     "MONGO_MASTER_COLLECTION in MONGO_MASTER_DBNAME instead")
@@ -186,6 +195,24 @@ def main() -> None:
         _cmd_trials_confidence_split(args)
     elif args.command == "trials-merge":
         _cmd_trials_merge(args)
+
+
+def _check_disk_args(args, out_flag: str) -> None:
+    """Reject the two contradictory disk states.
+
+    ``out_flag`` names the output argument because it differs per subcommand
+    (--out for trials, --out-prefix for trials-diff). Writing no files while an
+    output path was named, or --disk with nowhere to write, are both worth an
+    error rather than a silent no-op.
+    """
+    out_value = getattr(args, out_flag.lstrip("-").replace("-", "_"))
+    if args.disk and not out_value:
+        print(f"Error: {out_flag} is required (pass --no-disk to store only to MongoDB)",
+              file=sys.stderr)
+        sys.exit(1)
+    if out_value and not args.disk:
+        print(f"Error: {out_flag} has no effect with --no-disk", file=sys.stderr)
+        sys.exit(1)
 
 
 def _build_extras(patients: list, metadata: list, findings: list) -> dict:
@@ -289,10 +316,16 @@ def _cmd_raw_to_mm(args) -> None:
 
 
 def _cmd_trials(args) -> None:
+    from ctm import db as ctm_db
     from ctm.transformers.amc_xml_to_raw import load as load_amc
     from ctm.transformers.ctgov_to_raw import from_search_response, from_study
     from ctm.transformers.raw_amc_to_ctml import to_ctml_dict as amc_to_ctml
     from ctm.transformers.raw_ctgov_to_ctml import to_ctml_dict as ctgov_to_ctml
+
+    # Checked up front: a missing --out or Mongo variable should fail before the
+    # first source is fetched, not after paying for a feed pull.
+    _check_disk_args(args, "--out")
+    config = ctm_db.mongo_config()
 
     trials: list[dict] = []
 
@@ -430,9 +463,89 @@ def _cmd_trials(args) -> None:
     for t in trials:
         t["trial_hash"] = compute_trial_hash(t)
 
-    out_path = Path(args.out)
-    out_path.write_text(json.dumps(trials, indent=2, default=str))
-    print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
+    # First stage in the chain, so this is the one place that legitimately reads the
+    # clock: there is no upstream run_date to inherit. Every later stage inherits
+    # from here, which is what keeps one weekly run on a single timeline.
+    run_date = args.run_date or date.today().isoformat()
+    target_db = args.db or config["dbname"]
+    print(f"Target: {target_db}.{ctm_db.NORMALIZED_COLLECTION} (run_date {run_date})",
+          file=sys.stderr)
+
+    # Cheap and deterministic, so batch replaces are fine here — unlike the LLM
+    # stages, an interrupted run costs nothing but time to redo.
+    database = ctm_db.get_database(config, target_db)
+
+    # The verbatim source record for each trial, keyed on the same trial_hash as
+    # its normalization so the two collections join exactly. Kept so a
+    # normalization can be re-derived, or a parser change re-run, without going
+    # back to the source system — which for DDOTS costs a rate-limited request.
+    ctm_db.replace_collection(
+        database,
+        ctm_db.RAW_COLLECTION,
+        [ctm_db.stamp({"entity": t.get("entity"),
+                       "protocol_no": t.get("protocol_no"),
+                       "nct_id": t.get("nct_id"),
+                       "trial_hash": t["trial_hash"],
+                       "_raw": t.get("_raw", {})},
+                      "ctm-mm trials", run_date)
+         for t in trials],
+        ctm_db.DIFF_UNIQUE_KEY,
+        ctm_db.DIFF_LOOKUP_KEYS,
+    )
+    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.RAW_COLLECTION}",
+          file=sys.stderr)
+
+    ctm_db.replace_collection(
+        database,
+        ctm_db.NORMALIZED_COLLECTION,
+        [ctm_db.stamp(t, "ctm-mm trials", run_date) for t in trials],
+        ctm_db.DIFF_UNIQUE_KEY,
+        ctm_db.DIFF_LOOKUP_KEYS,
+    )
+    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.NORMALIZED_COLLECTION}",
+          file=sys.stderr)
+
+    if args.disk:
+        out_path = Path(args.out)
+        out_path.write_text(json.dumps(trials, indent=2, default=str))
+        print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
+
+
+def _read_trials_json(path: Path, what: str) -> list[dict]:
+    """Read a trials JSON file, failing with a readable message rather than a traceback.
+
+    A truncated or empty file is a plausible real failure — an interrupted write, a
+    stray `/dev/null` — and json.loads' JSONDecodeError says nothing about which
+    file or which argument was at fault.
+    """
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        print(f"Error: {what} file {path} is not valid JSON: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _read_new_trials(args, config, target_db) -> tuple[list[dict], str]:
+    """The fresh normalization, from --new if given or else 01_normalized_trials."""
+    from ctm import db as ctm_db
+
+    if args.new:
+        new_path = Path(args.new)
+        if not new_path.exists():
+            print(f"Error: file not found: {new_path}", file=sys.stderr)
+            sys.exit(1)
+        return _read_trials_json(new_path, "--new"), str(new_path)
+
+    trials = ctm_db.read_collection(
+        ctm_db.get_database(config, target_db), ctm_db.NORMALIZED_COLLECTION,
+        keep_metadata=True,
+    )
+    described = f"{target_db}.{ctm_db.NORMALIZED_COLLECTION}"
+    if not trials:
+        print(f"Error: no trials in {described}. Run ctm-mm trials first, or pass --new.",
+              file=sys.stderr)
+        sys.exit(1)
+    return trials, described
 
 
 def _read_master(args, config) -> tuple[list[dict], str]:
@@ -450,7 +563,7 @@ def _read_master(args, config) -> tuple[list[dict], str]:
         if not master_path.exists():
             print(f"Error: master file not found: {master_path}", file=sys.stderr)
             sys.exit(1)
-        return json.loads(master_path.read_text()), str(master_path)
+        return _read_trials_json(master_path, "--master"), str(master_path)
 
     db_name = args.master_db or config["master_dbname"]
     collection = args.master_collection or config["master_collection"]
@@ -465,21 +578,13 @@ def _cmd_trials_diff(args) -> None:
     # Validated up front: a missing variable should fail before any files are
     # written, not after. MONGO_MASTER_DBNAME is only required when the master
     # comes from Mongo and --master-db has not already named the database.
-    # --out-prefix is meaningless with --no-disk, and disk output cannot write
-    # without it. Rejecting both mismatches beats silently producing no files.
-    if args.disk and not args.out_prefix:
-        print("Error: --out-prefix is required (pass --no-disk to store only to MongoDB)",
-              file=sys.stderr)
-        sys.exit(1)
-    if args.out_prefix and not args.disk:
-        print("Error: --out-prefix has no effect with --no-disk", file=sys.stderr)
-        sys.exit(1)
+    _check_disk_args(args, "--out-prefix")
 
     config = ctm_db.mongo_config(require_master=not args.master and not args.master_db)
-    run_date = args.run_date or date.today().isoformat()
     target_db = args.db or config["dbname"]
 
-    new_trials = json.loads(Path(args.new).read_text())
+    new_trials, new_source = _read_new_trials(args, config, target_db)
+    print(f"New: {len(new_trials)} trial(s) from {new_source}", file=sys.stderr)
     master_trials, master_source = _read_master(args, config)
 
     if not master_trials and not args.allow_empty_master:
@@ -492,7 +597,18 @@ def _cmd_trials_diff(args) -> None:
         sys.exit(1)
 
     print(f"Master: {len(master_trials)} trial(s) from {master_source}", file=sys.stderr)
+
+    # --run-date wins; otherwise inherit from the normalized documents so this stage
+    # stays on the run that produced them. A JSON file carries no run to inherit
+    # from, so there today is the only honest answer.
+    run_date = args.run_date or ctm_db.inherited_run_date(
+        new_trials, fallback=date.today().isoformat())
     print(f"Target: {target_db}.{ctm_db.DIFF_COLLECTION} (run_date {run_date})", file=sys.stderr)
+
+    # Upstream provenance has done its job now that run_date is known; it must not
+    # reach the JSON files, and each stage re-stamps rather than inherits.
+    new_trials = [ctm_db.strip_metadata(t) for t in new_trials]
+    master_trials = [ctm_db.strip_metadata(t) for t in master_trials]
 
     unchanged, changed, deleted = split_by_eligibility(new_trials, master_trials)
 
