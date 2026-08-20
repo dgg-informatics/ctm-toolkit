@@ -131,6 +131,93 @@ def test_to_raw_trials_keeps_the_verbatim_nct_number_alongside_the_normalized_on
     assert closed.nct_id == "NCT04871542"
 
 
+def test_error_envelope_raises_instead_of_looking_like_no_results():
+    """DDOTS reports faults in a 200 body. Unchecked, the envelope parses into one
+    row with no nct_number, gets dropped as "no usable NCT number", and surfaces as
+    zero trials — indistinguishable from an empty result set."""
+    from ctm.transformers.ddots_to_raw import DdotsApiError, to_raw_trials
+
+    envelope = {"COLUMNS": ["CALLDSN", "ERRORTEXT"],
+                "DATA": [["429", "Too Many Requests"]]}
+
+    with pytest.raises(DdotsApiError) as excinfo:
+        to_raw_trials(envelope)
+
+    assert excinfo.value.code == "429"
+    assert excinfo.value.text == "Too Many Requests"
+    assert excinfo.value.is_rate_limited is True
+    assert "429" in str(excinfo.value)
+
+
+def test_error_envelope_detected_regardless_of_column_order():
+    from ctm.transformers.ddots_to_raw import DdotsApiError, raise_for_api_error
+
+    with pytest.raises(DdotsApiError) as excinfo:
+        raise_for_api_error({"COLUMNS": ["ERRORTEXT", "CALLDSN"],
+                             "DATA": [["Unauthorized", "401"]]})
+
+    # Values must follow the payload's own order, not a guessed one.
+    assert excinfo.value.code == "401"
+    assert excinfo.value.text == "Unauthorized"
+    assert excinfo.value.is_rate_limited is False
+
+
+def test_non_429_errors_are_still_errors():
+    """The envelope is generic, so detection must not be special-cased to 429."""
+    from ctm.transformers.ddots_to_raw import DdotsApiError, raise_for_api_error
+
+    with pytest.raises(DdotsApiError, match="500"):
+        raise_for_api_error({"COLUMNS": ["CALLDSN", "ERRORTEXT"],
+                             "DATA": [["500", "Internal Server Error"]]})
+
+
+def test_a_real_payload_is_not_mistaken_for_an_error():
+    from ctm.transformers.ddots_to_raw import raise_for_api_error
+
+    raise_for_api_error(_payload())          # must not raise
+    raise_for_api_error({})                  # empty is not an error envelope
+    raise_for_api_error({"COLUMNS": ["CALLDSN", "ERRORTEXT", "PROTOCOL"],
+                         "DATA": [["a", "b", "c"]]})  # superset is data, not the envelope
+
+
+def test_replaying_a_saved_error_response_fails_loudly(tmp_path):
+    """Easy to save an error payload by accident under a rate limit; replaying it
+    must not look like a trial-free registry."""
+    from ctm.transformers.ddots_to_raw import DdotsApiError, load
+
+    path = tmp_path / "throttled.json"
+    path.write_text(json.dumps({"COLUMNS": ["CALLDSN", "ERRORTEXT"],
+                                "DATA": [["429", "Too Many Requests"]]}))
+
+    with pytest.raises(DdotsApiError):
+        load(path)
+
+
+def test_fetch_raises_the_api_error_rather_than_returning_it(monkeypatch):
+    import io
+
+    from ctm.transformers import ddots_to_raw
+
+    monkeypatch.setenv("DDOTS_API_KEY", "k")
+    monkeypatch.setenv("DDOTS_SECRET_KEY", "s")
+
+    class _Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    body = json.dumps({"COLUMNS": ["CALLDSN", "ERRORTEXT"],
+                       "DATA": [["429", "Too Many Requests"]]}).encode()
+    monkeypatch.setattr(ddots_to_raw.urllib.request, "urlopen",
+                        lambda url, timeout=None: _Response(body))
+
+    with pytest.raises(ddots_to_raw.DdotsApiError) as excinfo:
+        ddots_to_raw.fetch()
+    assert excinfo.value.is_rate_limited
+
+
 def test_load_reads_a_saved_dump():
     from ctm.transformers.ddots_to_raw import load
 

@@ -93,6 +93,14 @@ trial's provenance is unambiguous.
 > DDOTS credentials travel as **query parameters**, so the secret would appear in
 > any logged URL. `ddots_to_raw` never prints the request URL — keep it that way.
 
+> [!WARNING]
+> **DDOTS rate-limits requests, and reports it inside a `200` response** as
+> `{"COLUMNS": ["CALLDSN", "ERRORTEXT"], "DATA": [["429", "Too Many Requests"]]}`.
+> The loader detects that envelope and fails loudly on both the live and the
+> replay path — without it, a throttled pull parses to zero trials and reads as
+> "Sparrow has no open trials". Use `--ddots-save <path>` on a successful fetch so
+> you can re-run against `--ddots <path>` offline instead of spending another call.
+
 > [!IMPORTANT]
 > The DDOTS registry is **shared across institutions** — one payload's credentialing
 > notes name Trinity Health, Sparrow, Genesys, Hurley and Lehigh Valley. Queries are

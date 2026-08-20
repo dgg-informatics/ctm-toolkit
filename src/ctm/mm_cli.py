@@ -72,6 +72,10 @@ def main() -> None:
                                "DDOTS_HOSPITAL_ID, else 18 = Sparrow). The registry is shared "
                                "across institutions, so an unscoped query returns other "
                                "hospitals' protocols")
+    p_trials.add_argument("--ddots-save", dest="ddots_save", metavar="JSON",
+                          help="Write the raw DDOTS response here before parsing. DDOTS rate-limits "
+                               "requests, so saving lets you re-run against the same payload with "
+                               "--ddots <file> instead of spending another call")
     p_trials.add_argument("--ddots-status-short", dest="ddots_status_short", metavar="CODE",
                           default="O",
                           help="DDOTS status_short filter for a bare --ddots fetch (default: O = open). "
@@ -347,10 +351,27 @@ def _cmd_trials(args) -> None:
 
         if args.ddots == _DDOTS_FETCH:
             print("Querying the DDOTS API ...", file=sys.stderr)
-            payload = ddots_to_raw.fetch(
-                status_short=args.ddots_status_short or None,
-                hospital_id=args.ddots_hospital_id,
-            )
+            try:
+                payload = ddots_to_raw.fetch(
+                    status_short=args.ddots_status_short or None,
+                    hospital_id=args.ddots_hospital_id,
+                )
+            except ddots_to_raw.DdotsApiError as exc:
+                # Reported in a 200 body, so say plainly that no trials were read
+                # rather than letting it read as an empty result set.
+                print(f"Error: {exc}", file=sys.stderr)
+                if exc.is_rate_limited:
+                    print("  DDOTS rate-limits requests. Wait before retrying, and consider "
+                          "--ddots-save so a successful pull can be re-run offline.",
+                          file=sys.stderr)
+                sys.exit(1)
+
+            if args.ddots_save:
+                # Written before parsing: a payload paid for under a rate limit is
+                # worth keeping even if normalization then fails.
+                Path(args.ddots_save).write_text(json.dumps(payload, indent=2))
+                print(f"  Saved raw response → {args.ddots_save}", file=sys.stderr)
+
             raw_ddots = ddots_to_raw.to_raw_trials(payload)
         else:
             ddots_path = Path(args.ddots)
@@ -358,7 +379,12 @@ def _cmd_trials(args) -> None:
                 print(f"Error: file not found: {ddots_path}", file=sys.stderr)
                 sys.exit(1)
             print(f"Reading DDOTS JSON {ddots_path} ...", file=sys.stderr)
-            raw_ddots = ddots_to_raw.load(ddots_path)
+            try:
+                raw_ddots = ddots_to_raw.load(ddots_path)
+            except ddots_to_raw.DdotsApiError as exc:
+                print(f"Error: {ddots_path} holds a DDOTS error response, not trial data: {exc}",
+                      file=sys.stderr)
+                sys.exit(1)
 
         print(f"  {len(raw_ddots)} DDOTS trial(s) with NCT numbers — "
               "fetching from ClinicalTrials.gov ...", file=sys.stderr)
