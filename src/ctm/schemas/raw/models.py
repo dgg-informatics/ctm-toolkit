@@ -253,6 +253,34 @@ class RawGuardant360Finding(BaseModel):
     raw_alteration_trend: str | float | None = None
 
 
+class RawFoundationFinding(BaseModel):
+    """One row from the foundation_findings sheet (Foundation Medicine reports)."""
+    model_config = ConfigDict(extra='allow')
+    pt_uuid: int
+    report_uuid: int
+    accession_no: str | int | None = None
+    gene: str | None = None
+    protein: str | None = None
+    nucleotide: str | None = None
+    variant_type: str | None = None
+    result_summary: str | None = None
+    raw_section: str | None = None
+    raw_biomarker: str | None = None
+    raw_method: str | None = None
+    raw_analyte: str | None = None
+    raw_result: str | None = None
+    raw_benefit: str | None = None
+    raw_therapy_assoc: str | None = None
+    raw_biomarker_level: str | None = None
+    raw_variant_interpretation: str | None = None
+    raw_protein_alteration: str | None = None
+    raw_exon: str | int | None = None
+    raw_dna_alteration: str | None = None
+    raw_frequency_pct: str | float | None = None
+    raw_genotype: str | None = None
+    raw_hla_class: str | None = None
+
+
 class RawTumorBiomarker(BaseModel):
     model_config = ConfigDict(extra='allow')
     pt_uuid: int
