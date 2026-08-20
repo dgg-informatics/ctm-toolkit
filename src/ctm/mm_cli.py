@@ -2,7 +2,7 @@
 
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
-  ctm-mm trials [--amc XML] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] --out PATH
+  ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] --out PATH
   ctm-mm trials-diff --new JSON --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
   ctm-mm trials-curate --trials JSON --out JSON --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
@@ -24,8 +24,11 @@ from ctm.paths import cache_dir, cache_path, load_env
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
 
-# Sentinel for a bare `--ddots` (no path): query the API rather than read a file.
+# Sentinels for a bare `--ddots` / `--amc` (no path): pull from the source rather
+# than read a file. Omitting the flag entirely still means "skip this source", so a
+# forgotten flag never triggers a live pull.
 _DDOTS_FETCH = "<fetch>"
+_AMC_FETCH = "<fetch>"
 
 
 def main() -> None:
@@ -53,7 +56,9 @@ def main() -> None:
         "trials",
         help="Normalize raw trial sources → MatchMiner CTML JSON",
     )
-    p_trials.add_argument("--amc", metavar="XML", help="Path to AMC trials XML export")
+    p_trials.add_argument("--amc", metavar="XML", nargs="?", const=_AMC_FETCH,
+                          help="Pull AMC trials from the OCTSU XML feed (override with "
+                               "AMC_FEED_URL). Pass a path to read a local export instead")
     p_trials.add_argument("--ct", metavar="JSON", help="Path to ClinicalTrials.gov JSON (single study or search response)")
     p_trials.add_argument("--sparrow", metavar="XLSX",
                           help="Path to the Sparrow marketing trials Excel sheet (NCT numbers are "
@@ -72,10 +77,6 @@ def main() -> None:
                                "DDOTS_HOSPITAL_ID, else 18 = Sparrow). The registry is shared "
                                "across institutions, so an unscoped query returns other "
                                "hospitals' protocols")
-    p_trials.add_argument("--ddots-save", dest="ddots_save", metavar="JSON",
-                          help="Write the raw DDOTS response here before parsing. DDOTS rate-limits "
-                               "requests, so saving lets you re-run against the same payload with "
-                               "--ddots <file> instead of spending another call")
     p_trials.add_argument("--ddots-status-short", dest="ddots_status_short", metavar="CODE",
                           default="O",
                           help="DDOTS status_short filter for a bare --ddots fetch (default: O = open). "
@@ -296,12 +297,23 @@ def _cmd_trials(args) -> None:
     trials: list[dict] = []
 
     if args.amc:
-        amc_path = Path(args.amc)
-        if not amc_path.exists():
-            print(f"Error: file not found: {amc_path}", file=sys.stderr)
-            sys.exit(1)
-        print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
-        raw_trials = load_amc(amc_path)
+        from ctm.transformers import amc_xml_to_raw
+
+        if args.amc == _AMC_FETCH:
+            print("Fetching the AMC XML feed ...", file=sys.stderr)
+            try:
+                raw_trials = amc_xml_to_raw.fetch()
+            except RuntimeError as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            amc_path = Path(args.amc)
+            if not amc_path.exists():
+                print(f"Error: file not found: {amc_path}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
+            raw_trials = load_amc(amc_path)
+
         print(f"  {len(raw_trials)} AMC trial(s)", file=sys.stderr)
         trials.extend(amc_to_ctml(t) for t in raw_trials)
 
@@ -361,16 +373,9 @@ def _cmd_trials(args) -> None:
                 # rather than letting it read as an empty result set.
                 print(f"Error: {exc}", file=sys.stderr)
                 if exc.is_rate_limited:
-                    print("  DDOTS rate-limits requests. Wait before retrying, and consider "
-                          "--ddots-save so a successful pull can be re-run offline.",
+                    print("  DDOTS rate-limits requests — wait before retrying.",
                           file=sys.stderr)
                 sys.exit(1)
-
-            if args.ddots_save:
-                # Written before parsing: a payload paid for under a rate limit is
-                # worth keeping even if normalization then fails.
-                Path(args.ddots_save).write_text(json.dumps(payload, indent=2))
-                print(f"  Saved raw response → {args.ddots_save}", file=sys.stderr)
 
             raw_ddots = ddots_to_raw.to_raw_trials(payload)
         else:

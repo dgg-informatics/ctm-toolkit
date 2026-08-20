@@ -36,6 +36,7 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..schemas.raw.models import RawDdotsTrial
@@ -209,7 +210,7 @@ def fetch(*, status_short: str | None = DEFAULT_STATUS_SHORT,
     return payload
 
 
-def to_raw_trials(payload: dict) -> list[RawDdotsTrial]:
+def to_raw_trials(payload: dict, *, fetched_at: datetime | None = None) -> list[RawDdotsTrial]:
     """Payload → RawDdotsTrial list, skipping rows with no usable NCT number.
 
     Field names pass through verbatim, so this is deliberately a thin mapping: the
@@ -220,6 +221,8 @@ def to_raw_trials(payload: dict) -> list[RawDdotsTrial]:
     """
     raise_for_api_error(payload)
 
+    # One timestamp for the whole pull, rather than a different microsecond per row.
+    stamp = fetched_at or datetime.now(tz=UTC)
     trials: list[RawDdotsTrial] = []
     for row in rows(payload):
         nct_id = normalize_nct(row.get("nct_number"))
@@ -231,8 +234,10 @@ def to_raw_trials(payload: dict) -> list[RawDdotsTrial]:
 
         trials.append(RawDdotsTrial(
             nct_id=nct_id,
-            **{k: v for k, v in row.items() if k not in ("documents", "county_distance")},
+            **{k: v for k, v in row.items()
+               if k not in ("documents", "county_distance", "fetched_at")},
             documents=parse_documents(row.get("documents")),
+            fetched_at=stamp,
         ))
     return trials
 
