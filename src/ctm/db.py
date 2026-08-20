@@ -25,6 +25,7 @@ from importlib.metadata import version
 # together in Compass alongside MatchMiner's own `clinical` / `genomic` / `trial` /
 # `trial_match` in the same dated database.
 #
+#   00_raw_trials         ctm-mm trials — verbatim source records
 #   01_normalized_trials  ctm-mm trials
 #   02_diff_trials        ctm-mm trials-diff
 #   03_ctml_drafted_trials ctm-ctml
@@ -36,6 +37,11 @@ from importlib.metadata import version
 # considered and rejected: ctm-ctml's SYSTEM_PROMPT already emits eight fields
 # across clinical and genomic, so a name like "dx_age" is wrong on arrival and
 # drifts further every time a prompt changes.
+# Verbatim source records (AMC XML, West/Sparrow XLSX, DDOTS API, CTGov), stored
+# alongside the normalization they produced. Keyed on the same trial_hash as
+# 01_normalized_trials, so the two join exactly — which is why that hash must be
+# stable across pulls; see compute_trial_hash.
+RAW_COLLECTION = "00_raw_trials"
 NORMALIZED_COLLECTION = "01_normalized_trials"
 DIFF_COLLECTION = "02_diff_trials"
 CTML_COLLECTION = "03_ctml_drafted_trials"
@@ -49,6 +55,7 @@ DEFAULT_MASTER_COLLECTION = "06_master_trials"
 # no warning and no recovery beyond the JSON files. Machine-generated collections
 # are regenerable; human-edited ones are not.
 MACHINE_WRITTEN = frozenset({
+    RAW_COLLECTION,
     NORMALIZED_COLLECTION,
     DIFF_COLLECTION,
     CTML_COLLECTION,

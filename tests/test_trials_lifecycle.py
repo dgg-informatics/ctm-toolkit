@@ -184,3 +184,39 @@ def test_end_to_end_weekly_update_flow():
 
     assert {t["protocol_no"] for t in new_master} == {"2015.063", "2019.058", "2021.070"}
     assert len(new_master) == 3
+
+
+def test_compute_trial_hash_ignores_pull_timestamps():
+    """The hash exists to reveal that source data changed. Pull timestamps live in
+    _raw and change every run, so including them made the hash differ
+    unconditionally — defeating the audit the README describes and breaking it as a
+    cross-run join key."""
+    from ctm.trials_lifecycle import compute_trial_hash
+
+    monday = {"_raw": {"status": "open", "fetched_at": "2026-08-17T10:00:00+00:00"}}
+    friday = {"_raw": {"status": "open", "fetched_at": "2026-08-21T10:00:00+00:00"}}
+
+    assert compute_trial_hash(monday) == compute_trial_hash(friday)
+
+
+def test_compute_trial_hash_ignores_nested_pull_timestamps():
+    """A Sparrow trial carries one under _raw from ClinicalTrials.gov and another
+    under _raw._ddots from DDOTS."""
+    from ctm.trials_lifecycle import compute_trial_hash
+
+    a = {"_raw": {"status": "open", "fetched_at": "2026-08-17T10:00:00+00:00",
+                  "_ddots": {"protocol": "0424", "fetched_at": "2026-08-17T09:59:00+00:00"}}}
+    b = {"_raw": {"status": "open", "fetched_at": "2026-08-21T10:00:00+00:00",
+                  "_ddots": {"protocol": "0424", "fetched_at": "2026-08-21T09:59:00+00:00"}}}
+
+    assert compute_trial_hash(a) == compute_trial_hash(b)
+
+
+def test_compute_trial_hash_still_detects_real_source_changes():
+    """Excluding timestamps must not blunt the thing the hash is for."""
+    from ctm.trials_lifecycle import compute_trial_hash
+
+    before = {"_raw": {"status": "open", "fetched_at": "2026-08-17T10:00:00+00:00"}}
+    after = {"_raw": {"status": "closed", "fetched_at": "2026-08-17T10:00:00+00:00"}}
+
+    assert compute_trial_hash(before) != compute_trial_hash(after)

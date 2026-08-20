@@ -21,13 +21,36 @@ def trial_key(trial: dict) -> str:
     return trial["nct_id"]
 
 
+# Provenance recorded alongside the source data, not part of it. Excluded from the
+# hash because they change on every pull: leaving `fetched_at` in made trial_hash
+# differ run to run for identical source data, defeating the audit purpose the
+# README describes ("notice a trial's metadata quietly changed under an
+# `unchanged` routing") and making the hash useless as a cross-run join key.
+_VOLATILE_RAW_KEYS = frozenset({"fetched_at"})
+
+
+def _without_volatile(value):
+    """Copy of *value* with provenance keys stripped at every depth.
+
+    Recursive because the keys nest: a Sparrow trial carries one under `_raw`
+    from ClinicalTrials.gov and another under `_raw._ddots` from DDOTS.
+    """
+    if isinstance(value, dict):
+        return {k: _without_volatile(v) for k, v in value.items()
+                if k not in _VOLATILE_RAW_KEYS}
+    if isinstance(value, list):
+        return [_without_volatile(v) for v in value]
+    return value
+
+
 def compute_trial_hash(trial: dict) -> str:
     """Fingerprint of a trial's raw source data (its `_raw` blob).
 
-    Stable across curation — computed only from `_raw`, which curation
-    never touches. Used for later audit, not for routing decisions.
+    Stable across curation — computed only from `_raw`, which curation never
+    touches — and stable across pulls, because pull timestamps are excluded. Used
+    for later audit and as the storage key, not for routing decisions.
     """
-    raw = trial.get("_raw", {})
+    raw = _without_volatile(trial.get("_raw", {}))
     serialized = json.dumps(raw, sort_keys=True, default=str)
     return hashlib.sha256(serialized.encode()).hexdigest()
 

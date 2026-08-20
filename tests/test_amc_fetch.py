@@ -205,7 +205,7 @@ def test_omitting_amc_does_not_fetch():
     assert _trials_args("--out", "o.json", "--ddots").amc is None
 
 
-def test_cmd_trials_bare_amc_fetches_the_feed(tmp_path, monkeypatch):
+def test_cmd_trials_bare_amc_fetches_the_feed(tmp_path, monkeypatch, fake_mongo):
     import json
 
     from ctm.mm_cli import _cmd_trials
@@ -221,7 +221,7 @@ def test_cmd_trials_bare_amc_fetches_the_feed(tmp_path, monkeypatch):
     assert trials[0]["_raw"]["fetched_at"]
 
 
-def test_cmd_trials_amc_path_still_reads_a_local_export(tmp_path):
+def test_cmd_trials_amc_path_still_reads_a_local_export(tmp_path, fake_mongo):
     """The existing invocation must keep working unchanged."""
     import json
 
