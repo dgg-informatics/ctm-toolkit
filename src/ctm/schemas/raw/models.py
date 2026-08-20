@@ -338,7 +338,11 @@ class RawWestTrial(BaseModel):
 
 
 class RawSparrowTrial(BaseModel):
-    """One row from the Sparrow marketing trials Excel sheet."""
+    """One row from the legacy Sparrow marketing trials Excel sheet.
+
+    Superseded by RawDdotsTrial but deliberately unchanged: the two sources stay
+    separate models so a trial's provenance is unambiguous from its shape alone.
+    """
     study_name: str | None = None           # Study Name
     description: str | None = None          # Description
     contact_name: str | None = None         # Contact Name
@@ -348,6 +352,65 @@ class RawSparrowTrial(BaseModel):
     nct_id: str | None = None              # NCT # (cleaned)
     contact_email: str | None = None        # Contact Email
     pi: str | None = None                   # PI
+
+
+class RawDdotsTrial(BaseModel):
+    """One protocol from the DDOTS /protocol endpoint — Sparrow's own registry.
+
+    Field names mirror the API's exactly (lowercased from its UPPERCASE COLUMNS),
+    the same convention the Excel models follow for their sheet columns.
+
+    Kept separate from RawSparrowTrial rather than merged into it so that
+    ``_raw._ddots`` vs ``_raw._sparrow`` tells you which pipeline produced a trial
+    without inspecting ``entity``.
+
+    ``eligibility`` is stored and otherwise unused. The normalized
+    inclusion/exclusion structure still comes from ClinicalTrials.gov, because
+    across real payloads this field arrives in at least three incompatible
+    layouts (``<br />``-numbered, unnumbered with ALL-CAPS headers, ``<p>``-wrapped
+    with ``3.2.1`` section numbers), sometimes flattens ``>=``/``<=`` to ``=``, and
+    is sometimes explicitly abridged ("PLEASE SEE THE CURRENT VERSION OF PROTOCOL
+    FOR FULL ELIGIBILITY LIST"). Teaching the LLM stage to read it is future work;
+    storing it now means that can happen without another API pull.
+    """
+    model_config = ConfigDict(extra='allow')
+
+    # Identity. nct_number is verbatim from the API (unprefixed digits); nct_id is
+    # the normalized NCT-prefixed form used everywhere else in the pipeline.
+    nct_id: str | None = None
+    nct_number: str | int | None = None
+    protocol: str | None = None                 # national/legacy protocol no. e.g. "0424"
+    protocol_id: int | str | None = None        # DDOTS internal autonumber
+    local_id: str | None = None                 # local IRB id
+
+    protocol_title: str | None = None
+    protocol_title_short: str | None = None
+    protocol_summary: str | None = None
+    protocol_type: str | None = None            # e.g. "Clinical Trial"
+    eligibility: str | None = None              # stored only — see class docstring
+
+    # 0 and 125 are "no limit" sentinels rather than real bounds.
+    min_age: int | float | str | None = None
+    max_age: int | float | str | None = None
+
+    status: str | None = None                   # status AT THIS INSTITUTION, e.g. "OPEN TO ACCRUAL"
+    status_short: str | None = None             # O | C | P …
+
+    disease_site: str | None = None
+    disease_site_list: str | None = None        # comma-delimited
+    disease_category: str | None = None
+
+    investigator: str | None = None             # "Narayan MD, Samir" — degree sits in the surname field
+    investigator_email: str | None = None
+    coordinator: str | None = None
+    coordinator_email: str | None = None
+
+    department_name: str | None = None
+    hospital: str | None = None
+    hospital_email: str | None = None
+
+    nct_link: str | None = None
+    documents: dict | None = None               # parsed from the JSON-in-JSON string
 
 
 class RawAMCTrial(BaseModel):
