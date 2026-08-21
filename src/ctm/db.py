@@ -178,6 +178,14 @@ def stamp(doc: dict, stage: str, run_date: str, **extra) -> dict:
     stamped["processed_with"] = f"{stage} {toolkit_version()}"
     stamped["run_date"] = run_date
     stamped.update(extra)
+
+    # Validate what crosses the Mongo boundary at the point it is assembled, so a
+    # malformed write fails at the stage that caused it rather than downstream.
+    # Checks the envelope and _llm_curation only; the trial body is already typed
+    # by ClinicalTrialNormalized. See ctm.schemas.storage.
+    from ctm.schemas.storage import validate_storage
+    validate_storage(stamped)
+
     return stamped
 
 
