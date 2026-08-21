@@ -1,25 +1,9 @@
 """Validation for what crosses the MongoDB boundary.
 
-The pipeline passes trials as plain dicts, each stage adding keys — deliberately,
-so a stage never has to re-assert fields it does not own. The trial *body* is
-already typed by ``ClinicalTrialNormalized``; these models cover the two things
-that are not:
-
 * the **storage envelope** — the fields ``stamp()`` adds to every stored document
   (``trial_key``, ``trial_hash``, ``processed_with``, ``run_date``, and
   ``diff_status`` on the diff stage), and
 * the **LLM-stage additions** under ``_llm_curation``.
-
-Every bug this layer would have caught was in exactly these fields: ``trial_hash``
-unstable across pulls, ``run_date`` failing to propagate, ``diff_status`` being an
-unvalidated routing signal, and silent drops inside ``_llm_curation``. None of them
-are in the trial body.
-
-Validation runs on **write only**, inside ``stamp()``. A document that is
-well-formed going into Mongo is well-formed coming out, and a bad write then fails
-at the stage that caused it rather than three stages downstream. These models
-*check* a document — they are constructed and discarded; the original dict is what
-gets stored — so validation never drops a field or reshapes the body.
 """
 import re
 from typing import Literal
@@ -33,14 +17,7 @@ DiffStatus = Literal["unchanged", "changed", "deleted"]
 
 
 class StorageMetadata(BaseModel):
-    """The envelope ``stamp()`` puts on every stored trial.
-
-    ``validate_storage`` constructs this from the five envelope keys by name, so
-    what it guards is the *values* — a non-sha256 ``trial_hash``, a mis-formatted
-    ``run_date``, an out-of-set ``diff_status`` — not the presence of stray keys
-    on the surrounding trial dict. ``extra='forbid'`` documents that the envelope
-    is closed, and catches a caller that constructs the model directly with a
-    typo'd field name.
+    """The envelope stamp() puts on every stored trial.
     """
     model_config = ConfigDict(extra='forbid')
 
@@ -104,7 +81,7 @@ class BiomarkerReference(BaseModel):
 
 
 class LlmCuration(BaseModel):
-    """The ``_llm_curation`` sub-document the two LLM stages build.
+    """The _llm_curation sub-document the two LLM stages build.
 
     Each stage owns exactly one key and merges rather than rebuilds, so both are
     optional: ``general`` writes ``_ctml_suggestions`` before ``biomarkers`` adds
