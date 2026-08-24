@@ -6,6 +6,7 @@
 * the **LLM-stage additions** under ``_llm_curation``.
 """
 import re
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -95,6 +96,51 @@ class LlmCuration(BaseModel):
 
     ctml_suggestions: list[CtmlSuggestion] = Field(default=[], alias="_ctml_suggestions")
     biomarker_references: list[BiomarkerReference] = []
+
+
+class CurationProvenance(BaseModel):
+    """Who curated a trial's match clause, and when — sticky across merges.
+
+    Deliberately separate from the run envelope. ``processed_with``/``run_date``
+    answer "which stage wrote this document, in which run"; these answer "who
+    finalized this trial's curation, when", a fact about the trial that must
+    survive being carried forward into every later master. They are therefore
+    kept out of ``METADATA_FIELDS``, so ``strip_metadata`` leaves them intact on
+    read, and set only by ``add-manual`` — never re-stamped by a stage.
+
+    ``curated_by`` is the *method* (``"manual-curation"`` today, leaving room for
+    an automated path later); ``curated_by_user`` is the account that ran the
+    curation, from ``getpass.getuser()``. The pair supports "trials curated by a
+    human in the last N months" without conflating it with the master's build date.
+    """
+    model_config = ConfigDict(extra='forbid')
+
+    curated_by: str
+    curated_by_user: str
+    curated_at: datetime
+
+    @field_validator("curated_by", "curated_by_user")
+    @classmethod
+    def _non_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("must be a non-empty string")
+        return v
+
+
+def validate_master(stamped: dict) -> None:
+    """Raise unless ``stamped`` is fit for 06_master_trials.
+
+    The master is the collection MatchMiner ultimately consumes, so the guard is
+    stricter than the per-stage write check: envelope, ``_llm_curation`` **and**
+    curation provenance must all be present and well-formed. Merge calls this on
+    every document before it writes the master — nothing malformed gets in.
+    """
+    validate_storage(stamped)
+    CurationProvenance(
+        curated_by=stamped.get("curated_by"),
+        curated_by_user=stamped.get("curated_by_user"),
+        curated_at=stamped.get("curated_at"),
+    )
 
 
 def validate_storage(stamped: dict) -> None:

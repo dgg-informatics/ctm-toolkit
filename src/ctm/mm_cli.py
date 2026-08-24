@@ -170,16 +170,48 @@ def main() -> None:
                                            help="Cache file for diagnosis-recovery LLM calls (only used with "
                                                 f"--recover-diagnosis; default: {cache_dir() / _DIAGNOSIS_CACHE})")
 
+    p_add_manual = sub.add_parser(
+        "add-manual",
+        help="Ingest a hand-curated trials file (edited 04_curated_trials export) into "
+             "05_manual_curated_trials, stamping curation provenance",
+    )
+    p_add_manual.add_argument("--trials", required=True, metavar="JSON",
+                              help="Manually curated trials JSON — an exported 04_curated_trials "
+                                   "file with match clauses finalized by a human")
+    p_add_manual.add_argument("--db", metavar="NAME",
+                              help="Override MONGO_DBNAME for this run's 05_manual_curated_trials collection")
+    p_add_manual.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                              help="Run date stamped on the storage envelope (default: today)")
+    p_add_manual.add_argument("--curated-by-user", dest="curated_by_user", metavar="USER",
+                              help="Curator account for provenance (default: the OS user; set this "
+                                   "when running under a shared service account)")
+
     p_trials_merge = sub.add_parser(
         "trials-merge",
-        help="Merge carried-forward and freshly-curated trials into a new dated master",
+        help="Merge the previous master, freshly curated trials (05), and the diff's deletions "
+             "into 06_master_trials",
     )
-    p_trials_merge.add_argument("--unchanged", required=True, metavar="JSON",
-                                help="Unchanged trials JSON from trials-diff")
-    p_trials_merge.add_argument("--changed", required=True, metavar="JSON",
-                                help="Curated changed trials JSON (after ctm-ctml + manual review)")
-    p_trials_merge.add_argument("--out", required=True, metavar="JSON",
-                                help="Output path for the new master trials JSON")
+    # Mongo flow (default): previous master from MONGO_MASTER_*; new curated from
+    # 05; deletions from 02_diff_trials. The file flags remain for the legacy path.
+    p_trials_merge.add_argument("--db", metavar="NAME",
+                                help="Override MONGO_DBNAME (holds 05_manual_curated_trials and "
+                                     "02_diff_trials for this run)")
+    p_trials_merge.add_argument("--master-db", dest="master_db", metavar="NAME",
+                                help="Override MONGO_MASTER_DBNAME — where the previous master is read "
+                                     "from and the new one written")
+    p_trials_merge.add_argument("--master-collection", dest="master_collection", metavar="NAME",
+                                help="Override MONGO_MASTER_COLLECTION (default 06_master_trials)")
+    p_trials_merge.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                                help="Run date stamped on the new master's envelope (default: today)")
+    p_trials_merge.add_argument("--out", metavar="JSON",
+                                help="Also write the new master to this JSON file")
+    p_trials_merge.add_argument("--allow-empty-master", dest="allow_empty_master", action="store_true",
+                                help="Permit an empty previous master (first-ever master build)")
+    # Legacy file flow: pre-partitioned unchanged/changed files, no Mongo.
+    p_trials_merge.add_argument("--unchanged", metavar="JSON",
+                                help="[legacy file flow] Unchanged trials JSON from trials-diff")
+    p_trials_merge.add_argument("--changed", metavar="JSON",
+                                help="[legacy file flow] Curated changed trials JSON")
 
     args = parser.parse_args()
 
@@ -193,6 +225,8 @@ def main() -> None:
         _cmd_trials_curate(args)
     elif args.command == "trials-confidence-split":
         _cmd_trials_confidence_split(args)
+    elif args.command == "add-manual":
+        _cmd_add_manual(args)
     elif args.command == "trials-merge":
         _cmd_trials_merge(args)
 
@@ -697,17 +731,137 @@ def _cmd_trials_confidence_split(args) -> None:
     print(f"Saved → {args.high_confidence_out}, {args.needs_curation_out}", file=sys.stderr)
 
 
+def _validate_curation_structure(trial: dict, label: str) -> None:
+    """Fail if a hand-edited trial has broken the CTML structure.
+
+    Curation edits the match clauses in ``treatment_list``; validating them
+    against the CTML models catches a curator who mangled the shape (a stray key,
+    a wrong type) rather than only the values. The rest of the trial body is not
+    re-validated here — the curator is not meant to touch it.
+    """
+    from pydantic import ValidationError
+
+    from ctm.schemas.matchminer.clinical_trial import CtmlEligibility, CtmlTreatmentList
+
+    for field, model in (("treatment_list", CtmlTreatmentList), ("eligibility", CtmlEligibility)):
+        if field in trial:
+            try:
+                model.model_validate(trial[field])
+            except ValidationError as exc:
+                print(f"Error: {label} has a malformed {field}: {exc}", file=sys.stderr)
+                sys.exit(1)
+
+
+def _cmd_add_manual(args) -> None:
+    from ctm import db as ctm_db
+
+    config = ctm_db.mongo_config()
+    target_db = args.db or config["dbname"]
+    run_date = args.run_date or date.today().isoformat()
+
+    trials = _read_trials_json(Path(args.trials), "--trials")
+    if not trials:
+        print(f"Error: {args.trials} contains no trials", file=sys.stderr)
+        sys.exit(1)
+    print(f"Read {len(trials)} hand-curated trial(s) from {args.trials}", file=sys.stderr)
+
+    collection = ctm_db.open_collection(
+        ctm_db.get_database(config, target_db), ctm_db.MANUAL_COLLECTION,
+        ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+    )
+    print(f"Target: {target_db}.{ctm_db.MANUAL_COLLECTION} (append, run_date {run_date})",
+          file=sys.stderr)
+
+    for i, trial in enumerate(trials, 1):
+        label = f"trial {i} ({trial.get('nct_id') or trial.get('protocol_no') or '?'})"
+        _validate_curation_structure(trial, label)
+        # Envelope first (this stage's provenance), then sticky curation provenance.
+        stamped = ctm_db.stamp(trial, "ctm-mm add-manual", run_date)
+        stamped = ctm_db.stamp_curation(stamped, curated_by_user=args.curated_by_user)
+        ctm_db.upsert_doc(collection, stamped, ctm_db.DIFF_UNIQUE_KEY)
+
+    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.MANUAL_COLLECTION}", file=sys.stderr)
+
+
 def _cmd_trials_merge(args) -> None:
-    from ctm.trials_lifecycle import merge_master
+    from ctm import db as ctm_db
+    from ctm.trials_lifecycle import merge_master, reconcile_master, trial_key
 
-    unchanged = json.loads(Path(args.unchanged).read_text())
-    changed = json.loads(Path(args.changed).read_text())
+    # Legacy file flow: explicit unchanged/changed files, no Mongo, no curation
+    # provenance. Kept for the pre-Mongo pipeline.
+    if args.unchanged or args.changed:
+        if not (args.unchanged and args.changed and args.out):
+            print("Error: the legacy file flow needs --unchanged, --changed and --out together",
+                  file=sys.stderr)
+            sys.exit(1)
+        unchanged = _read_trials_json(Path(args.unchanged), "--unchanged")
+        changed = _read_trials_json(Path(args.changed), "--changed")
+        master = merge_master(unchanged, changed)
+        Path(args.out).write_text(json.dumps(master, indent=2, default=str))
+        print(f"Saved {len(master)} trial(s) → {args.out}", file=sys.stderr)
+        return
 
-    master = merge_master(unchanged, changed)
+    config = ctm_db.mongo_config(require_master=not args.master_db)
+    target_db = args.db or config["dbname"]
+    master_db = args.master_db or config["master_dbname"]
+    master_collection = args.master_collection or config["master_collection"]
+    run_date = args.run_date or date.today().isoformat()
 
-    out_path = Path(args.out)
-    out_path.write_text(json.dumps(master, indent=2, default=str))
-    print(f"Saved {len(master)} trial(s) → {out_path}", file=sys.stderr)
+    run_database = ctm_db.get_database(config, target_db)
+    master_database = ctm_db.get_database(config, master_db)
+
+    # Three inputs: the freshly curated trials, the authoritative previous master,
+    # and the diff's deletions.
+    new_curated = ctm_db.read_collection(run_database, ctm_db.MANUAL_COLLECTION,
+                                         keep_metadata=True)
+    if not new_curated:
+        print(f"Error: no trials in {target_db}.{ctm_db.MANUAL_COLLECTION}. "
+              "Run ctm-mm add-manual first.", file=sys.stderr)
+        sys.exit(1)
+
+    previous_master = ctm_db.read_collection(master_database, master_collection,
+                                             keep_metadata=True)
+    if not previous_master and not args.allow_empty_master:
+        print(f"Error: previous master {master_db}.{master_collection} is empty. "
+              "Pass --allow-empty-master to build the first master.", file=sys.stderr)
+        sys.exit(1)
+
+    diff_docs = ctm_db.read_collection(run_database, ctm_db.DIFF_COLLECTION,
+                                       {"diff_status": "deleted"})
+    deleted_keys = {trial_key(t) for t in diff_docs}
+
+    print(f"Curated: {len(new_curated)} from {target_db}.{ctm_db.MANUAL_COLLECTION}", file=sys.stderr)
+    print(f"Master:  {len(previous_master)} from {master_db}.{master_collection}", file=sys.stderr)
+    print(f"Deleted: {len(deleted_keys)} key(s) from {target_db}.{ctm_db.DIFF_COLLECTION}",
+          file=sys.stderr)
+
+    master = reconcile_master(previous_master, new_curated, deleted_keys)
+
+    # Re-stamp the run envelope on every row (merge built this whole snapshot this
+    # run); curation provenance rides along untouched. Then guard the master
+    # strictly — nothing without valid curation provenance reaches 06. Validation
+    # runs before the write, so a bad row leaves the existing master intact.
+    from pydantic import ValidationError
+
+    from ctm.schemas.storage import validate_master
+    stamped = [ctm_db.stamp(t, "ctm-mm trials-merge", run_date) for t in master]
+    for t in stamped:
+        try:
+            validate_master(t)
+        except ValidationError as exc:
+            ident = t.get("trial_key") or t.get("nct_id") or t.get("protocol_no") or "?"
+            print(f"Error: trial {ident} is not fit for {master_db}.{master_collection} "
+                  f"(missing or malformed curation provenance?). Master left unchanged.\n{exc}",
+                  file=sys.stderr)
+            sys.exit(1)
+
+    ctm_db.replace_collection(master_database, master_collection, stamped,
+                              ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
+    print(f"Stored {len(stamped)} doc(s) → {master_db}.{master_collection}", file=sys.stderr)
+
+    if args.out:
+        Path(args.out).write_text(json.dumps(stamped, indent=2, default=str))
+        print(f"Saved {len(stamped)} trial(s) → {args.out}", file=sys.stderr)
 
 
 if __name__ == "__main__":

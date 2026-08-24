@@ -101,5 +101,37 @@ def merge_master(unchanged: list[dict], curated_changed: list[dict]) -> list[dic
 
     Plain concatenation — split_by_eligibility already partitions by
     identity key with no overlap, so there's nothing to deduplicate.
+
+    The file-based two-input form. The Mongo flow uses reconcile_master, which
+    starts from the authoritative previous master instead of the diff's
+    `unchanged` bucket.
     """
     return unchanged + curated_changed
+
+
+def reconcile_master(
+    previous_master: list[dict],
+    new_curated: list[dict],
+    deleted_keys: set[str],
+) -> list[dict]:
+    """The new master: previous master, minus deletions and superseded trials,
+    plus the freshly manually-curated ones.
+
+    Keyed on ``trial_key`` to match ``split_by_eligibility`` — the two must agree
+    on identity or a trial the diff called `deleted` would not be found here. A
+    changed trial's ``trial_hash`` differs between its old master row and its new
+    curated one (the hash tracks source data, which changed), so supersession
+    cannot key on the hash; only ``trial_key`` is stable across a content change.
+
+    Carried-forward rows are returned untouched, so their sticky ``curated_*``
+    provenance is preserved; the caller re-stamps only the run envelope. Inherits
+    ``split_by_eligibility``'s known limitation that ``trial_key`` collisions
+    (sparrow/west sharing an NCT) collapse — the same trials, keyed the same way,
+    so the two stages stay consistent even in that case.
+    """
+    superseded = {trial_key(t) for t in new_curated}
+    carried = [
+        t for t in previous_master
+        if trial_key(t) not in deleted_keys and trial_key(t) not in superseded
+    ]
+    return carried + new_curated
