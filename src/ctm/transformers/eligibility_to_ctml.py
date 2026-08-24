@@ -156,21 +156,46 @@ def save_cache(cache: dict, path: Path | None = None) -> None:
     path.write_text(json.dumps(cache, indent=2))
 
 
+def is_content_filter(exc: Exception) -> bool:
+    """True if an LLM call failed because a provider content filter rejected it.
+
+    Azure returns this as a hard 400 with ``code='content_filter'`` — deterministic
+    for a given prompt, so retrying is pointless. Clinical eligibility text (tumor,
+    death, toxicity language) trips it routinely, and one criterion must not crash a
+    run of hundreds of trials. Detected without importing openai, which lives behind
+    the [llm] extra.
+    """
+    return getattr(exc, "code", None) == "content_filter" or "content_filter" in str(exc)
+
+
 def suggest_node(text: str, source: str, cache: dict, client, valid_oncotree: set[str]) -> dict | None:
+    import sys
+
     key = _cache_key(f"{source}:{text}")
     if key in cache:
         return cache[key]
 
     model = os.environ.get("UMGPT_MODEL", "gpt-4o")
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Source: {source}\nCriterion: {text}"},
-        ],
-        temperature=0,
-        max_tokens=300,
-    )
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Source: {source}\nCriterion: {text}"},
+            ],
+            temperature=0,
+            max_tokens=300,
+        )
+    except Exception as exc:
+        if not is_content_filter(exc):
+            raise
+        # Filtered: no suggestion for this criterion, which is exactly the
+        # suggested_node=None a curator resolves by hand. Cache it so an identical
+        # criterion elsewhere does not re-trigger the same paid-for error.
+        print(f"  Warning: content filter — no suggestion for {source} criterion: "
+              f"{text[:80]!r}", file=sys.stderr)
+        cache[key] = None
+        return None
 
     raw = response.choices[0].message.content.strip()
     try:

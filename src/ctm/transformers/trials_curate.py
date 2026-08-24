@@ -167,16 +167,30 @@ def scan_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> 
     if key in cache:
         hits = cache[key]
     else:
+        import sys
+
+        from .eligibility_to_ctml import is_content_filter
+
         model = os.environ.get("UMGPT_MODEL", "gpt-4o")
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": BIOMARKER_SYSTEM_PROMPT},
-                {"role": "user", "content": text},
-            ],
-            temperature=0,
-            max_tokens=2000,
-        )
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": BIOMARKER_SYSTEM_PROMPT},
+                    {"role": "user", "content": text},
+                ],
+                temperature=0,
+                max_tokens=2000,
+            )
+        except Exception as exc:
+            if not is_content_filter(exc):
+                raise
+            # Filtered: no biomarker scan for this trial. A curator reviews it
+            # anyway. Cached so a re-run does not re-trigger the same error.
+            print(f"  Warning: content filter — no biomarker scan for {trial_id}",
+                  file=sys.stderr)
+            cache[key] = []
+            return []
         hits = _parse_json_array(response.choices[0].message.content)
         cache[key] = hits
 
