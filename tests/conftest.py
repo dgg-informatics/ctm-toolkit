@@ -100,12 +100,20 @@ def fake_mongo(monkeypatch):
             "unique_key": unique_key, "lookup_keys": lookup_keys,
         }
 
+    captured["prepared"] = None
+
     def _prepare_collection(db, name, unique_key, lookup_keys=()):
         captured["prepared"] = {"db": db, "name": name, "unique_key": unique_key}
         return f"<collection {name}>"
 
+    def _open_collection(db, name, unique_key, lookup_keys=()):
+        captured["opened_collection"] = {"db": db, "name": name}
+        return f"<collection {name}>"
+
+    captured["upserted"] = []
+
     def _upsert_doc(collection, doc, unique_key):
-        captured.setdefault("upserted", []).append({"collection": collection, "doc": doc})
+        captured["upserted"].append({"collection": collection, "doc": doc})
 
     monkeypatch.setenv("MONGO_HOST", "localhost")
     monkeypatch.setenv("MONGO_PORT", "27018")
@@ -116,6 +124,7 @@ def fake_mongo(monkeypatch):
     monkeypatch.setattr("ctm.db.read_collection", _read_collection)
     monkeypatch.setattr("ctm.db.replace_collection", _replace_collection)
     monkeypatch.setattr("ctm.db.prepare_collection", _prepare_collection)
+    monkeypatch.setattr("ctm.db.open_collection", _open_collection)
     monkeypatch.setattr("ctm.db.upsert_doc", _upsert_doc)
     return captured
 

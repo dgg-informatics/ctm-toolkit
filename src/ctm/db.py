@@ -60,6 +60,11 @@ MACHINE_WRITTEN = frozenset({
     DIFF_COLLECTION,
     CTML_COLLECTION,
     CURATED_COLLECTION,
+    # trials-merge owns the master: it recomputes the whole snapshot each run and
+    # replaces it. 05_manual_curated_trials stays absent — a curator accumulates
+    # into it and add-manual appends, so nothing may drop it. A master under a
+    # non-default MONGO_MASTER_COLLECTION name is not droppable via this gate.
+    DEFAULT_MASTER_COLLECTION,
 })
 
 # Document identity is trial_hash — the sha256 of a trial's _raw blob that
@@ -217,6 +222,27 @@ def inherited_run_date(docs: list[dict], fallback: str | None = None) -> str:
     )
 
 
+def stamp_curation(doc: dict, *, curated_by: str = "manual-curation",
+                   curated_by_user: str | None = None, curated_at=None) -> dict:
+    """Attach sticky curation provenance to a copy of ``doc``.
+
+    Set once by ``add-manual`` and carried forward unchanged thereafter — unlike
+    the run envelope, which every stage re-stamps. ``curated_by_user`` defaults to
+    the OS account via ``getpass.getuser()`` (reliable on macOS and RHEL alike);
+    in production that is the service account unless a curator overrides it.
+    ``curated_at`` is a timezone-aware UTC datetime so "curated in the last N
+    months" is a Mongo range query.
+    """
+    import getpass
+    from datetime import UTC, datetime
+
+    result = dict(doc)
+    result["curated_by"] = curated_by
+    result["curated_by_user"] = curated_by_user or getpass.getuser()
+    result["curated_at"] = curated_at or datetime.now(tz=UTC)
+    return result
+
+
 def read_collection(db, name: str, query: dict | None = None,
                     keep_metadata: bool = False) -> list[dict]:
     """Documents in ``name``, metadata stripped. Empty list if the collection is absent.
@@ -248,6 +274,22 @@ def prepare_collection(db, name: str, unique_key: str, lookup_keys=()):
 
     collection = db[name]
     collection.drop()
+    collection.create_index(unique_key, unique=True)
+    if lookup_keys:
+        collection.create_index([(key, 1) for key in lookup_keys])
+    return collection
+
+
+def open_collection(db, name: str, unique_key: str, lookup_keys=()):
+    """Return ``name`` with its indexes ensured, **without dropping** it.
+
+    For collections that accumulate rather than being rebuilt per run —
+    05_manual_curated_trials, where a curator adds trials across the week and a
+    drop would discard earlier work. That collection is deliberately absent from
+    MACHINE_WRITTEN, so ``prepare_collection`` refuses it; this is the writable
+    path that never clears.
+    """
+    collection = db[name]
     collection.create_index(unique_key, unique=True)
     if lookup_keys:
         collection.create_index([(key, 1) for key in lookup_keys])
