@@ -118,18 +118,30 @@ def mongo_config(require_master: bool = False) -> dict:
     it only when they actually intend to read the master from Mongo, so a run
     that passes ``--master <file>`` never fails on a variable it does not use.
     """
+    dbname = os.environ.get("MONGO_DBNAME")
+    if not dbname:
+        raise ValueError("MONGO_DBNAME not set in environment")
+
+    # Two ways to point at a server. MONGO_URI wins and is the only form that
+    # carries credentials — a bare host/port cannot authenticate. The auth
+    # database rides in the URI (append ?authSource=admin if the user is defined
+    # outside the target db). MONGO_HOST/MONGO_PORT remain for the local,
+    # unauthenticated case (Docker, tests).
+    uri = os.environ.get("MONGO_URI")
     host = os.environ.get("MONGO_HOST")
     port = os.environ.get("MONGO_PORT")
-    dbname = os.environ.get("MONGO_DBNAME")
 
-    for name, value in (("MONGO_HOST", host), ("MONGO_PORT", port), ("MONGO_DBNAME", dbname)):
-        if not value:
-            raise ValueError(f"{name} not set in environment")
-
-    try:
-        port_number = int(port)
-    except ValueError:
-        raise ValueError(f"MONGO_PORT must be an integer, got {port!r}") from None
+    if not uri:
+        for name, value in (("MONGO_HOST", host), ("MONGO_PORT", port)):
+            if not value:
+                raise ValueError(
+                    f"set MONGO_URI (for an authenticated server), or {name} "
+                    "(for a local unauthenticated one)"
+                )
+        try:
+            port = int(port)
+        except ValueError:
+            raise ValueError(f"MONGO_PORT must be an integer, got {port!r}") from None
 
     master_dbname = os.environ.get("MONGO_MASTER_DBNAME")
     if require_master and not master_dbname:
@@ -139,8 +151,9 @@ def mongo_config(require_master: bool = False) -> dict:
         )
 
     return {
+        "uri": uri,
         "host": host,
-        "port": port_number,
+        "port": port,
         "dbname": dbname,
         "master_dbname": master_dbname,
         "master_collection": (
@@ -150,10 +163,15 @@ def mongo_config(require_master: bool = False) -> dict:
 
 
 def get_database(config: dict, db_name: str | None = None):
-    """Connect and return a Database. ``db_name`` overrides ``config["dbname"]``."""
+    """Connect and return a Database. ``db_name`` overrides ``config["dbname"]``.
+
+    A ``MONGO_URI`` is passed to MongoClient as the sole argument, which is the
+    only form that parses credentials; otherwise a bare host/port is used.
+    """
     from pymongo import MongoClient
 
-    client = MongoClient(config["host"], config["port"])
+    client = MongoClient(config["uri"]) if config.get("uri") else \
+        MongoClient(config["host"], config["port"])
     return client[db_name or config["dbname"]]
 
 
