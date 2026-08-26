@@ -43,6 +43,7 @@ def _remap(mapping: dict, value: str) -> str:
     Falls back to the value as typed when it is not a recognized label."""
     return mapping.get(value.strip().lower(), value)
 
+
 _GENDER_MAP = {"male": "Male", "female": "Female", "m": "Male", "f": "Female"}
 
 # variant_category values the patient genomic doc understands (compared
@@ -71,16 +72,11 @@ def _split_fusion(gene: str) -> tuple[str, str | None]:
     return gene, None
 
 
-def to_clinical(
-    patient: Patient,
-    findings: list[Finding],
-    report_date: str | None = None,
-) -> dict:
-    """Build a MatchMiner clinical document from a Patient + their findings.
+def to_clinical(patient: Patient, report_date: str | None = None) -> dict:
+    """Build a MatchMiner clinical document from a Patient.
 
-    ``findings`` is currently unused (TMB, its only former consumer, is deferred
-    until the template carries a numeric TMB column) but kept in the signature so
-    callers need not change when TMB returns.
+    TMB (TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE) is emitted as None until the
+    template carries a numeric TMB column.
     """
     return {
         "SAMPLE_ID": _sample_id(patient),

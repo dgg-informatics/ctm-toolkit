@@ -321,7 +321,7 @@ def _cmd_raw_to_mm(args) -> None:
         ]
         report_date = max(dates).isoformat() if dates else None
 
-        clinical = to_clinical(patient, pt_findings, report_date=report_date)
+        clinical = to_clinical(patient, report_date=report_date)
         genomic = to_genomic_docs(patient, pt_findings, clinical_id=None)
 
         all_clinical.append(clinical)

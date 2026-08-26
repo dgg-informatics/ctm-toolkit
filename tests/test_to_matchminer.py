@@ -28,7 +28,7 @@ def _strip_updated(doc: dict) -> dict:
 def test_v1_clinical_matches_golden():
     pts, _, finds = read_and_normalize(WORKBOOK)
     assert len(pts) == 1
-    clinical = _strip_updated(to_clinical(pts[0], finds))
+    clinical = _strip_updated(to_clinical(pts[0]))
     expected = json.loads((FIXTURES / "pt-clinical-v1.0.0.json").read_text())
     assert clinical == expected
 
@@ -64,8 +64,8 @@ def test_v1_other_row_is_dropped_but_kept_in_findings():
 
 def test_clinical_sample_id_is_pt_uuid_not_mrn():
     """Clinical/genomic must carry no PHI — SAMPLE_ID is the pt_uuid."""
-    pts, _, finds = read_and_normalize(WORKBOOK)
-    clinical = to_clinical(pts[0], finds)
+    pts, _, _ = read_and_normalize(WORKBOOK)
+    clinical = to_clinical(pts[0])
     assert clinical["SAMPLE_ID"] == "pt_0000001"
     assert pts[0].mrn not in (clinical["SAMPLE_ID"],)
 
