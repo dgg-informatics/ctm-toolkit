@@ -37,11 +37,12 @@ _SIGNATURE_LEVEL_MAP = {
 
 _GENDER_MAP = {"male": "Male", "female": "Female", "m": "Male", "f": "Female"}
 
-# variant_category values the patient genomic doc understands.
+# variant_category values the patient genomic doc understands (compared
+# uppercased, so curator casing like "Mutation" or "sv" still matches).
 _MATCHABLE_CATEGORIES = {"MUTATION", "CNV", "SIGNATURE", "SV"}
-# variant_category values kept in patient_data but never promoted to a genomic
-# doc (they still ride losslessly in the extras rollup).
-_SKIP_CATEGORIES = {"Other"}
+# Kept in patient_data but never promoted to a genomic doc (still rides
+# losslessly in the extras rollup).
+_SKIP_CATEGORIES = {"OTHER"}
 
 
 def _sample_id(patient: Patient) -> str:
@@ -104,7 +105,7 @@ def to_genomic_docs(
     unknown: set[str] = set()
 
     for f in findings:
-        category = (f.variant_category or "").strip()
+        category = (f.variant_category or "").strip().upper()
         if not category or category in _SKIP_CATEGORIES:
             continue
         if category not in _MATCHABLE_CATEGORIES:

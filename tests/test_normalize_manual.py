@@ -73,5 +73,5 @@ def test_reference_workbook_parses_and_joins():
     patients, metadata, findings = read_and_normalize(FIXTURE)
     assert len(patients) == 1
     assert len(metadata) == 1
-    assert len(findings) == 23
+    assert len(findings) == 24
     assert patients[0].pt_uuid == "pt_0000001"

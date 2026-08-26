@@ -9,6 +9,8 @@ whenever the workbook or the mapping changes — see scripts note in the PR.
 import json
 from pathlib import Path
 
+import pytest
+
 from ctm.schemas.raw.normalized import Finding, Patient
 from ctm.transformers.excel_reader import read_and_normalize
 from ctm.transformers.to_matchminer import to_clinical, to_genomic_docs
@@ -38,11 +40,26 @@ def test_v1_genomic_matches_golden():
     assert genomic == expected
 
 
-def test_v1_two_blank_signature_rows_are_skipped():
-    """23 findings in the workbook → 21 genomic docs (blank MSI + MMR dropped)."""
+def test_v1_non_matchable_rows_are_skipped():
+    """24 findings → 21 genomic docs: the 2 blank-signature rows and the 1
+    OTHER row produce nothing, everything else does."""
     pts, _, finds = read_and_normalize(WORKBOOK)
-    assert len(finds) == 23
+    assert len(finds) == 24
     assert len(to_genomic_docs(pts[0], finds)) == 21
+
+
+def test_v1_other_row_is_dropped_but_kept_in_findings():
+    """The IGN / OTHER row is retained in the normalized findings (so it survives
+    losslessly into patient_data) but produces no clinical/genomic doc."""
+    pts, _, finds = read_and_normalize(WORKBOOK)
+    assert any(
+        f.biomarker == "IGN" and (f.variant_category or "").upper() == "OTHER"
+        for f in finds
+    ), "the OTHER fixture row is missing from the normalized findings"
+
+    genomic = to_genomic_docs(pts[0], finds)
+    assert not any(g["TRUE_HUGO_SYMBOL"] == "IGN" for g in genomic)
+    assert not any(g["VARIANT_CATEGORY"] == "OTHER" for g in genomic)
 
 
 def test_clinical_sample_id_is_pt_uuid_not_mrn():
@@ -134,8 +151,10 @@ def test_sv_splits_partner_genes_and_has_no_wildtype():
     assert "WILDTYPE" not in doc          # wildtype applies only to MUTATION/CNV
 
 
-def test_other_category_produces_no_genomic_doc():
+@pytest.mark.parametrize("value", ["Other", "OTHER", "other"])
+def test_other_category_produces_no_genomic_doc(value):
+    """Skip is case-insensitive — a curator may type any casing of 'Other'."""
     docs = to_genomic_docs(_patient(), [
-        _finding(biomarker="Foo", variant_category="Other"),
+        _finding(biomarker="Foo", variant_category=value),
     ])
     assert docs == []
