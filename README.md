@@ -30,10 +30,10 @@ Every command supports `--help`.
 ctm-mm patients <patient_data.xlsx> --pt-uuid 1234 --out pt_1234.json
 ```
 
-Need a blank workbook to fill in? Run `python scripts/make_template.py` — it writes
-`patient_data_template.xlsx` into the current directory. For the expected layout,
-see `tests/fixtures/test-pt-data-v0.0.1.xlsx`, which carries mock patients plus a
-sample row for every findings sheet.
+For the expected layout, see the reference workbook
+`tests/fixtures/test-pt-data-v1.0.0.xlsx`, which carries a mock patient plus a
+sample row for every finding combination. Fill in a copy of it — never commit a
+filled-in workbook, it is PHI.
 
 #### Clinical Trial Data Prep
 
@@ -190,17 +190,16 @@ ctm-report --pts pt_1234.json --trials trials.json --matches export/matchminer_e
 
 #### Patient Data
 
-Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See the reference workbook at *tests/fixtures/test-pt-data-v0.0.1.xlsx*, or generate a blank one with `python scripts/make_template.py`.
+Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See the reference workbook at *tests/fixtures/test-pt-data-v1.0.0.xlsx* and fill in a copy of it.
 
-⚠️ **A filled-in workbook is PHI and must never be committed.** `.gitignore` denies
-the generated `patient_data_template.xlsx` by default, but keep real workbooks
-outside the repo entirely.
+⚠️ **A filled-in workbook is PHI and must never be committed.** Keep real
+workbooks outside the repo entirely.
 
 After you fill out the template excel sheet, please be careful of:
 
 - ONCOTREE_PRIMARY_DIAGNOSIS_NAME passes through directly from the Excel oncotree_primary_diagnosis column - if that cell has a free-text diagnosis instead of an Oncotree code, MatchMiner won't match on it correctly
-- TRUE_HUGO_SYMBOL passes through from the gene column as-is - no validation against HGNC so be careful to use a HUGO symbol
-- variant_type in the Excel drives VARIANT_CATEGORY mapping - if someone enters an unrecognized value it gets skipped with a warning
+- TRUE_HUGO_SYMBOL passes through from the biomarker column as-is - no validation against HGNC so be careful to use a HUGO symbol
+- variant_category in the Excel selects VARIANT_CATEGORY directly - an unrecognized value (anything but MUTATION/CNV/SIGNATURE/SV/Other) is skipped with a warning, and `Other` is kept in patient_data but produces no genomic doc
 
 #### Clinical Trial Data
 
@@ -253,38 +252,39 @@ For matching a patient to trials, we define 2 categories of patient data:
 
 **Raw --> Normalized Patient Data**
 
-Starting input (1 file): **patient_data_template.xlsx** (excel template)
+Starting input (1 file): **test-pt-data-v1.0.0.xlsx** (excel template)
 Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
 
-1. Fill out patient_data_template.xlsx sheets
+1. Fill out a copy of the workbook's sheets
    1. pt_general: look up patient general information and manually record here. You can add as many columns as you want and later update the report generation script so you can include other patient information.
-   2. `*_findings` sheets — one row per genomic finding. The sheets the parser reads are `tempus_findings`, `caris_findings`, `ambry_findings`, `amc_ngs_findings`, `ogm_findings`, `pml_rara_findings`, `mayo_findings`, `henry_ford_findings`, `guardant360_findings`, and `tumor_biomarkers`. The authoritative list is `SHEET_NORMALIZERS` in `src/ctm/transformers/normalize_manual.py`; `tests/test_template_sheets.py` fails if the reference workbook drifts from it. Every findings sheet shares the same 5 core columns:
+   2. `*_findings` sheets — one row per genomic finding. The sheets the parser reads are `tempus_findings`, `caris_findings`, `ambry_findings`, `amc_ngs_findings`, `ogm_findings`, `pml_rara_findings`, `mayo_findings`, `henry_ford_findings`, `guardant360_findings`, and `foundation_findings`. The authoritative list is `FINDING_SHEETS`/`SHEET_NORMALIZERS` in `src/ctm/transformers/normalize_manual.py`; `tests/test_template_sheets.py` fails if the reference workbook drifts from it. Every findings sheet shares the same core columns (plus the `pt_uuid`/`report_uuid` join keys); any other column on a sheet is captured verbatim into the finding's `raw` dict, so nothing is lost:
 
       | Column | Meaning |
       |---|---|
-      | `gene` | HGNC gene symbol. For a fusion with a known partner, use `GENE1::GENE2` (`/` or `-` also accepted) — e.g. `EML4::ALK`. For a fusion with an unknown partner, just the one gene name. |
-      | `protein` | HGVS protein change, e.g. `p.E545K`. Leave blank for fusions and for negative/wildtype findings — there's no variant to describe. |
-      | `nucleotide` | HGVS cDNA change, e.g. `c.2573T>G`. Optional; leave blank if not available. |
-      | `variant_type` | Controlled vocabulary — see table below. This is the field that determines everything else about how the row gets translated. |
-      | `result_summary` | Only consumed for CNV findings (populates `CNV_CALL`, unless a legacy override applies), signature findings (MMR/POLE/APOBEC/tobacco status), and TMB rows. For plain SNV/INDEL/fusion/negative findings it is **not stored anywhere** — free text here (e.g. `"46.8% VAF"`) is discarded during normalization, so don't rely on it for anything the match engine needs to see. |
+      | `biomarker` | HGNC gene symbol or marker name (`MSI`, `MMR`) → `TRUE_HUGO_SYMBOL`. For a fusion, `GENE1::GENE2` (`/` or `-` also accepted), e.g. `EML4::ALK`. |
+      | `variant_category` | One of `MUTATION`, `CNV`, `SIGNATURE`, `SV`, `Other`. Selects `VARIANT_CATEGORY` directly. `Other` is kept in patient_data but produces no genomic doc. |
+      | `protein_change` | HGVS protein change, e.g. `p.L858R` → `TRUE_PROTEIN_CHANGE`. |
+      | `cnv_call` | `CNV` only. One of `High Amplification`, `Low Amplification`, `Homozygous Deletion`, `Heterozygous Deletion` → `CNV_CALL` (remapped, see below). |
+      | `signature_level` | `SIGNATURE` (MSI/MMR) only. One of `Deficient`, `Proficient`, `Stable` → `MMR_STATUS` (remapped, see below). Blank → the row is skipped. |
+      | `wildtype` | `MUTATION`/`CNV` only. `TRUE`/`FALSE` → `WILDTYPE`; blank defaults to `FALSE`. |
+      | `nucleotide_change` | HGVS cDNA change, e.g. `c.2573T>G` → `TRUE_CDNA_CHANGE`. Stored but **not** matchable in matchengine. |
 
-      `variant_type` values and what they produce (case-sensitive — `MUTATION` is not a recognized value, use `SNV`):
+      The curator-friendly `cnv_call` and `signature_level` values are remapped to the exact strings matchengine queries for at match time — store the friendly label instead and a trial clause silently never matches:
 
-      | `variant_type` | Example `gene` | Produces |
-      |---|---|---|
-      | `SNV` / `INDEL` | `PIK3CA`, `protein: p.E545K` | `{TRUE_HUGO_SYMBOL, VARIANT_CATEGORY: "MUTATION", WILDTYPE: false, TRUE_PROTEIN_CHANGE}` |
-      | `pertinent_negative` / `negative` | `PIK3CA` (protein/nucleotide blank) | `{TRUE_HUGO_SYMBOL, VARIANT_CATEGORY: "MUTATION", WILDTYPE: true}` — gene tested, no mutation found |
-      | `fusion` / `structural_variant` | `EML4::ALK` | `{TRUE_HUGO_SYMBOL: "EML4", VARIANT_CATEGORY: "SV", WILDTYPE: false, LEFT_PARTNER_GENE: "EML4", RIGHT_PARTNER_GENE: "ALK"}` |
-      | `fusion_negative` | `ALK` (protein/nucleotide blank) | `{TRUE_HUGO_SYMBOL: "ALK", VARIANT_CATEGORY: "SV", WILDTYPE: true}` — no partner-gene fields, since none was found |
-      | `cnv` | gene name; `result_summary` holds the call | `{..., VARIANT_CATEGORY: "CNV", CNV_CALL: <parsed from result_summary>}` |
+      | You enter | Stored on the patient doc |
+      |---|---|
+      | `High Amplification` | `High level amplification` |
+      | `Low Amplification` | `Gain` |
+      | `Homozygous Deletion` | `Homozygous deletion` |
+      | `Heterozygous Deletion` | `Heterozygous deletion` |
+      | `Deficient` | `Deficient (MMR-D / MSI-H)` |
+      | `Proficient` / `Stable` | `Proficient (MMR-P / MSS)` |
 
       > [!NOTE]
-      > For fusions, `LEFT_PARTNER_GENE`/`RIGHT_PARTNER_GENE` are derived automatically by splitting the `gene` column on `::`, `/`, or `-` — no separate columns needed per partner gene. Which gene ends up "left" vs "right" doesn't matter for trial matching: a trial clause like `{"hugo_symbol": "ALK", "variant_category": "Structural Variation"}` checks both fields, not just one side.
-      >
-      > For a wildtype/negative fusion result, use `fusion_negative`, not `negative` — `negative` would produce `VARIANT_CATEGORY: "MUTATION"` instead of `"SV"`. When writing the corresponding trial-side match clause for a negative fusion, omit `variant_category` entirely (`{"hugo_symbol": "ALK", "wildtype": true}`) — including `variant_category: "Structural Variation"` on that clause triggers matchengine's structured-SV query rewrite, which searches `LEFT_PARTNER_GENE`/`RIGHT_PARTNER_GENE` fields that a wildtype fusion record never populates, so the clause would silently match nothing.
+      > For an `SV` row, `LEFT_PARTNER_GENE`/`RIGHT_PARTNER_GENE` are derived automatically by splitting the `biomarker` column on `::`, `/`, or `-`, and `TRUE_HUGO_SYMBOL` becomes the left partner — no separate columns per partner gene. Which gene ends up "left" vs "right" doesn't matter for trial matching: a trial clause like `{"hugo_symbol": "ALK", "variant_category": "Structural Variation"}` checks both fields. `wildtype` does not apply to `SV` or `SIGNATURE` rows and is ignored there.
 2. Run the script to convert manual excel format into MatchMiner-compatible JSON
    1. `$ ctm-mm patients patients-raw.xlsx --out patients-normalized.json`
-      1. This writes a JSON with 3 top-level fields consisting of arrays: clinical, genomic, and _extras
+      1. This writes a JSON with 3 top-level fields: `clinical`, `genomic`, and `extras`. `extras` is the lossless per-patient rollup (the `patient_data` collection) — every column of every row, including `Other` findings and each row's `raw` catch-all. `clinical`/`genomic` carry only the matchable subset and are keyed by `pt_uuid` (`SAMPLE_ID`), never MRN, so they hold no PHI.
 3. Split the JSON file into clinical and genomic entries
    1. Should have 2 files: 1 is a JSON array of clinical docs and the other a similar array of genomic docs
 
@@ -628,8 +628,7 @@ the page. Output is written to `./output/` relative to where you run the command
   - `reports/builder.py` — loads JSON data and renders the Jinja2 template to HTML
   - `report_cli.py` — the `ctm-report` CLI; builds a PDF or serves a live-reload preview
 - `tests/fixtures/` — all mock data (see below)
-- `scripts/` — `make_template.py` writes a blank intake workbook;
-  `create_default_views.js` creates the Compass views
+- `scripts/` — `create_default_views.js` creates the Compass views
 
 > [!IMPORTANT]
 > Report templates, CSS, and reference data live **inside** `src/ctm/` so an
@@ -644,7 +643,8 @@ or trial data** — names, MRNs, protocol numbers, and NCT IDs are all fabricate
 
 | Fixture | Purpose |
 | --- | --- |
-| `test-pt-data-v0.0.1.xlsx` | Reference intake workbook: mock patients plus a sample row for every findings sheet. Doubles as the layout to copy when filling one in. |
+| `test-pt-data-v1.0.0.xlsx` | Reference intake workbook: a mock patient plus a sample row for every finding combination. Doubles as the layout to copy when filling one in. |
+| `pt-clinical-v1.0.0.json`, `pt-genomic-v1.0.0.json` | Golden output of the workbook conversion — `test_to_matchminer.py` pins the transform against these. |
 | `test-pts-v0.0.1.json` | Normalized patient collection — output of `ctm-mm patients` |
 | `test-trials-v0.0.1.json` | Fully curated trial collection, i.e. post-LLM and post-manual-review. This is what report tests need, since genomic and OncoTree criteria only exist after curation. |
 | `test-matches-v0.0.1.json` | `trial_match` collection, joined to the trials fixture by `protocol_no` |
