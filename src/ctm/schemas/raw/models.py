@@ -26,8 +26,15 @@ def _to_date(v: object) -> date | None:
     return None
 
 
+def _str_id(v: object) -> object:
+    """Coerce a join-key cell to str. Excel may hand back an int (117) or the
+    prefixed form ('pt_0000001'); both normalize to the same string key."""
+    return str(v) if v is not None else v
+
+
 class RawPatientGeneral(BaseModel):
-    pt_uuid: int
+    model_config = ConfigDict(extra='allow')
+    pt_uuid: str
     mrn: str | int | None = None
     first_name: str | None = None
     last_name: str | None = None
@@ -38,6 +45,13 @@ class RawPatientGeneral(BaseModel):
     primary_dx: str | None = None
     oncotree_primary_diagnosis: str | None = None
     metastasis_sites: str | None = None
+    referring_clinician: str | None = None
+    source: str | None = None
+
+    @field_validator("pt_uuid", mode="before")
+    @classmethod
+    def _ids(cls, v: object) -> object:
+        return _str_id(v)
 
     @field_validator("dob", mode="before")
     @classmethod
@@ -46,258 +60,54 @@ class RawPatientGeneral(BaseModel):
 
 
 class RawReportMetadata(BaseModel):
-    report_uuid: int
-    pt_uuid: int
+    """Only identity columns are modeled; every other report column is soaked up
+    by extra='allow' and captured verbatim into ReportMetadata.raw."""
+    model_config = ConfigDict(extra='allow')
+    report_uuid: str
+    pt_uuid: str
     source: str
     test_name: str | None = None
-    accession_no: str | None = None
-    physician: str | None = None
-    specimen_type: str | None = None
-    date_collected: date | datetime | str | None = None
-    date_received: date | datetime | str | None = None
-    date_completed: date | datetime | str | None = None
-    obtained_from: str | None = None
-    link: str | None = None
-    notes: str | None = None
+    unique_test_id: str | None = None
+    unique_test_id_source: str | None = None
+    ordering_physician: str | None = None
 
-    @field_validator("date_collected", "date_received", "date_completed", mode="before")
+    @field_validator("report_uuid", "pt_uuid", "unique_test_id", mode="before")
     @classmethod
-    def coerce_dates(cls, v: object) -> date | None:
-        return _to_date(v)
+    def _ids(cls, v: object) -> object:
+        return _str_id(v)
 
 
-class RawTempusFinding(BaseModel):
+class RawFinding(BaseModel):
+    """One row from any *_findings sheet. All sheets share this canonical block;
+    per-source columns arrive as extras (extra='allow') and are captured into
+    Finding.raw, so nothing from the workbook is lost."""
     model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_test: str | None = None
-    raw_result: str | None = None
-    raw_category: str | None = None
-    raw_nucleotide_type: str | None = None
-    raw_therapies_current_dx: str | None = None
-    raw_therapies_other_indications: str | None = None
-    raw_trials: str | None = None
+    pt_uuid: str
+    report_uuid: str
+    biomarker: str | None = None
+    variant_category: str | None = None
+    protein_change: str | None = None
+    cnv_call: str | None = None
+    signature_level: str | None = None
+    wildtype: bool | None = None
+    nucleotide_change: str | None = None
 
-
-class RawCarisFinding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    # specimen info — repeats on every finding row for this report
-    raw_specimen_id: str | None = None
-    raw_primary_tumor_site: str | None = None
-    raw_specimen_site: str | None = None
-    raw_specimen_collected: date | datetime | str | None = None
-    raw_test_report_date: date | datetime | str | None = None
-    raw_completion_of_addendum: date | datetime | str | None = None
-    raw_ordered_by_location: str | None = None
-    # finding fields
-    raw_section: str | None = None
-    raw_biomarker: str | None = None
-    raw_method: str | None = None
-    raw_analyte: str | None = None
-    raw_result: str | None = None
-    raw_benefit: str | None = None
-    raw_therapy_assoc: str | None = None
-    raw_biomarker_level: str | None = None
-    raw_protein_alteration: str | None = None
-    raw_exon: str | int | None = None
-    raw_dna_alteration: str | None = None
-    raw_frequency_pct: str | float | None = None
-    raw_genotype: str | None = None
-    raw_hla_class: str | None = None
-
-    @field_validator(
-        "raw_specimen_collected", "raw_test_report_date", "raw_completion_of_addendum",
-        mode="before",
-    )
+    @field_validator("pt_uuid", "report_uuid", mode="before")
     @classmethod
-    def coerce_dates(cls, v: object) -> date | None:
-        return _to_date(v)
+    def _ids(cls, v: object) -> object:
+        return _str_id(v)
 
-
-class RawAmbryFinding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_pathogenic_mutations: str | None = None
-    raw_vus: str | None = None
-    raw_gross_deletions_dups: str | None = None
-    raw_summary: str | None = None
-
-
-class RawAmcNgsFinding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    # specimen info — repeats per row
-    raw_specimen_id: str | None = None
-    raw_block_id: str | None = None
-    raw_body_site: str | None = None
-    # finding fields
-    raw_finding_level: str | None = None
-    raw_variant_name: str | None = None
-    raw_dna_change: str | None = None
-    raw_amino_acid_change: str | None = None
-    raw_transcript: str | None = None
-    raw_interpretation: str | None = None
-    raw_therapeutic_implications: str | None = None
-    raw_pertinent_negatives: str | None = None
-
-
-class RawOgmFinding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_selected_results: str | None = None
-    raw_interpretation: str | None = None
-    raw_iscn_karyotype: str | None = None
-    raw_additional_results: str | None = None
-
-
-class RawPmlRaraFinding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_test_result: str | None = None
-    raw_interpretation: str | None = None
-
-
-class RawMayoFinding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    accession_no: str | None = None
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_test: str | None = None
-    raw_nucleotide_type: str | None = None
-    raw_therapies_current_dx: str | None = None
-    raw_therapies_other_indications: str | None = None
-    raw_trials: str | None = None
-    raw_biomarker: str | None = None
-    raw_result: str | None = None
-    raw_title: str | None = None
-    raw_category: str | None = None
-
-
-class RawHenryFordFinding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    accession_no: str | None = None
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_variant_tier: str | int | None = None
-    raw_gene: str | None = None
-    raw_chro: str | int | None = None
-    raw_genomic_coordinates: str | int | None = None
-    raw_transcript: str | None = None
-    raw_cdna_change: str | None = None
-    raw_protein_change: str | None = None
-    raw_exon: str | int | None = None
-    raw_depth_of_coverage: str | int | None = None
-    raw_allele_fraction: str | float | None = None
-    raw_variant: str | None = None
-    raw_copy_number: str | float | None = None
-
-
-class RawGuardant360Finding(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    accession_no: str | int | None = None
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_detected_alterations_biomarkers: str | None = None
-    raw_percent_cfdna_or_amp: str | float | None = None
-    raw_alteration_trend: str | float | None = None
-
-
-class RawFoundationFinding(BaseModel):
-    """One row from the foundation_findings sheet (Foundation Medicine reports)."""
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    accession_no: str | int | None = None
-    gene: str | None = None
-    protein: str | None = None
-    nucleotide: str | None = None
-    variant_type: str | None = None
-    result_summary: str | None = None
-    raw_section: str | None = None
-    raw_biomarker: str | None = None
-    raw_method: str | None = None
-    raw_analyte: str | None = None
-    raw_result: str | None = None
-    raw_benefit: str | None = None
-    raw_therapy_assoc: str | None = None
-    raw_biomarker_level: str | None = None
-    raw_variant_interpretation: str | None = None
-    raw_protein_alteration: str | None = None
-    raw_exon: str | int | None = None
-    raw_dna_alteration: str | None = None
-    raw_frequency_pct: str | float | None = None
-    raw_genotype: str | None = None
-    raw_hla_class: str | None = None
-
-
-class RawTumorBiomarker(BaseModel):
-    model_config = ConfigDict(extra='allow')
-    pt_uuid: int
-    report_uuid: int
-    gene: str | None = None           # biomarker name: TMB, MSI, PD-L1, etc.
-    variant_type: str | None = None   # always: tumor_biomarker
-    result_summary: str | None = None
-    raw_tmb: str | None = None
-    raw_msi: str | None = None
-    raw_pd_l1: str | None = None
-    raw_loh: str | None = None
-    raw_hrd: str | None = None
-    raw_mmr: str | None = None
-    raw_tumor_fraction: str | float | None = None
-    raw_tumor_normal: str | None = None
-    raw_rna_expression: str | None = None
-    raw_rna_fusion: str | None = None
+    @field_validator("wildtype", mode="before")
+    @classmethod
+    def _coerce_wildtype(cls, v: object) -> bool | None:
+        if v is None or isinstance(v, bool):
+            return v
+        s = str(v).strip().lower()
+        if s in ("true", "yes", "y", "1"):
+            return True
+        if s in ("false", "no", "n", "0"):
+            return False
+        return None
 
 
 class RawCTGovTrial(BaseModel):

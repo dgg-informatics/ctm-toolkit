@@ -1,0 +1,10 @@
+{
+  "SAMPLE_ID": "pt_0000001",
+  "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Seminoma",
+  "PRIMARY_DIAGNOSIS_RAW": "seminoma",
+  "BIRTH_DATE": "1972-02-19",
+  "VITAL_STATUS": "alive",
+  "GENDER": "Male",
+  "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE": null,
+  "REPORT_DATE": null
+}

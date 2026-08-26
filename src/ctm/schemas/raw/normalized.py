@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 
 class Patient(BaseModel):
-    pt_uuid: int                          # local join key; MongoDB _id is auto-assigned
+    pt_uuid: str                          # join key, e.g. "pt_0000001"; MongoDB _id is auto-assigned
     mrn: str | None = None
     first_name: str | None = None
     last_name: str | None = None
@@ -23,31 +23,32 @@ class Patient(BaseModel):
     primary_dx: str | None = None
     oncotree_primary_diagnosis: str | None = None
     metastasis_sites: list[str] = []
+    referring_clinician: str | None = None
+    source: str | None = None            # how this patient row was captured, e.g. "manual"
 
 
 class ReportMetadata(BaseModel):
-    report_uuid: int
-    pt_uuid: int
+    report_uuid: str                      # join key, e.g. "rp_0000001"
+    pt_uuid: str
     source: str                           # tempus | caris | ambry | amc_ngs | ogm | pml_rara
     test_name: str | None = None
-    accession_no: str | None = None
-    physician: str | None = None
-    specimen_type: str | None = None
-    date_collected: date | None = None
-    date_received: date | None = None
-    date_completed: date | None = None
-    obtained_from: str | None = None
-    link: str | None = None
-    notes: str | None = None
+    # Normalized handle on the paper report; _source says which id it came from
+    # (accession_no | case_no | order_number), so it can be traced to the PDF.
+    unique_test_id: str | None = None
+    unique_test_id_source: str | None = None
+    ordering_physician: str | None = None
+    raw: dict[str, Any] = {}            # every other report column, keyed by column name
 
 
 class Finding(BaseModel):
-    pt_uuid: int
-    report_uuid: int
+    pt_uuid: str
+    report_uuid: str
     source: str                           # propagated from ReportMetadata
-    gene: str | None = None              # canonical HGNC symbol or biomarker name
-    protein: str | None = None           # canonical protein change e.g. p.L858R
-    nucleotide: str | None = None        # canonical cDNA change e.g. c.2573T>G
-    variant_type: str | None = None      # see _conventions sheet for allowed values
-    result_summary: str | None = None    # short normalized result string
-    raw: dict[str, Any] = {}            # verbatim source fields, keyed by raw_* column name
+    biomarker: str | None = None         # HGNC symbol or marker name → TRUE_HUGO_SYMBOL
+    variant_category: str | None = None  # MUTATION | CNV | SIGNATURE | SV | Other
+    protein_change: str | None = None    # → TRUE_PROTEIN_CHANGE (exact match)
+    cnv_call: str | None = None          # CNV only; friendly label, remapped in the transformer
+    signature_level: str | None = None   # SIGNATURE only: Deficient | Proficient | Stable
+    wildtype: bool | None = None         # MUTATION/CNV only
+    nucleotide_change: str | None = None # → TRUE_CDNA_CHANGE (stored, not matchable)
+    raw: dict[str, Any] = {}            # every other finding column, keyed by column name

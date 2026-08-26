@@ -154,9 +154,9 @@ def _make_normalized_json(tmp_path):
         ],
         "extras": {
             "patients": {
-                "000000": {
+                "pt_0000000": {
                     "patient": {
-                        "pt_uuid": 0,
+                        "pt_uuid": "pt_0000000",
                         "mrn": "000000",
                         "first_name": "Dane",
                         "last_name": "Doe",
@@ -167,21 +167,31 @@ def _make_normalized_json(tmp_path):
                         "primary_dx": "mid-rectal adenocarcinoma",
                         "oncotree_primary_diagnosis": "READ",
                         "metastasis_sites": ["liver", "bone"],
+                        "referring_clinician": "Dr. Seuss",
+                        "source": "manual",
                     },
                     "reports": [
                         {
+                            "report_uuid": "rp_0000000",
+                            "pt_uuid": "pt_0000000",
                             "source": "tempus",
                             "test_name": "xT CDx",
-                            "accession_no": "TL-26-001",
-                            "physician": "Dr. Smith",
-                            "date_completed": "2026-03-07",
+                            "unique_test_id": "TL-26-001",
+                            "unique_test_id_source": "accession_no",
+                            "ordering_physician": "Dr. Smith",
+                            "raw": {"test_report_date": "2026-03-07"},
                             "findings": [
                                 {
-                                    "gene": "ERBB2",
-                                    "protein": "p.T733I",
-                                    "nucleotide": None,
-                                    "variant_type": "somatic_mutation",
-                                    "result_summary": "53.2% VAF",
+                                    "pt_uuid": "pt_0000000",
+                                    "report_uuid": "rp_0000000",
+                                    "source": "tempus",
+                                    "biomarker": "ERBB2",
+                                    "variant_category": "MUTATION",
+                                    "protein_change": "p.T733I",
+                                    "cnv_call": None,
+                                    "signature_level": None,
+                                    "wildtype": False,
+                                    "nucleotide_change": None,
                                     "raw": {"raw_test": "ERBB2 (HER2) p.T733I", "raw_result": "53.2% VAF"},
                                 }
                             ],

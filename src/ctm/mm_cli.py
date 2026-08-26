@@ -16,7 +16,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from ctm.paths import cache_dir, cache_path, load_env
@@ -46,9 +46,9 @@ def main() -> None:
         help="Normalize Excel template → matchminer-compatible JSON ({clinical, genomic})",
     )
     p_patients.add_argument("excel", metavar="EXCEL",
-                            help="Path to patient_data_template.xlsx")
-    p_patients.add_argument("--pt-uuid", dest="pt_uuid", metavar="N[,N...]",
-                            help="Filter to one or more patients by pt_uuid (comma-separated, e.g. 6,7,8,9)")
+                            help="Path to the filled-in patient-data workbook (.xlsx)")
+    p_patients.add_argument("--pt-uuid", dest="pt_uuid", metavar="ID[,ID...]",
+                            help="Filter to one or more patients by pt_uuid (comma-separated, e.g. pt_0000001,pt_0000002)")
     p_patients.add_argument("--out", metavar="PATH",
                             help="Save JSON output to file (default: print to stdout)")
 
@@ -250,32 +250,22 @@ def _check_disk_args(args, out_flag: str) -> None:
 
 
 def _build_extras(patients: list, metadata: list, findings: list) -> dict:
+    """Lossless per-patient rollup — the ``patient_data`` collection. Every
+    normalized field plus each row's ``raw`` catch-all is serialized, so the
+    whole workbook survives here even though the matchminer clinical/genomic
+    docs only carry the matchable subset."""
     patients_out = {}
     for patient in patients:
         pt_uuid = patient.pt_uuid
-        sample_id = patient.mrn or str(patient.pt_uuid)
+        sample_id = patient.pt_uuid   # matches clinical/genomic SAMPLE_ID; no PHI in the key
 
-        findings_by_report: dict[int, list] = {}
+        findings_by_report: dict[str, list] = {}
         for f in [f for f in findings if f.pt_uuid == pt_uuid]:
-            findings_by_report.setdefault(f.report_uuid, []).append({
-                "gene": f.gene,
-                "protein": f.protein,
-                "nucleotide": f.nucleotide,
-                "variant_type": f.variant_type,
-                "result_summary": f.result_summary,
-                "raw": f.raw,
-            })
+            findings_by_report.setdefault(f.report_uuid, []).append(f.model_dump())
 
         pt_metadata = [m for m in metadata if m.pt_uuid == pt_uuid]
         reports = [
-            {
-                "source": m.source,
-                "test_name": m.test_name,
-                "accession_no": m.accession_no,
-                "physician": m.physician,
-                "date_completed": m.date_completed.isoformat() if m.date_completed else None,
-                "findings": findings_by_report.get(m.report_uuid, []),
-            }
+            {**m.model_dump(), "findings": findings_by_report.get(m.report_uuid, [])}
             for m in pt_metadata
         ]
 
@@ -294,7 +284,7 @@ def _cmd_raw_to_mm(args) -> None:
         sys.exit(1)
 
     pt_uuid_filter = (
-        {int(u.strip()) for u in args.pt_uuid.split(",") if u.strip()}
+        {u.strip() for u in args.pt_uuid.split(",") if u.strip()}
         if args.pt_uuid else None
     )
 
@@ -308,11 +298,11 @@ def _cmd_raw_to_mm(args) -> None:
     print(f"  {len(patients)} patient(s)  {len(metadata)} report(s)  {len(findings)} finding(s)",
           file=sys.stderr)
 
-    findings_by_pt: dict[int, list] = defaultdict(list)
+    findings_by_pt: dict[str, list] = defaultdict(list)
     for f in findings:
         findings_by_pt[f.pt_uuid].append(f)
 
-    metadata_by_pt: dict[int, list] = defaultdict(list)
+    metadata_by_pt: dict[str, list] = defaultdict(list)
     for m in metadata:
         metadata_by_pt[m.pt_uuid].append(m)
 
@@ -323,10 +313,15 @@ def _cmd_raw_to_mm(args) -> None:
         pt_findings = findings_by_pt[patient.pt_uuid]
         pt_meta = metadata_by_pt[patient.pt_uuid]
 
-        dates = [m.date_completed for m in pt_meta if m.date_completed]
+        # Report date now lives in the unmodeled report columns (raw); pull
+        # test_report_date when it parsed as a date, else leave it unset.
+        dates = [
+            d for m in pt_meta
+            if isinstance((d := m.raw.get("test_report_date")), (date, datetime))
+        ]
         report_date = max(dates).isoformat() if dates else None
 
-        clinical = to_clinical(patient, pt_findings, report_date=report_date)
+        clinical = to_clinical(patient, report_date=report_date)
         genomic = to_genomic_docs(patient, pt_findings, clinical_id=None)
 
         all_clinical.append(clinical)

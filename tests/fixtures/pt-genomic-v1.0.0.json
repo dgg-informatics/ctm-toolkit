@@ -1,0 +1,138 @@
+[
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MUT1",
+    "VARIANT_CATEGORY": "MUTATION",
+    "WILDTYPE": false
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MUT2",
+    "VARIANT_CATEGORY": "MUTATION",
+    "WILDTYPE": true
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MUT3",
+    "VARIANT_CATEGORY": "MUTATION",
+    "WILDTYPE": false
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MUT4",
+    "VARIANT_CATEGORY": "MUTATION",
+    "TRUE_PROTEIN_CHANGE": "p.A100B",
+    "WILDTYPE": false
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MUT5",
+    "VARIANT_CATEGORY": "MUTATION",
+    "TRUE_PROTEIN_CHANGE": "p.A100B",
+    "TRUE_CDNA_CHANGE": "c.A300B",
+    "WILDTYPE": false
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MUT6",
+    "VARIANT_CATEGORY": "MUTATION",
+    "TRUE_CDNA_CHANGE": "c.A300B",
+    "WILDTYPE": false
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "CNV1",
+    "VARIANT_CATEGORY": "CNV",
+    "WILDTYPE": false
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "CNV2",
+    "VARIANT_CATEGORY": "CNV",
+    "WILDTYPE": true
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "CNV3",
+    "VARIANT_CATEGORY": "CNV",
+    "WILDTYPE": false
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "CNV4",
+    "VARIANT_CATEGORY": "CNV",
+    "WILDTYPE": false,
+    "CNV_CALL": "High level amplification"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "CNV5",
+    "VARIANT_CATEGORY": "CNV",
+    "WILDTYPE": false,
+    "CNV_CALL": "Gain"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "CNV6",
+    "VARIANT_CATEGORY": "CNV",
+    "WILDTYPE": false,
+    "CNV_CALL": "Homozygous deletion"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "CNV7",
+    "VARIANT_CATEGORY": "CNV",
+    "WILDTYPE": false,
+    "CNV_CALL": "Heterozygous deletion"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "SV1",
+    "VARIANT_CATEGORY": "SV",
+    "LEFT_PARTNER_GENE": "SV1",
+    "RIGHT_PARTNER_GENE": "SV2"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "SV1",
+    "VARIANT_CATEGORY": "SV",
+    "LEFT_PARTNER_GENE": "SV1",
+    "RIGHT_PARTNER_GENE": "SV3"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MSI",
+    "VARIANT_CATEGORY": "SIGNATURE",
+    "MMR_STATUS": "Deficient (MMR-D / MSI-H)"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MSI",
+    "VARIANT_CATEGORY": "SIGNATURE",
+    "MMR_STATUS": "Proficient (MMR-P / MSS)"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MSI",
+    "VARIANT_CATEGORY": "SIGNATURE",
+    "MMR_STATUS": "Proficient (MMR-P / MSS)"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MMR",
+    "VARIANT_CATEGORY": "SIGNATURE",
+    "MMR_STATUS": "Deficient (MMR-D / MSI-H)"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MMR",
+    "VARIANT_CATEGORY": "SIGNATURE",
+    "MMR_STATUS": "Proficient (MMR-P / MSS)"
+  },
+  {
+    "SAMPLE_ID": "pt_0000001",
+    "TRUE_HUGO_SYMBOL": "MMR",
+    "VARIANT_CATEGORY": "SIGNATURE",
+    "MMR_STATUS": "Proficient (MMR-P / MSS)"
+  }
+]

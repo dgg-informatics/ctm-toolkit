@@ -1,4 +1,4 @@
-"""Read patient_data_template.xlsx → normalized Patient, ReportMetadata, Finding instances."""
+"""Read the patient-data workbook → normalized Patient, ReportMetadata, Finding instances."""
 from pathlib import Path
 
 import openpyxl
@@ -24,15 +24,15 @@ def _sheet_rows(ws) -> list[dict]:
 
 def read_and_normalize(
     path: Path,
-    pt_uuid_filter: int | set[int] | None = None,
+    pt_uuid_filter: str | set[str] | None = None,
 ) -> tuple[list[Patient], list[ReportMetadata], list[Finding]]:
     """Read Excel workbook → (patients, report_metadata, findings), all normalized.
 
     pt_uuid_filter: if set, only rows for the given pt_uuid(s) are returned.
-    Accepts a single int or a set of ints. Rows that fail validation are
-    skipped with a printed warning.
+    Accepts a single pt_uuid string or a set of them. Rows that fail validation
+    are skipped with a printed warning.
     """
-    if isinstance(pt_uuid_filter, int):
+    if isinstance(pt_uuid_filter, str):
         pt_uuid_filter = {pt_uuid_filter}
     wb = openpyxl.load_workbook(path, data_only=True)
 
@@ -66,7 +66,7 @@ def read_and_normalize(
             except Exception as exc:
                 print(f"  Warning: report_metadata row skipped — {exc}")
 
-    report_source: dict[int, str] = {m.report_uuid: m.source for m in metadata}
+    report_source: dict[str, str] = {m.report_uuid: m.source for m in metadata}
 
     # ── Findings (all source sheets) ──────────────────────────────────────────
     findings: list[Finding] = []
