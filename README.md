@@ -269,7 +269,7 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
       | `wildtype` | `MUTATION`/`CNV` only. `TRUE`/`FALSE` → `WILDTYPE`; blank defaults to `FALSE`. |
       | `nucleotide_change` | HGVS cDNA change, e.g. `c.2573T>G` → `TRUE_CDNA_CHANGE`. Stored but **not** matchable in matchengine. |
 
-      The curator-friendly `cnv_call` and `signature_level` values are remapped to the exact strings matchengine queries for at match time — store the friendly label instead and a trial clause silently never matches:
+      The curator-friendly `cnv_call` and `signature_level` values are remapped to the exact strings matchengine queries for at match time — store the friendly label instead and a trial clause silently never matches. What you type is **case-insensitive** (`Homozygous Deletion` = `homozygous deletion`); only the stored value's casing is fixed:
 
       | You enter | Stored on the patient doc |
       |---|---|

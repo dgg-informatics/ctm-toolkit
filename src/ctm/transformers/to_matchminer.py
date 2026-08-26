@@ -18,22 +18,30 @@ from datetime import UTC, datetime
 from ..schemas.raw.normalized import Finding, Patient
 
 # ── Value remaps — mirror matchengine/plugins/DFCIQueryTransformers.py ─────────
-# cnv_call (curator label) → CNV_CALL stored on the patient doc (cnv_map).
-# Note "Low Amplification" → "Gain", which is not obvious.
+# Keys are the curator label lowercased (input casing does not matter); values
+# are the EXACT strings matchengine compares the patient doc against — those must
+# not change (e.g. the lowercase "d" in "Homozygous deletion", or "Low
+# Amplification" → "Gain", which is not obvious).
 _CNV_CALL_MAP = {
-    "High Amplification": "High level amplification",
-    "Low Amplification": "Gain",
-    "Homozygous Deletion": "Homozygous deletion",
-    "Heterozygous Deletion": "Heterozygous deletion",
+    "high amplification": "High level amplification",
+    "low amplification": "Gain",
+    "homozygous deletion": "Homozygous deletion",
+    "heterozygous deletion": "Heterozygous deletion",
 }
 
-# signature_level (curator label) → MMR_STATUS on the patient doc (mmr_ms_map).
-# Proficient and Stable both collapse to the single MSS string.
+# signature_level → MMR_STATUS (mmr_ms_map). Proficient and Stable both collapse
+# to the single MSS string.
 _SIGNATURE_LEVEL_MAP = {
-    "Deficient": "Deficient (MMR-D / MSI-H)",
-    "Proficient": "Proficient (MMR-P / MSS)",
-    "Stable": "Proficient (MMR-P / MSS)",
+    "deficient": "Deficient (MMR-D / MSI-H)",
+    "proficient": "Proficient (MMR-P / MSS)",
+    "stable": "Proficient (MMR-P / MSS)",
 }
+
+
+def _remap(mapping: dict, value: str) -> str:
+    """Case-insensitive lookup of a curator label → its exact stored value.
+    Falls back to the value as typed when it is not a recognized label."""
+    return mapping.get(value.strip().lower(), value)
 
 _GENDER_MAP = {"male": "Male", "female": "Female", "m": "Male", "f": "Female"}
 
@@ -132,7 +140,7 @@ def to_genomic_docs(
             doc["WILDTYPE"] = bool(f.wildtype)
 
         if category == "CNV" and f.cnv_call:
-            doc["CNV_CALL"] = _CNV_CALL_MAP.get(f.cnv_call, f.cnv_call)
+            doc["CNV_CALL"] = _remap(_CNV_CALL_MAP, f.cnv_call)
 
         if category == "SV":
             left, right = _split_fusion(f.biomarker)
@@ -143,9 +151,7 @@ def to_genomic_docs(
         if category == "SIGNATURE":
             if not f.signature_level:
                 continue  # nothing to store in MMR_STATUS → unmatchable, skip
-            doc["MMR_STATUS"] = _SIGNATURE_LEVEL_MAP.get(
-                f.signature_level, f.signature_level
-            )
+            doc["MMR_STATUS"] = _remap(_SIGNATURE_LEVEL_MAP, f.signature_level)
 
         docs.append(doc)
 

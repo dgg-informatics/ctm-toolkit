@@ -132,6 +132,23 @@ def test_signature_level_remaps_and_collapses_proficient_stable():
         assert docs[0]["MMR_STATUS"] == stored, level
 
 
+@pytest.mark.parametrize("typed", ["Homozygous Deletion", "homozygous deletion", "HOMOZYGOUS DELETION"])
+def test_cnv_call_lookup_is_case_insensitive(typed):
+    """Input casing is normalized; the stored value keeps matchengine's exact form."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="ERBB2", variant_category="CNV", cnv_call=typed),
+    ])
+    assert docs[0]["CNV_CALL"] == "Homozygous deletion"
+
+
+@pytest.mark.parametrize("typed", ["Deficient", "deficient", "DEFICIENT"])
+def test_signature_level_lookup_is_case_insensitive(typed):
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="MSI", variant_category="SIGNATURE", signature_level=typed),
+    ])
+    assert docs[0]["MMR_STATUS"] == "Deficient (MMR-D / MSI-H)"
+
+
 def test_blank_signature_level_is_skipped():
     docs = to_genomic_docs(_patient(), [
         _finding(biomarker="MSI", variant_category="SIGNATURE", signature_level=None),
