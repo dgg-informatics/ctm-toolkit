@@ -1,36 +1,32 @@
 """Normalize raw Excel row models → MongoDB-ready normalized models.
 
-Pattern for every source:
-  1. Canonical fields (gene, variant_type, result_summary) pass through as-is.
-  2. All raw_* fields are collected into Finding.raw, keyed by column name,
-     with None values dropped.
-  3. source is propagated from the corresponding ReportMetadata row.
+Pattern:
+  1. Canonical columns are promoted to typed fields.
+  2. Every other column is captured verbatim into a ``raw`` dict, keyed by
+     column name, Nones dropped — lossless, so nothing from the workbook is
+     silently discarded.
+  3. A finding's source is propagated from its ReportMetadata row.
 """
-from ..schemas.raw.models import (
-    RawAmbryFinding,
-    RawAmcNgsFinding,
-    RawCarisFinding,
-    RawFoundationFinding,
-    RawGuardant360Finding,
-    RawHenryFordFinding,
-    RawMayoFinding,
-    RawOgmFinding,
-    RawPatientGeneral,
-    RawPmlRaraFinding,
-    RawReportMetadata,
-    RawTempusFinding,
-    RawTumorBiomarker,
-)
+from ..schemas.raw.models import RawFinding, RawPatientGeneral, RawReportMetadata
 from ..schemas.raw.normalized import Finding, Patient, ReportMetadata
 
+# Columns promoted to typed fields; everything else on the row → the raw dict.
+_FINDING_FIELDS = {
+    "pt_uuid", "report_uuid", "biomarker", "variant_category", "protein_change",
+    "cnv_call", "signature_level", "wildtype", "nucleotide_change",
+}
+_REPORT_FIELDS = {
+    "report_uuid", "pt_uuid", "source", "test_name", "unique_test_id",
+    "unique_test_id_source", "ordering_physician",
+}
 
-def _raw_fields(row: object) -> dict:
-    """Collect all raw_* fields (plus accession_no, if present) from a raw
-    model into a dict, dropping Nones."""
+
+def _raw_fields(row: object, promoted: set[str]) -> dict:
+    """Every column not promoted to a typed field, keyed by column name, Nones dropped."""
     return {
         k: v
         for k, v in row.model_dump().items()
-        if (k.startswith("raw_") or k == "accession_no") and v is not None
+        if k not in promoted and v is not None
     }
 
 
@@ -52,82 +48,47 @@ def normalize_patient(row: RawPatientGeneral) -> Patient:
         primary_dx=row.primary_dx,
         oncotree_primary_diagnosis=row.oncotree_primary_diagnosis,
         metastasis_sites=sites,
+        referring_clinician=row.referring_clinician,
+        source=row.source,
     )
 
 
 def normalize_report_metadata(row: RawReportMetadata) -> ReportMetadata:
-    return ReportMetadata(**row.model_dump())
+    return ReportMetadata(
+        report_uuid=row.report_uuid,
+        pt_uuid=row.pt_uuid,
+        source=row.source,
+        test_name=row.test_name,
+        unique_test_id=row.unique_test_id,
+        unique_test_id_source=row.unique_test_id_source,
+        ordering_physician=row.ordering_physician,
+        raw=_raw_fields(row, _REPORT_FIELDS),
+    )
 
 
-def _finding(row: object, source: str) -> Finding:
+def normalize_finding(row: RawFinding, source: str) -> Finding:
     return Finding(
         pt_uuid=row.pt_uuid,
         report_uuid=row.report_uuid,
         source=source,
-        gene=row.gene,
-        protein=getattr(row, "protein", None),
-        nucleotide=getattr(row, "nucleotide", None),
-        variant_type=row.variant_type,
-        result_summary=row.result_summary,
-        raw=_raw_fields(row),
+        biomarker=row.biomarker,
+        variant_category=row.variant_category,
+        protein_change=row.protein_change,
+        cnv_call=row.cnv_call,
+        signature_level=row.signature_level,
+        wildtype=row.wildtype,
+        nucleotide_change=row.nucleotide_change,
+        raw=_raw_fields(row, _FINDING_FIELDS),
     )
 
 
-def normalize_tempus(row: RawTempusFinding, source: str = "tempus") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_caris(row: RawCarisFinding, source: str = "caris") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_ambry(row: RawAmbryFinding, source: str = "ambry") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_amc_ngs(row: RawAmcNgsFinding, source: str = "amc_ngs") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_ogm(row: RawOgmFinding, source: str = "ogm") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_pml_rara(row: RawPmlRaraFinding, source: str = "pml_rara") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_mayo(row: RawMayoFinding, source: str = "mayo") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_henry_ford(row: RawHenryFordFinding, source: str = "henry_ford") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_guardant360(row: RawGuardant360Finding, source: str = "guardant360") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_foundation(row: RawFoundationFinding, source: str = "foundation") -> Finding:
-    return _finding(row, source)
-
-
-def normalize_tumor_biomarker(row: RawTumorBiomarker, source: str = "tumor_biomarker") -> Finding:
-    return _finding(row, source)
-
-
-# Map sheet name → (raw model class, normalize function)
-SHEET_NORMALIZERS = {
-    "tempus_findings":      (RawTempusFinding,     normalize_tempus),
-    "caris_findings":       (RawCarisFinding,      normalize_caris),
-    "ambry_findings":       (RawAmbryFinding,      normalize_ambry),
-    "amc_ngs_findings":     (RawAmcNgsFinding,     normalize_amc_ngs),
-    "ogm_findings":         (RawOgmFinding,        normalize_ogm),
-    "pml_rara_findings":    (RawPmlRaraFinding,    normalize_pml_rara),
-    "mayo_findings":        (RawMayoFinding,       normalize_mayo),
-    "henry_ford_findings":  (RawHenryFordFinding,  normalize_henry_ford),
-    "guardant360_findings": (RawGuardant360Finding, normalize_guardant360),
-    "foundation_findings":  (RawFoundationFinding, normalize_foundation),
-    "tumor_biomarkers":     (RawTumorBiomarker,    normalize_tumor_biomarker),
-}
+# Every *_findings sheet shares the one canonical block, so a single model and
+# normalizer serve them all. The value tuple shape is kept for the reader, which
+# unpacks (raw_cls, norm_fn). Source is resolved by the reader from
+# report_metadata (falling back to the sheet name).
+FINDING_SHEETS = (
+    "tempus_findings", "caris_findings", "ambry_findings", "amc_ngs_findings",
+    "ogm_findings", "pml_rara_findings", "mayo_findings", "henry_ford_findings",
+    "guardant360_findings", "foundation_findings",
+)
+SHEET_NORMALIZERS = dict.fromkeys(FINDING_SHEETS, (RawFinding, normalize_finding))
