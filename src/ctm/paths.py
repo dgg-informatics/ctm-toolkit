@@ -4,10 +4,12 @@ Two different kinds of path live here, and the distinction matters:
 
 * Reference data ships *inside* the package, so an installed wheel works without
   a source checkout. Read-only; anchored to ``ctm/``.
-* LLM response caches are per-user, machine-generated, and can reach hundreds of
-  MB. They belong in the user's cache directory, never in the repo or the
-  package. Honours ``CTM_CACHE_DIR``, then ``XDG_CACHE_HOME``, then
-  ``~/.cache`` — so Linux, macOS, and containers all land somewhere writable.
+* LLM response caches are machine-generated and can reach hundreds of MB. They
+  live outside the repo/package. Resolution: ``CTM_CACHE_DIR`` (explicit
+  override, also settable via ``.env``) → the shared ``/var/lib/ctm/cache`` when
+  it exists → ``XDG_CACHE_HOME/ctm`` → ``~/.cache/ctm``. The shared default lets
+  several server accounts share one warm cache; a workstation or container
+  without that directory falls back to a per-user location.
 """
 import os
 from pathlib import Path
@@ -40,10 +42,22 @@ def load_env() -> Path | None:
     return Path(found)
 
 
+# Shared server cache: several accounts read/write one warm cache when this
+# directory exists (an admin creates it group-writable). A module constant so it
+# stays overridable in tests.
+DEFAULT_SHARED_CACHE = Path("/var/lib/ctm/cache")
+
+
 def cache_dir() -> Path:
-    """Directory for ctm's caches. Created on demand by :func:`cache_path`."""
+    """Directory for ctm's caches. Created on demand by :func:`cache_path`.
+
+    Order: ``CTM_CACHE_DIR`` override → the shared ``/var/lib/ctm/cache`` when it
+    exists → ``XDG_CACHE_HOME/ctm`` → ``~/.cache/ctm``.
+    """
     if override := os.environ.get("CTM_CACHE_DIR"):
         return Path(override).expanduser()
+    if DEFAULT_SHARED_CACHE.is_dir():
+        return DEFAULT_SHARED_CACHE
     if xdg := os.environ.get("XDG_CACHE_HOME"):
         return Path(xdg).expanduser() / "ctm"
     return Path.home() / ".cache" / "ctm"

@@ -37,13 +37,23 @@ def test_knowledge_base_ships_with_the_package():
 
 
 def test_cache_dir_precedence(monkeypatch, tmp_path):
-    """CTM_CACHE_DIR beats XDG_CACHE_HOME beats ~/.cache — containers need the override."""
+    """CTM_CACHE_DIR beats the shared /var/lib default beats XDG beats ~/.cache."""
+    import ctm.paths as paths
+
     monkeypatch.delenv("CTM_CACHE_DIR", raising=False)
     monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    # Point the shared default at a path that does not exist, so it's skipped.
+    monkeypatch.setattr(paths, "DEFAULT_SHARED_CACHE", tmp_path / "absent")
     assert cache_dir() == Path.home() / ".cache" / "ctm"
 
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
     assert cache_dir() == tmp_path / "xdg" / "ctm"
+
+    # An existing shared dir wins over XDG (but not over the explicit override).
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    monkeypatch.setattr(paths, "DEFAULT_SHARED_CACHE", shared)
+    assert cache_dir() == shared
 
     monkeypatch.setenv("CTM_CACHE_DIR", str(tmp_path / "explicit"))
     assert cache_dir() == tmp_path / "explicit"
