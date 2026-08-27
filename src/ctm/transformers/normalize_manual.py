@@ -19,6 +19,11 @@ _REPORT_FIELDS = {
     "report_uuid", "pt_uuid", "source", "test_name", "unique_test_id",
     "unique_test_id_source", "ordering_physician",
 }
+_PATIENT_FIELDS = {
+    "pt_uuid", "mrn", "first_name", "last_name", "dob", "sex", "vital_status",
+    "entity", "primary_dx", "oncotree_primary_diagnosis", "metastasis_sites",
+    "referring_clinician", "source", "trb_date",
+}
 
 
 def _raw_fields(row: object, promoted: set[str]) -> dict:
@@ -50,6 +55,8 @@ def normalize_patient(row: RawPatientGeneral) -> Patient:
         metastasis_sites=sites,
         referring_clinician=row.referring_clinician,
         source=row.source,
+        trb_date=row.trb_date,
+        raw=_raw_fields(row, _PATIENT_FIELDS),
     )
 
 

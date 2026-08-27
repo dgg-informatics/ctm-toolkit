@@ -47,15 +47,16 @@ class RawPatientGeneral(BaseModel):
     metastasis_sites: str | None = None
     referring_clinician: str | None = None
     source: str | None = None
+    trb_date: date | datetime | str | None = None
 
     @field_validator("pt_uuid", mode="before")
     @classmethod
     def _ids(cls, v: object) -> object:
         return _str_id(v)
 
-    @field_validator("dob", mode="before")
+    @field_validator("dob", "trb_date", mode="before")
     @classmethod
-    def coerce_dob(cls, v: object) -> date | None:
+    def coerce_dates(cls, v: object) -> date | None:
         return _to_date(v)
 
 

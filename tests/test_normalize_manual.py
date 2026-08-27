@@ -69,6 +69,15 @@ def test_normalize_patient_splits_metastasis_sites_and_keeps_new_fields():
     assert p.source == "manual"
 
 
+def test_normalize_patient_promotes_trb_date_and_raws_other_columns():
+    row = RawPatientGeneral.model_validate({
+        "pt_uuid": "pt_0000001", "trb_date": "2026-08-15", "some_future_col": "kept",
+    })
+    p = normalize_patient(row)
+    assert p.trb_date.isoformat() == "2026-08-15"       # optional, date-coerced
+    assert p.raw == {"some_future_col": "kept"}          # any other pt_general column, lossless
+
+
 def test_reference_workbook_parses_and_joins():
     patients, metadata, findings = read_and_normalize(FIXTURE)
     assert len(patients) == 1

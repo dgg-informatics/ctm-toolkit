@@ -25,6 +25,8 @@ class Patient(BaseModel):
     metastasis_sites: list[str] = []
     referring_clinician: str | None = None
     source: str | None = None            # how this patient row was captured, e.g. "manual"
+    trb_date: date | None = None         # when the patient was seen at tumor review board
+    raw: dict[str, Any] = {}            # any other pt_general column, keyed by column name
 
 
 class ReportMetadata(BaseModel):
