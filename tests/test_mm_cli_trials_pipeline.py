@@ -39,7 +39,7 @@ def _curate_args(**overrides):
     """A trials-curate Namespace with every argparse-supplied field present."""
     defaults = {
         "trials": None, "out": None, "cache": None, "kb": None,
-        "disk": None, "db": None, "run_date": None,
+        "disk": None, "db": None, "run_date": None, "yes": True,
     }
     args = argparse.Namespace(**{**defaults, **overrides})
     if args.disk is None:

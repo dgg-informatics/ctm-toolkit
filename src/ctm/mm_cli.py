@@ -693,6 +693,8 @@ def _cmd_trials_curate(args) -> None:
             argv += [flag, str(value)]
     if not args.disk:
         argv.append("--no-disk")
+    if getattr(args, "yes", False):
+        argv.append("--yes")
     llm_main(argv)
 
 
