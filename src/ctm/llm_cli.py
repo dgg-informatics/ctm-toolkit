@@ -41,6 +41,24 @@ _GENERAL_CACHE = ".ctml_cache.json"
 _BIOMARKER_CACHE = ".trials_curate_cache.json"
 
 
+def _confirm_cold_cache(cache: dict, cache_file: Path, assume_yes: bool) -> None:
+    """Guard an expensive cold run. With no cached responses the stage would make
+    live LLM calls, so warn and require confirmation. ``--yes`` skips the prompt;
+    a non-interactive shell without ``--yes`` aborts rather than hang.
+    """
+    if cache or assume_yes:
+        return
+    print(f"Warning: no cached LLM responses at {cache_file} — this run will make "
+          "live LLM calls (UMGPT quota / API cost).", file=sys.stderr)
+    if not sys.stdin.isatty():
+        print("Non-interactive shell: pass --yes to run without a cache. Aborting.",
+              file=sys.stderr)
+        sys.exit(1)
+    if input("Continue? [y/N] ").strip().lower() not in ("y", "yes"):
+        print("Aborted.", file=sys.stderr)
+        sys.exit(1)
+
+
 def _add_shared_args(parser, cache_default: str) -> None:
     parser.add_argument("--trials", metavar="JSON",
                         help="Read trials from a JSON file instead of this stage's source collection")
@@ -48,6 +66,8 @@ def _add_shared_args(parser, cache_default: str) -> None:
                         help="Output JSON path. Required unless --no-disk")
     parser.add_argument("--cache", default=None, metavar="JSON",
                         help=f"LLM response cache (default: {cache_dir() / cache_default})")
+    parser.add_argument("--yes", "-y", action="store_true",
+                        help="Skip the cold-cache confirmation prompt (for non-interactive runs)")
     # Default True through the 1.x line; the 2.0.0 release flips every stage at once.
     parser.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
                         help="Write the JSON output in addition to MongoDB (default: enabled)")
@@ -162,6 +182,7 @@ def _cmd_general(args) -> None:
 
     client = build_client()
     cache = load_cache(cache_file)
+    _confirm_cold_cache(cache, cache_file, args.yes)
 
     print("Fetching OncoTree names...", file=sys.stderr)
     valid_oncotree = fetch_oncotree_names()
@@ -223,6 +244,7 @@ def _cmd_biomarkers(args) -> None:
     # No OncoTree fetch: this stage produces biomarker references, not match nodes.
     client = build_client()
     cache = load_cache(cache_file)
+    _confirm_cold_cache(cache, cache_file, args.yes)
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
