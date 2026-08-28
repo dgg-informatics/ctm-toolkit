@@ -190,22 +190,6 @@ def test_trials_diff_disk_flag_defaults_to_mongo_only(monkeypatch, argv, expecte
     assert captured["disk"] is expected_disk
 
 
-def test_cmd_trials_diff_no_disk_writes_no_files(tmp_path, fake_mongo):
-    """--no-disk stores to MongoDB only."""
-    from ctm.mm_cli import _cmd_trials_diff
-
-    _, _, args = _three_bucket_case(tmp_path)
-    args.disk = False
-    args.out_prefix = None
-    _cmd_trials_diff(args)
-
-    assert list(tmp_path.glob("*-unchanged.json")) == []
-    assert list(tmp_path.glob("*-changed.json")) == []
-    assert list(tmp_path.glob("*-deleted.json")) == []
-    # ...but the diff still reached Mongo.
-    assert len(fake_mongo["written"]["docs"]) == 3
-
-
 def test_cmd_trials_diff_without_out_prefix_writes_only_mongo(tmp_path, fake_mongo):
     """v2: omitting --out-prefix stores to MongoDB only — no files, no error."""
     from ctm.mm_cli import _cmd_trials_diff

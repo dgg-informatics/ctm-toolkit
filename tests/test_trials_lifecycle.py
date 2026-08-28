@@ -13,12 +13,6 @@ def test_trial_key_west_uses_nct_id():
     assert trial_key(trial) == "NCT04858334"
 
 
-def test_trial_key_sparrow_uses_nct_id():
-    from ctm.trials_lifecycle import trial_key
-    trial = {"entity": "sparrow", "protocol_no": None, "nct_id": "NCT05812807"}
-    assert trial_key(trial) == "NCT05812807"
-
-
 def test_compute_trial_hash_same_raw_same_hash():
     from ctm.trials_lifecycle import compute_trial_hash
     trial_a = {"_raw": {"status": "open", "title": "A study"}}

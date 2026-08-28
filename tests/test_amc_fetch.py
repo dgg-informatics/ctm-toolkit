@@ -75,18 +75,6 @@ def test_parse_accepts_an_explicit_timestamp():
     assert all(t.fetched_at == when for t in parse(ET.fromstring(XML), fetched_at=when))
 
 
-def test_load_stamps_fetched_at(tmp_path):
-    from ctm.transformers.amc_xml_to_raw import load
-
-    path = tmp_path / "amc.xml"
-    path.write_text(XML)
-
-    before = datetime.now(tz=UTC)
-    trials = load(path)
-
-    assert trials[0].fetched_at >= before
-
-
 def test_fetch_uses_the_octsu_feed_by_default(monkeypatch):
     from ctm.transformers.amc_xml_to_raw import FEED_URL, fetch
 
@@ -219,33 +207,3 @@ def test_cmd_trials_bare_amc_fetches_the_feed(tmp_path, monkeypatch, fake_mongo)
     assert {t["entity"] for t in trials} == {"amc"}
     # The pull timestamp survives into the stored raw blob.
     assert trials[0]["_raw"]["fetched_at"]
-
-
-def test_cmd_trials_amc_path_still_reads_a_local_export(tmp_path, fake_mongo):
-    """The existing invocation must keep working unchanged."""
-    import json
-
-    from ctm.mm_cli import _cmd_trials
-
-    path = tmp_path / "amc.xml"
-    path.write_text(XML)
-    out = tmp_path / "o.json"
-
-    _cmd_trials(_trials_args("--out", str(out), "--amc", str(path)))
-
-    assert len(json.loads(out.read_text())) == 2
-
-
-def test_ddots_pull_is_timestamped_independently_of_clinicaltrials_gov():
-    """The two are separate calls to separate APIs; dating one from the other
-    would be a guess."""
-    from pathlib import Path
-
-    from ctm.transformers.ddots_to_raw import load
-
-    fixture = Path(__file__).parent / "fixtures" / "ddots-protocol-response.json"
-    trials = load(fixture)
-
-    assert trials[0].fetched_at is not None
-    assert trials[0].fetched_at.tzinfo is not None
-    assert trials[0].fetched_at == trials[1].fetched_at

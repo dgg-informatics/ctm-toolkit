@@ -61,13 +61,8 @@ def test_stamp_curation_defaults_to_the_os_user():
     assert d["curated_by"] == "manual-curation"
     assert d["curated_by_user"]                       # from getpass, non-empty
     assert d["curated_at"].tzinfo is not None
-
-
-def test_stamp_curation_user_override():
-    from ctm.db import stamp_curation
-
-    d = stamp_curation({}, curated_by_user="jcurator")
-    assert d["curated_by_user"] == "jcurator"
+    # ...and an explicit curator overrides the getpass default.
+    assert stamp_curation({}, curated_by_user="jcurator")["curated_by_user"] == "jcurator"
 
 
 def test_curated_fields_survive_strip_metadata():

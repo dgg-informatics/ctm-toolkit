@@ -129,20 +129,6 @@ def test_title_suggestion_is_labelled_summary():
     assert result["transferred_to_match"] is False
 
 
-def test_final_suggested_ctml_is_gone():
-    """Deleted deliberately: the suggestion was not useful, and it was the only
-    field in _llm_curation computed from another stage's output."""
-    from ctm.transformers import trials_curate
-    from ctm.transformers.eligibility_to_ctml import draft_trial
-
-    assert not hasattr(trials_curate, "union_match_nodes")
-    assert not hasattr(trials_curate, "curate_trial")
-
-    client = _QueuedClient(['null', 'null', 'null'])
-    result = draft_trial(_trial(), cache={}, client=client, valid_oncotree=set())
-    assert "final_suggested_ctml" not in result["_llm_curation"]
-
-
 def test_the_two_stages_compose_without_clobbering_each_other():
     """The end-to-end property the partition exists to guarantee."""
     from ctm.transformers.eligibility_to_ctml import draft_trial

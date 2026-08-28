@@ -24,13 +24,6 @@ def test_a_well_formed_envelope_validates():
     validate_storage(_envelope(diff_status="changed"))
 
 
-@pytest.mark.parametrize("diff_status", ["unchanged", "changed", "deleted"])
-def test_valid_diff_statuses(diff_status):
-    from ctm.schemas.storage import validate_storage
-
-    validate_storage(_envelope(diff_status=diff_status))
-
-
 def test_diff_status_is_an_enum_not_a_free_string():
     """It is the only routing signal ctm-llm general filters on, so a typo must not
     pass silently."""

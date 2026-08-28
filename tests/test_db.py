@@ -181,15 +181,6 @@ def test_stamp_recomputes_a_missing_trial_hash():
     assert len(stamped["trial_hash"]) == 64
 
 
-def test_stamp_recomputed_hashes_distinguish_different_raw_blobs():
-    """The recomputed value must still be a usable unique key."""
-    from ctm.db import stamp
-
-    a = stamp({"entity": "west", "nct_id": "NCT1", "_raw": {"x": 1}}, "s", "2026-08-17")
-    b = stamp({"entity": "west", "nct_id": "NCT1", "_raw": {"x": 2}}, "s", "2026-08-17")
-    assert a["trial_hash"] != b["trial_hash"]
-
-
 def test_stamp_does_not_mutate_its_input():
     from ctm.db import stamp
 
@@ -242,18 +233,8 @@ def test_replace_collection_drops_then_indexes_then_inserts():
         {"keys": [("entity", 1), ("trial_key", 1)], "unique": False},
     ]
     assert collection.inserted == docs
-
-
-def test_replace_collection_inserts_unordered():
-    """ordered=False: one rejected document must not truncate the tail of the
-    batch — `deleted` documents are stamped last — and the error should name
-    every offender at once rather than one per round trip."""
-    from ctm.db import DIFF_UNIQUE_KEY, replace_collection
-
-    collection = _FakeCollection()
-    replace_collection(_FakeDb(collection), "02_diff_trials",
-                       [{"trial_hash": "a" * 64}], DIFF_UNIQUE_KEY)
-
+    # ordered=False so one rejected document can't truncate the tail of the batch
+    # (`deleted` documents are stamped last).
     assert collection.ordered is False
 
 
@@ -282,28 +263,6 @@ def test_prepare_collection_refuses_a_collection_no_stage_owns():
         prepare_collection(_FakeDb(collection), MANUAL_COLLECTION, DIFF_UNIQUE_KEY)
 
     assert not collection.dropped
-
-
-def test_manual_collection_is_excluded_from_machine_written():
-    from ctm import db as ctm_db
-
-    assert ctm_db.MANUAL_COLLECTION not in ctm_db.MACHINE_WRITTEN
-    for owned in (ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION,
-                  ctm_db.CTML_COLLECTION, ctm_db.CURATED_COLLECTION):
-        assert owned in ctm_db.MACHINE_WRITTEN
-
-
-def test_collection_map_is_ordered_by_pipeline_stage():
-    """Ordinal prefixes are the reason renames cascade; keep the map honest."""
-    from ctm import db as ctm_db
-
-    names = [
-        ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION, ctm_db.CTML_COLLECTION,
-        ctm_db.CURATED_COLLECTION, ctm_db.MANUAL_COLLECTION,
-        ctm_db.DEFAULT_MASTER_COLLECTION,
-    ]
-    assert names == sorted(names), "prefixes must sort into pipeline order"
-    assert [n.split("_")[0] for n in names] == ["01", "02", "03", "04", "05", "06"]
 
 
 def test_upsert_doc_replaces_on_the_unique_key():

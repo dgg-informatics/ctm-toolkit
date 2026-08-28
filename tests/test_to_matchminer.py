@@ -26,7 +26,7 @@ def _strip_updated(doc: dict) -> dict:
 # ── Golden: the whole workbook converts exactly ───────────────────────────────
 
 def test_v1_clinical_matches_golden():
-    pts, _, finds = read_and_normalize(WORKBOOK)
+    pts, _, _ = read_and_normalize(WORKBOOK)
     assert len(pts) == 1
     clinical = _strip_updated(to_clinical(pts[0]))
     expected = json.loads((FIXTURES / "pt-clinical-v1.0.0.json").read_text())
@@ -40,12 +40,27 @@ def test_v1_genomic_matches_golden():
     assert genomic == expected
 
 
-def test_v1_non_matchable_rows_are_skipped():
-    """24 findings → 21 genomic docs: the 2 blank-signature rows and the 1
-    OTHER row produce nothing, everything else does."""
-    pts, _, finds = read_and_normalize(WORKBOOK)
-    assert len(finds) == 24
-    assert len(to_genomic_docs(pts[0], finds)) == 21
+def test_patient_data_rollup_is_lossless_and_joins_on_sample_id():
+    """The gap the golden tests don't cover: the extras/patient_data rollup
+    (_build_extras) keeps every Excel row, and SAMPLE_ID joins the clinical,
+    genomic, and extras collections."""
+    from ctm.mm_cli import _build_extras
+
+    pts, meta, finds = read_and_normalize(WORKBOOK)
+    clinical = to_clinical(pts[0])
+    genomic = to_genomic_docs(pts[0], finds)
+    extras = _build_extras(pts, meta, finds)
+
+    sample_id = clinical["SAMPLE_ID"]
+    assert {g["SAMPLE_ID"] for g in genomic} == {sample_id}   # joins genomic → clinical
+    assert sample_id in extras["patients"]                    # ...and extras
+
+    # Lossless: every finding (24, incl. the Other row that produced no genomic
+    # doc) survives into patient_data with its raw catch-all intact.
+    rollup = [f for r in extras["patients"][sample_id]["reports"] for f in r["findings"]]
+    assert len(rollup) == len(finds) == 24
+    assert {f["variant_category"] for f in rollup} >= {"MUTATION", "CNV", "SIGNATURE", "SV", "OTHER"}
+    assert all("raw" in f for f in rollup)
 
 
 def test_v1_other_row_is_dropped_but_kept_in_findings():
@@ -166,6 +181,19 @@ def test_sv_splits_partner_genes_and_has_no_wildtype():
     assert doc["RIGHT_PARTNER_GENE"] == "ALK"
     assert doc["VARIANT_CATEGORY"] == "SV"
     assert "WILDTYPE" not in doc          # wildtype applies only to MUTATION/CNV
+
+
+@pytest.mark.parametrize("biomarker,left,right", [
+    ("CD74-ROS1", "CD74", "ROS1"),   # hyphen
+    ("PML/RARA", "PML", "RARA"),     # slash
+])
+def test_sv_splits_partner_genes_on_hyphen_and_slash(biomarker, left, right):
+    """_split_fusion accepts ::, -, and / — :: is covered above; a hyphenated or
+    slashed fusion splitting wrong would key the doc on the wrong TRUE_HUGO_SYMBOL."""
+    doc = to_genomic_docs(_patient(), [_finding(biomarker=biomarker, variant_category="SV")])[0]
+    assert doc["TRUE_HUGO_SYMBOL"] == left
+    assert doc["LEFT_PARTNER_GENE"] == left
+    assert doc["RIGHT_PARTNER_GENE"] == right
 
 
 @pytest.mark.parametrize("value", ["Other", "OTHER", "other"])

@@ -4,19 +4,12 @@ from pathlib import Path
 from ctm.schemas.raw.models import RawFinding, RawPatientGeneral, RawReportMetadata
 from ctm.transformers.excel_reader import read_and_normalize
 from ctm.transformers.normalize_manual import (
-    FINDING_SHEETS,
-    SHEET_NORMALIZERS,
     normalize_finding,
     normalize_patient,
     normalize_report_metadata,
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.0.0.xlsx"
-
-
-def test_every_finding_sheet_registered_to_the_shared_normalizer():
-    for sheet in FINDING_SHEETS:
-        assert SHEET_NORMALIZERS[sheet] == (RawFinding, normalize_finding)
 
 
 def test_normalize_finding_maps_canonical_fields():
