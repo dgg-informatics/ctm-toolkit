@@ -7,6 +7,8 @@ templates off a checkout. These tests fail if anything drifts back that way.
 """
 from pathlib import Path
 
+import pytest
+
 import ctm
 from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path
 from ctm.reports.builder import METHODS_PATH, STATIC_DIR, TEMPLATES_DIR
@@ -57,6 +59,21 @@ def test_cache_dir_precedence(monkeypatch, tmp_path):
 
     monkeypatch.setenv("CTM_CACHE_DIR", str(tmp_path / "explicit"))
     assert cache_dir() == tmp_path / "explicit"
+
+
+@pytest.mark.parametrize("env,default", [
+    ("LLM_BIOMARKER_EXPORT_DIR", "/var/lib/ctm/to-curate"),
+    ("MASTER_TRIAL_EXPORT_DIR", "/var/lib/ctm/trials"),
+])
+def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, default):
+    """A blank env var must fall back to the default, not resolve to Path("") = CWD
+    (which silently scattered the export into the working directory)."""
+    from ctm.paths import llm_biomarker_export_dir, master_trial_export_dir
+
+    func = {"LLM_BIOMARKER_EXPORT_DIR": llm_biomarker_export_dir,
+            "MASTER_TRIAL_EXPORT_DIR": master_trial_export_dir}[env]
+    monkeypatch.setenv(env, "")
+    assert str(func()) == default
 
 
 def test_caches_never_land_in_the_repo(monkeypatch, tmp_path):
