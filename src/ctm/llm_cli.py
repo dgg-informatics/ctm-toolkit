@@ -35,7 +35,13 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from ctm.paths import DEFAULT_KB_PATH, cache_dir, cache_path, load_env
+from ctm.paths import (
+    DEFAULT_KB_PATH,
+    cache_dir,
+    cache_path,
+    llm_biomarker_export_dir,
+    load_env,
+)
 
 _GENERAL_CACHE = ".ctml_cache.json"
 _BIOMARKER_CACHE = ".trials_curate_cache.json"
@@ -63,14 +69,15 @@ def _add_shared_args(parser, cache_default: str) -> None:
     parser.add_argument("--trials", metavar="JSON",
                         help="Read trials from a JSON file instead of this stage's source collection")
     parser.add_argument("--out", metavar="JSON",
-                        help="Output JSON path. Required unless --no-disk")
+                        help="Write the JSON output to this path (overrides any default export)")
     parser.add_argument("--cache", default=None, metavar="JSON",
                         help=f"LLM response cache (default: {cache_dir() / cache_default})")
     parser.add_argument("--yes", "-y", action="store_true",
                         help="Skip the cold-cache confirmation prompt (for non-interactive runs)")
-    # Default True through the 1.x line; the 2.0.0 release flips every stage at once.
-    parser.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
-                        help="Write the JSON output in addition to MongoDB (default: enabled)")
+    # v2: MongoDB only by default. --disk/--no-disk force the file on/off; a stage
+    # with a canonical export (biomarkers) still writes it unless --no-disk.
+    parser.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
+                        help="Force the JSON file output on/off (default: MongoDB only)")
     parser.add_argument("--db", metavar="NAME", help="Override MONGO_DBNAME for this run")
     parser.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
                         help="Override the run_date inherited from the source documents")
@@ -102,15 +109,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _check_disk_args(args) -> None:
-    """--out is meaningless with --no-disk, and disk output cannot write without it."""
-    if args.disk and not args.out:
-        print("Error: --out is required (pass --no-disk to store only to MongoDB)",
-              file=sys.stderr)
-        sys.exit(1)
-    if args.out and not args.disk:
-        print("Error: --out has no effect with --no-disk", file=sys.stderr)
-        sys.exit(1)
+def _resolve_out(args, default_path: Path | None) -> Path | None:
+    """The JSON export path, or None for MongoDB-only.
+
+    ``--out`` wins; ``--no-disk`` forces MongoDB-only; otherwise the stage's
+    ``default_path`` (a canonical export path, or None for stages that don't
+    write a file by default).
+    """
+    if args.disk is False:          # explicit --no-disk
+        return None
+    if args.out:
+        return Path(args.out)
+    return default_path             # canonical export, or None
 
 
 def _load_trials(args, ctm_db, config, target_db, collection: str, query: dict | None,
@@ -152,7 +162,6 @@ def _cmd_general(args) -> None:
         save_cache,
     )
 
-    _check_disk_args(args)
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
     cache_file = Path(args.cache) if args.cache else cache_path(_GENERAL_CACHE)
@@ -207,9 +216,11 @@ def _cmd_general(args) -> None:
                           ctm_db.DIFF_UNIQUE_KEY)
 
     print(f"Stored {len(results)} doc(s) → {target_db}.{ctm_db.CTML_COLLECTION}", file=sys.stderr)
-    if args.disk:
-        Path(args.out).write_text(json.dumps(results, indent=2, default=str))
-        print(f"Saved → {args.out}", file=sys.stderr)
+    out = _resolve_out(args, None)   # general has no canonical export
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(results, indent=2, default=str))
+        print(f"Saved → {out}", file=sys.stderr)
     print(f"Cache entries: {len(cache)}", file=sys.stderr)
 
 
@@ -223,7 +234,6 @@ def _cmd_biomarkers(args) -> None:
         save_cache,
     )
 
-    _check_disk_args(args)
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
     cache_file = Path(args.cache) if args.cache else cache_path(_BIOMARKER_CACHE)
@@ -261,9 +271,13 @@ def _cmd_biomarkers(args) -> None:
                           ctm_db.DIFF_UNIQUE_KEY)
 
     print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.CURATED_COLLECTION}", file=sys.stderr)
-    if args.disk:
-        Path(args.out).write_text(json.dumps(trials, indent=2, default=str))
-        print(f"Saved {len(trials)} trial(s) → {args.out}", file=sys.stderr)
+    # Canonical export by default: the to-curate handoff file for manual curation.
+    default_export = llm_biomarker_export_dir() / f"{run_date}_llm-biomarkers_trials.json"
+    out = _resolve_out(args, default_export)
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(trials, indent=2, default=str))
+        print(f"Saved {len(trials)} trial(s) → {out}", file=sys.stderr)
 
 
 def main(argv: list[str] | None = None) -> None:

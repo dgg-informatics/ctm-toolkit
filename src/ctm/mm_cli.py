@@ -1,16 +1,22 @@
 """ctm-mm — MatchMiner import tooling CLI.
 
+v2: the trial stages store to MongoDB only by default. Pass --out (or --out-prefix
+for trials-diff) to also write a file. Two stages additionally drop a dated JSON
+into a canonical directory: `ctm-mm trials-merge` writes the master backup to
+MASTER_TRIAL_EXPORT_DIR, and `ctm-llm biomarkers` the to-curate file to
+LLM_BIOMARKER_EXPORT_DIR (both overridable with --out, suppress with --no-disk).
+
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
-  ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] --out PATH
-  ctm-mm trials-diff [--new JSON] --out-prefix PREFIX [--master JSON] [--db NAME] [--no-disk]
-  ctm-mm trials-curate --trials JSON --out JSON --cache JSON
+  ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] [--out PATH]
+  ctm-mm trials-diff [--new JSON] [--out-prefix PREFIX] [--master JSON] [--db NAME]
+  ctm-mm trials-curate --trials JSON [--out JSON] --cache JSON
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
-  ctm-mm trials-merge --unchanged JSON --changed JSON --out JSON
+  ctm-mm trials-merge [--out JSON]  (or legacy: --unchanged JSON --changed JSON --out JSON)
 
 Options:
   --pt-uuid N[,N...]  Filter to one or more patients by pt_uuid, comma-separated (patients command)
-  --out PATH     Save output to file (default: print to stdout)
+  --out PATH     Also write output to this file (trial stages default to MongoDB only)
 """
 import argparse
 import json
@@ -19,7 +25,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
 
-from ctm.paths import cache_dir, cache_path, load_env
+from ctm.paths import cache_dir, cache_path, load_env, master_trial_export_dir
 
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
@@ -85,10 +91,10 @@ def main() -> None:
                           help="Path to the UMH-West trials Excel template (NCT numbers are "
                                "resolved against ClinicalTrials.gov)")
     p_trials.add_argument("--out", metavar="PATH",
-                          help="Save MatchMiner CTML JSON output to file. Required unless --no-disk")
-    # Default True through the 1.x line, like every other migrated stage.
-    p_trials.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
-                          help="Write the JSON output in addition to MongoDB (default: enabled)")
+                          help="Write the MatchMiner CTML JSON output to this path")
+    # v2: MongoDB only by default; pass --out (or --disk with --out) to also write a file.
+    p_trials.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
+                          help="Force the JSON file output on/off (default: MongoDB only)")
     p_trials.add_argument("--db", metavar="NAME",
                           help="Override MONGO_DBNAME for this run's 00_raw_trials and "
                                "01_normalized_trials collections")
@@ -106,14 +112,12 @@ def main() -> None:
                                help="Previous master trials JSON. Omit to read the master from "
                                     "MONGO_MASTER_COLLECTION in MONGO_MASTER_DBNAME instead")
     # Default True through the 1.x line so the file-based pipeline keeps working
-    # while stages migrate one at a time. Flipping this single default to False,
-    # across every migrated stage at once, is the 2.0.0 breaking change.
-    p_trials_diff.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
-                               help="Write the three JSON files in addition to MongoDB "
-                                    "(default: enabled). --no-disk stores to MongoDB only")
+    # v2: MongoDB only by default. Pass --out-prefix to also write the three files.
+    p_trials_diff.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
+                               help="Force the JSON files on/off (default: MongoDB only)")
     p_trials_diff.add_argument("--out-prefix", metavar="PREFIX",
                                help="Output path prefix; writes PREFIX-unchanged.json, "
-                                    "PREFIX-changed.json, PREFIX-deleted.json. Required unless --no-disk")
+                                    "PREFIX-changed.json, PREFIX-deleted.json")
     p_trials_diff.add_argument("--db", metavar="NAME",
                                help="Override MONGO_DBNAME for this run's 02_diff_trials collection")
     p_trials_diff.add_argument("--master-db", dest="master_db", metavar="NAME",
@@ -134,9 +138,9 @@ def main() -> None:
                                  help="Drafted trials JSON. Omit to read the "
                                       "03_ctml_drafted_trials collection")
     p_trials_curate.add_argument("--out", metavar="JSON",
-                                 help="Output path for the curated trials JSON. Required unless --no-disk")
-    p_trials_curate.add_argument("--disk", action=argparse.BooleanOptionalAction, default=True,
-                                 help="Write the JSON output in addition to MongoDB (default: enabled)")
+                                 help="Write the curated trials JSON to this path")
+    p_trials_curate.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
+                                 help="Force the JSON file output on/off (default: MongoDB only)")
     p_trials_curate.add_argument("--db", metavar="NAME",
                                  help="Override MONGO_DBNAME for this run")
     p_trials_curate.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
@@ -231,22 +235,18 @@ def main() -> None:
         _cmd_trials_merge(args)
 
 
-def _check_disk_args(args, out_flag: str) -> None:
-    """Reject the two contradictory disk states.
+def _resolve_out(args, default_path: Path | None) -> Path | None:
+    """The JSON export path for this run, or None for MongoDB-only.
 
-    ``out_flag`` names the output argument because it differs per subcommand
-    (--out for trials, --out-prefix for trials-diff). Writing no files while an
-    output path was named, or --disk with nowhere to write, are both worth an
-    error rather than a silent no-op.
+    ``--out`` wins; ``--no-disk`` forces MongoDB-only; otherwise the stage's
+    ``default_path`` (a canonical export path, or None for stages that write no
+    file by default).
     """
-    out_value = getattr(args, out_flag.lstrip("-").replace("-", "_"))
-    if args.disk and not out_value:
-        print(f"Error: {out_flag} is required (pass --no-disk to store only to MongoDB)",
-              file=sys.stderr)
-        sys.exit(1)
-    if out_value and not args.disk:
-        print(f"Error: {out_flag} has no effect with --no-disk", file=sys.stderr)
-        sys.exit(1)
+    if args.disk is False:          # explicit --no-disk
+        return None
+    if args.out:
+        return Path(args.out)
+    return default_path
 
 
 def _build_extras(patients: list, metadata: list, findings: list) -> dict:
@@ -351,9 +351,6 @@ def _cmd_trials(args) -> None:
     from ctm.transformers.raw_amc_to_ctml import to_ctml_dict as amc_to_ctml
     from ctm.transformers.raw_ctgov_to_ctml import to_ctml_dict as ctgov_to_ctml
 
-    # Checked up front: a missing --out or Mongo variable should fail before the
-    # first source is fetched, not after paying for a feed pull.
-    _check_disk_args(args, "--out")
     config = ctm_db.mongo_config()
 
     trials: list[dict] = []
@@ -534,8 +531,9 @@ def _cmd_trials(args) -> None:
     print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.NORMALIZED_COLLECTION}",
           file=sys.stderr)
 
-    if args.disk:
-        out_path = Path(args.out)
+    out_path = _resolve_out(args, None)   # trials has no canonical export
+    if out_path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(trials, indent=2, default=str))
         print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
 
@@ -604,11 +602,6 @@ def _cmd_trials_diff(args) -> None:
     from ctm import db as ctm_db
     from ctm.trials_lifecycle import split_by_eligibility
 
-    # Validated up front: a missing variable should fail before any files are
-    # written, not after. MONGO_MASTER_DBNAME is only required when the master
-    # comes from Mongo and --master-db has not already named the database.
-    _check_disk_args(args, "--out-prefix")
-
     config = ctm_db.mongo_config(require_master=not args.master and not args.master_db)
     target_db = args.db or config["dbname"]
 
@@ -645,8 +638,9 @@ def _cmd_trials_diff(args) -> None:
 
     # Files before Mongo when asked for: a standalone mongod is not a replica
     # set, so there is no transaction to roll back a partial write, and complete
-    # files on disk keep the command safely re-runnable.
-    if args.disk:
+    # files on disk keep the command safely re-runnable. v2: only when a prefix
+    # is given (and not suppressed with --no-disk).
+    if args.out_prefix and args.disk is not False:
         prefix = args.out_prefix
         Path(f"{prefix}-unchanged.json").write_text(json.dumps(unchanged, indent=2, default=str))
         Path(f"{prefix}-changed.json").write_text(json.dumps(changed, indent=2, default=str))
@@ -856,9 +850,12 @@ def _cmd_trials_merge(args) -> None:
                               ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
     print(f"Stored {len(stamped)} doc(s) → {master_db}.{master_collection}", file=sys.stderr)
 
-    if args.out:
-        Path(args.out).write_text(json.dumps(stamped, indent=2, default=str))
-        print(f"Saved {len(stamped)} trial(s) → {args.out}", file=sys.stderr)
+    # Canonical master backup by default; --out overrides the path.
+    default_export = master_trial_export_dir() / f"trials_master-{run_date}.json"
+    out_path = Path(args.out) if args.out else default_export
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(stamped, indent=2, default=str))
+    print(f"Saved {len(stamped)} trial(s) → {out_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":

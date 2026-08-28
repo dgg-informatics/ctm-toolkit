@@ -165,29 +165,35 @@ def test_the_two_stages_compose_without_clobbering_each_other():
 
 
 @pytest.mark.parametrize("subcommand", ["general", "biomarkers"])
-def test_cli_requires_out_unless_no_disk(subcommand, capsys):
-    """Disk stays the default through 1.x, so --out is effectively required."""
+def test_cli_disk_defaults_to_none_mongo_only(subcommand):
+    """v2: no --disk flag means MongoDB only (no file) for both stages."""
     from ctm.llm_cli import build_parser
 
     args = build_parser().parse_args([subcommand])
-    assert args.disk is True
-
-    from ctm.llm_cli import _check_disk_args
-
-    with pytest.raises(SystemExit):
-        _check_disk_args(args)
-    assert "--out is required" in capsys.readouterr().err
+    assert args.disk is None
 
 
 @pytest.mark.parametrize("subcommand", ["general", "biomarkers"])
-def test_cli_rejects_out_with_no_disk(subcommand, capsys):
-    from ctm.llm_cli import _check_disk_args, build_parser
+def test_resolve_out_semantics(subcommand):
+    """--out wins; --no-disk forces MongoDB-only; otherwise the stage default."""
+    from pathlib import Path
 
-    args = build_parser().parse_args([subcommand, "--no-disk", "--out", "x.json"])
+    from ctm.llm_cli import _resolve_out, build_parser
 
-    with pytest.raises(SystemExit):
-        _check_disk_args(args)
-    assert "no effect with --no-disk" in capsys.readouterr().err
+    canonical = Path("/exports/canonical.json")
+
+    # no flags → the stage's default (None for general, canonical for biomarkers)
+    args = build_parser().parse_args([subcommand])
+    assert _resolve_out(args, canonical) == canonical
+    assert _resolve_out(args, None) is None
+
+    # --out overrides whatever the default is
+    args = build_parser().parse_args([subcommand, "--out", "x.json"])
+    assert _resolve_out(args, canonical) == Path("x.json")
+
+    # --no-disk suppresses even a canonical export
+    args = build_parser().parse_args([subcommand, "--no-disk"])
+    assert _resolve_out(args, canonical) is None
 
 
 def test_ctm_ctml_forwards_to_general(monkeypatch):

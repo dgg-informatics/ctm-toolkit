@@ -184,9 +184,12 @@ def ctm_db_stamp_curation(row):
     return stamp_curation(row, curated_by_user="jcurator")
 
 
-def test_trials_merge_reconciles_and_guards(fake_mongo, monkeypatch):
+def test_trials_merge_reconciles_and_guards(fake_mongo, monkeypatch, tmp_path):
     from ctm.db import DEFAULT_MASTER_COLLECTION, DIFF_COLLECTION, MANUAL_COLLECTION
     from ctm.mm_cli import _cmd_trials_merge
+
+    # v2 writes a default master backup; keep it inside the tmp dir.
+    monkeypatch.setenv("MASTER_TRIAL_EXPORT_DIR", str(tmp_path))
 
     fake_mongo["collections"] = {
         MANUAL_COLLECTION: [_curated_row("CHG"), _curated_row("NEW")],
