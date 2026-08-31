@@ -10,10 +10,10 @@ along the older CLI boundary:
 * ``general`` drafts CTML match nodes. One call per eligibility criterion plus one
   for ``_summary.long_title`` — the same prompt and the same output shape, so they
   belong together. Reads the ``02_diff_trials`` documents routed
-  ``diff_status: "changed"``, writes ``03_ctml_drafted_trials``.
+  ``diff_status: "changed"``, writes ``03_llm_general_trials``.
 * ``biomarkers`` scans for genetic/molecular biomarker references. Different
   prompt, different output shape, no match nodes and therefore no OncoTree
-  lookup. Reads ``03_ctml_drafted_trials``, writes ``04_curated_trials``.
+  lookup. Reads ``03_llm_general_trials``, writes ``04_llm_biomarker_trials``.
 
 Each subcommand writes exactly one key under ``_llm_curation`` and merges into
 whatever is already there, so neither can destroy the other's work.
@@ -199,9 +199,9 @@ def _cmd_general(args) -> None:
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
-        ctm_db.CTML_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+        ctm_db.LLM_GENERAL_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Target: {target_db}.{ctm_db.CTML_COLLECTION} (run_date {run_date})", file=sys.stderr)
+    print(f"Target: {target_db}.{ctm_db.LLM_GENERAL_COLLECTION} (run_date {run_date})", file=sys.stderr)
 
     results = []
     for i, trial in enumerate(trials):
@@ -215,7 +215,7 @@ def _cmd_general(args) -> None:
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm general", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)
 
-    print(f"Stored {len(results)} doc(s) → {target_db}.{ctm_db.CTML_COLLECTION}", file=sys.stderr)
+    print(f"Stored {len(results)} doc(s) → {target_db}.{ctm_db.LLM_GENERAL_COLLECTION}", file=sys.stderr)
     out = _resolve_out(args, None)   # general has no canonical export
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -239,7 +239,7 @@ def _cmd_biomarkers(args) -> None:
     cache_file = Path(args.cache) if args.cache else cache_path(_BIOMARKER_CACHE)
 
     trials, source = _load_trials(
-        args, ctm_db, config, target_db, ctm_db.CTML_COLLECTION, None,
+        args, ctm_db, config, target_db, ctm_db.LLM_GENERAL_COLLECTION, None,
         "Run ctm-llm general first, or pass --trials.",
     )
     print(f"Read {len(trials)} trial(s) from {source}", file=sys.stderr)
@@ -258,9 +258,9 @@ def _cmd_biomarkers(args) -> None:
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
-        ctm_db.CURATED_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+        ctm_db.LLM_BIOMARKER_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Target: {target_db}.{ctm_db.CURATED_COLLECTION} (run_date {run_date})", file=sys.stderr)
+    print(f"Target: {target_db}.{ctm_db.LLM_BIOMARKER_COLLECTION} (run_date {run_date})", file=sys.stderr)
 
     for i, trial in enumerate(trials, 1):
         label = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
@@ -270,7 +270,7 @@ def _cmd_biomarkers(args) -> None:
         ctm_db.upsert_doc(target, ctm_db.stamp(trial, "ctm-llm biomarkers", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)
 
-    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.CURATED_COLLECTION}", file=sys.stderr)
+    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.LLM_BIOMARKER_COLLECTION}", file=sys.stderr)
     # Canonical export by default: the to-curate handoff file for manual curation.
     default_export = llm_biomarker_export_dir() / f"{run_date}_llm-biomarkers_trials.json"
     out = _resolve_out(args, default_export)

@@ -136,7 +136,7 @@ def main() -> None:
     )
     p_trials_curate.add_argument("--trials", metavar="JSON",
                                  help="Drafted trials JSON. Omit to read the "
-                                      "03_ctml_drafted_trials collection")
+                                      "03_llm_general_trials collection")
     p_trials_curate.add_argument("--out", metavar="JSON",
                                  help="Write the curated trials JSON to this path")
     p_trials_curate.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
@@ -176,11 +176,11 @@ def main() -> None:
 
     p_add_manual = sub.add_parser(
         "add-manual",
-        help="Ingest a hand-curated trials file (edited 04_curated_trials export) into "
+        help="Ingest a hand-curated trials file (edited 04_llm_biomarker_trials export) into "
              "05_manual_curated_trials, stamping curation provenance",
     )
     p_add_manual.add_argument("--trials", required=True, metavar="JSON",
-                              help="Manually curated trials JSON — an exported 04_curated_trials "
+                              help="Manually curated trials JSON — an exported 04_llm_biomarker_trials "
                                    "file with match clauses finalized by a human")
     p_add_manual.add_argument("--db", metavar="NAME",
                               help="Override MONGO_DBNAME for this run's 05_manual_curated_trials collection")
