@@ -1,10 +1,12 @@
 """Read West (CRCWM) trials Excel → list[RawWestTrial].
 
-Only rows with a populated NCT Number column are returned — rows without
-one are skipped with a warning (no NCT means nothing to fetch from CTGov).
+The sheet's column order and set of columns drift between deliveries, so the
+reader keys on the header literally named ``nct_id`` (case-insensitive) rather
+than a fixed position, and captures every other column verbatim under its own
+header name — unmodeled. Only ``nct_id`` is used downstream (to fetch the trial
+from ClinicalTrials.gov); the rest rides along as provenance in ``_raw._west``.
 
-Expected columns (row 1 header):
-  Group | Disease Category | Sponsor | Title | ID | nct_id
+Rows without an nct_id are skipped — nothing to fetch.
 """
 from pathlib import Path
 
@@ -16,21 +18,36 @@ from ..schemas.raw.models import RawWestTrial
 def load(path: str | Path) -> list[RawWestTrial]:
     wb = openpyxl.load_workbook(path, read_only=True)
     ws = wb.active
-    trials: list[RawWestTrial] = []
+    rows = ws.iter_rows(values_only=True)
 
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        group, disease_category, sponsor, title, protocol_id, nct_id = (
-            row[0], row[1], row[2], row[3], row[4], row[5] if len(row) > 5 else None
+    header = next(rows, None)
+    if header is None:
+        return []
+    headers = [str(h).strip() if h is not None else None for h in header]
+
+    nct_col = next(
+        (i for i, h in enumerate(headers) if h is not None and h.lower() == "nct_id"),
+        None,
+    )
+    if nct_col is None:
+        raise ValueError(
+            "West sheet has no 'nct_id' column "
+            f"(headers found: {[h for h in headers if h]})"
         )
-        if not nct_id:
+
+    trials: list[RawWestTrial] = []
+    for row in rows:
+        nct = row[nct_col] if nct_col < len(row) else None
+        if not nct:
             continue
-        trials.append(RawWestTrial(
-            group=str(group).strip() if group else None,
-            disease_category=str(disease_category).strip() if disease_category else None,
-            sponsor=str(sponsor).strip() if sponsor else None,
-            title=str(title).strip() if title else None,
-            protocol_id=str(protocol_id).strip() if protocol_id else None,
-            nct_id=str(nct_id).strip(),
-        ))
+        # Every non-nct column, keyed by its own header name, Nones dropped.
+        data: dict = {"nct_id": str(nct).strip()}
+        for i, value in enumerate(row):
+            if i == nct_col or i >= len(headers):
+                continue
+            name = headers[i]
+            if name is not None and value is not None:
+                data[name] = value
+        trials.append(RawWestTrial.model_validate(data))
 
     return trials

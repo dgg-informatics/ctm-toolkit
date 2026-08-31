@@ -139,13 +139,15 @@ class RawCTGovTrial(BaseModel):
 
 
 class RawWestTrial(BaseModel):
-    """One row from the West (CRCWM) trials Excel sheet."""
-    group: str | None = None             # CRCWM Adult / COG Pediatric
-    disease_category: str | None = None
-    sponsor: str | None = None
-    title: str | None = None
-    protocol_id: str | None = None       # ID column
-    nct_id: str | None = None            # NCT Number column
+    """One row from the West (CRCWM) trials Excel sheet.
+
+    Only nct_id is modeled and used (to fetch the trial from ClinicalTrials.gov).
+    Every other column is captured verbatim under its own header name via
+    extra='allow' — the sheet's columns drift, so nothing else is pinned — and
+    is carried as provenance in _raw._west.
+    """
+    model_config = ConfigDict(extra='allow')
+    nct_id: str | None = None
 
 
 class RawSparrowTrial(BaseModel):
