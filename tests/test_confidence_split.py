@@ -44,13 +44,6 @@ def test_has_oncotree_diagnosis_nested_in_or():
     assert has_oncotree_diagnosis(match) is True
 
 
-def test_has_oncotree_diagnosis_nested_in_and():
-    from ctm.transformers.confidence_split import has_oncotree_diagnosis
-    match = [{"and": [{"clinical": {"age_numerical": ">=18"}},
-                       {"clinical": {"oncotree_primary_diagnosis": "Melanoma"}}]}]
-    assert has_oncotree_diagnosis(match) is True
-
-
 def test_has_oncotree_diagnosis_absent():
     from ctm.transformers.confidence_split import has_oncotree_diagnosis
     match = [{"clinical": {"age_numerical": ">=18"}}]

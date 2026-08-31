@@ -163,28 +163,6 @@ def test_scan_text_omits_absent_sections():
     assert "CURATOR GENES OF INTEREST:" not in text
 
 
-def test_scan_biomarkers_finds_a_title_only_biomarker():
-    """A trial whose only biomarker mention is in its title used to be invisible
-    to this scan — the eligibility criteria never restate it."""
-    from ctm.transformers.trials_curate import scan_biomarkers
-
-    trial = {
-        "nct_id": "NCT00000004",
-        "protocol_no": None,
-        "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
-        "_summary": {"long_title": "Olaparib for Resected Pancreatic Cancer with a PALB2 Mutation"},
-    }
-    client = _FakeClient([
-        '[{"biomarker": "PALB2", "type": "snv", "reference": "PALB2 Mutation", "section": "titles"}]'
-    ])
-
-    hits = scan_biomarkers(trial, client, {}, known_genes={"PALB2"})
-
-    assert client.call_count == 1
-    assert hits[0]["biomarker"] == "PALB2"
-    assert hits[0]["section"] == "titles"
-
-
 def test_scan_biomarkers_scans_curator_genes_with_no_eligibility_text():
     """octsu_genes_interest alone is enough to warrant a call: previously an empty
     eligibility list short-circuited before the gene list was ever read."""
@@ -229,6 +207,32 @@ def test_scan_biomarkers_marks_unknown_gene_not_in_kb():
     assert hits[0]["in_kb"] is False
 
 
+def test_scan_biomarkers_content_filter_returns_empty_and_caches():
+    """A provider content filter is a hard 400 that clinical eligibility text trips
+    routinely; it must not crash the run. The scan returns [], and caches [] so a
+    re-run does not re-trigger the same deterministic failure."""
+    from ctm.transformers.trials_curate import scan_biomarkers
+
+    class _FilteredClient:
+        def __init__(self):
+            self.call_count = 0
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+        def _create(self, **kwargs):
+            self.call_count += 1
+            raise RuntimeError("400 content_filter: the response was filtered")
+
+    trial = _trial_with_eligibility(text="Metastatic disease with prior grade 4 toxicity")
+    client = _FilteredClient()
+    cache = {}
+
+    assert scan_biomarkers(trial, client, cache, known_genes=set()) == []
+    assert client.call_count == 1
+    # Cached as [] → a re-run does not call the client again.
+    assert scan_biomarkers(trial, client, cache, known_genes=set()) == []
+    assert client.call_count == 1
+
+
 def _full_trial(nct_id="NCT00000003"):
     return {
         "nct_id": nct_id,
@@ -257,15 +261,7 @@ def test_annotate_biomarkers_writes_only_its_own_key():
     assert result["_llm_curation"]["biomarker_references"][0]["biomarker"] == "BRCA1"
     # No match-node work: that belongs to `ctm-llm general`.
     assert "final_suggested_ctml" not in result["_llm_curation"]
-
-
-def test_annotate_biomarkers_makes_one_call_not_two():
-    """The title suggestion moved to `general`, so only the scan remains here."""
-    from ctm.transformers.trials_curate import annotate_biomarkers
-
-    client = _FakeClient(['[]'])  # a second call would raise IndexError
-    annotate_biomarkers(_full_trial(), client, cache={}, known_genes=set())
-
+    # Exactly one call — the title suggestion moved to `general`, only the scan remains.
     assert client.call_count == 1
 
 

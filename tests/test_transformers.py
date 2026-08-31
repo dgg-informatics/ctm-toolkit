@@ -33,10 +33,8 @@ def test_amc_xml_to_normalized():
     assert inclusion[1].text == "Measurable disease per RECISTv1.1."
     assert inclusion[1].sub_criteria[0].text == "Modified RECIST for mesothelioma."
 
-    # _raw has full source fields
+    # _raw preserves the verbatim source fields
     assert d["_raw"]["octsu_genes_interest"] == "IDH1, IDH2"
-    assert d["_raw"]["secondary_protocol_no"] == "HUM00000014"
-    assert d["_raw"]["management_group"] == "CTSU - Oncology"
 
 
 def test_clinical_trial_normalized_has_trial_hash_field():

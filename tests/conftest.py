@@ -37,7 +37,7 @@ def no_real_env(monkeypatch):
     ``load_env()`` mutates ``os.environ`` for the whole pytest process, so one
     test reaching ``main()`` leaks real MONGO_* / UMGPT_* values into every test
     that runs after it. That is not theoretical: it let a trials-curate test
-    write a live ``04_curated_trials`` collection into a real dated database.
+    write a live ``04_llm_biomarker_trials`` collection into a real dated database.
 
     Patched where the name is *used*, for the same reason as ``fetch`` below —
     both CLIs do a module-level ``from ctm.paths import load_env``, so patching

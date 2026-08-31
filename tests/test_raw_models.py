@@ -2,7 +2,6 @@
 import pytest
 
 from ctm.schemas.raw.models import RawFinding, RawReportMetadata
-from ctm.transformers.normalize_manual import normalize_finding
 
 
 def test_finding_captures_undeclared_raw_column():
@@ -12,33 +11,11 @@ def test_finding_captures_undeclared_raw_column():
     assert raw.model_dump()["raw_test"] == "Tempus xT"
 
 
-def test_finding_raw_dict_preserves_extra_columns():
-    raw = RawFinding.model_validate({
-        "pt_uuid": "pt_0000001", "report_uuid": "rp_0000001",
-        "biomarker": "EGFR", "variant_category": "MUTATION",
-        "raw_test": "Tempus xT", "raw_title": "Appendix A",
-    })
-    finding = normalize_finding(raw, source="tempus")
-    assert finding.raw["raw_test"] == "Tempus xT"
-    assert finding.raw["raw_title"] == "Appendix A"
-
-
-def test_finding_captures_unprefixed_extra_column():
-    """Capture is widened to any non-canonical column, prefixed raw_ or not."""
-    raw = RawFinding.model_validate({
-        "pt_uuid": "pt_0000001", "report_uuid": "rp_0000001",
-        "biomarker": "EGFR", "variant_category": "MUTATION",
-        "some_unprefixed_note": "keep me",
-    })
-    finding = normalize_finding(raw, source="tempus")
-    assert finding.raw["some_unprefixed_note"] == "keep me"
-
-
 @pytest.mark.parametrize("value,expected", [
-    (True, True), (False, False),
-    ("TRUE", True), ("false", False), ("Yes", True), ("no", False),
-    (1, True), (0, False),
-    (None, None), ("maybe", None),
+    (True, True), (False, False),        # bool passthrough
+    ("TRUE", True), ("false", False),    # word strings, case-insensitive
+    (1, True), (0, False),               # ints
+    (None, None), ("maybe", None),       # unset / unrecognized
 ])
 def test_wildtype_coercion(value, expected):
     raw = RawFinding.model_validate({

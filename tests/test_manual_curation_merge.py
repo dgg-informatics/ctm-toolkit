@@ -61,13 +61,8 @@ def test_stamp_curation_defaults_to_the_os_user():
     assert d["curated_by"] == "manual-curation"
     assert d["curated_by_user"]                       # from getpass, non-empty
     assert d["curated_at"].tzinfo is not None
-
-
-def test_stamp_curation_user_override():
-    from ctm.db import stamp_curation
-
-    d = stamp_curation({}, curated_by_user="jcurator")
-    assert d["curated_by_user"] == "jcurator"
+    # ...and an explicit curator overrides the getpass default.
+    assert stamp_curation({}, curated_by_user="jcurator")["curated_by_user"] == "jcurator"
 
 
 def test_curated_fields_survive_strip_metadata():
@@ -184,9 +179,12 @@ def ctm_db_stamp_curation(row):
     return stamp_curation(row, curated_by_user="jcurator")
 
 
-def test_trials_merge_reconciles_and_guards(fake_mongo, monkeypatch):
+def test_trials_merge_reconciles_and_guards(fake_mongo, monkeypatch, tmp_path):
     from ctm.db import DEFAULT_MASTER_COLLECTION, DIFF_COLLECTION, MANUAL_COLLECTION
     from ctm.mm_cli import _cmd_trials_merge
+
+    # v2 writes a default master backup; keep it inside the tmp dir.
+    monkeypatch.setenv("MASTER_TRIAL_EXPORT_DIR", str(tmp_path))
 
     fake_mongo["collections"] = {
         MANUAL_COLLECTION: [_curated_row("CHG"), _curated_row("NEW")],

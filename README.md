@@ -146,9 +146,19 @@ trial's provenance is unambiguous.
 | `MONGO_DBNAME` | yes | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated; `--db NAME` overrides it without editing `.env` |
 | `MONGO_MASTER_DBNAME` | only without `--master` | The master trial list's database. Deliberately **not** per-run — the master is rolling current state, so it has a fixed address. No default: a default here would silently resolve to an empty database and route every trial to `changed` |
 | `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
+| `LLM_BIOMARKER_EXPORT_DIR` | no | Where `ctm-llm biomarkers` drops its to-curate JSON. Defaults to `/var/lib/ctm/to-curate` |
+| `MASTER_TRIAL_EXPORT_DIR` | no | Where `ctm-mm trials-merge` writes the master backup JSON. Defaults to `/var/lib/ctm/trials` |
 
 These are CTM's own Mongo settings. MatchMiner's credentials are separate and
 still come from `SECRETS_JSON.json` — see "MatchMiner Preparation and Running".
+
+> **v2 note:** the trial stages now store to MongoDB **only** by default — pass
+> `--out` (or `--out-prefix` for `trials-diff`) to also write a file. Two stages
+> still write a dated file automatically: `ctm-llm biomarkers` and
+> `ctm-mm trials-merge`, into the two directories above. **If you are not on the
+> dev server**, those `/var/lib/ctm/...` paths won't be writable — set
+> `LLM_BIOMARKER_EXPORT_DIR` and `MASTER_TRIAL_EXPORT_DIR` in your `.env` to a
+> writable location (or pass `--out`), or the export write will fail.
 
 ```bash
 # Step 3: Run the LLM (UMGPT) to help match MatchMiner's Clinical Trial Markup Language (CTML) format

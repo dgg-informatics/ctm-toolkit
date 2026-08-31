@@ -28,8 +28,8 @@ from importlib.metadata import version
 #   00_raw_trials         ctm-mm trials — verbatim source records
 #   01_normalized_trials  ctm-mm trials
 #   02_diff_trials        ctm-mm trials-diff
-#   03_ctml_drafted_trials ctm-ctml
-#   04_curated_trials     ctm-mm trials-curate
+#   03_llm_general_trials  ctm-llm general
+#   04_llm_biomarker_trials ctm-llm biomarkers
 #   05_manual_curated_trials  human curation — see MACHINE_WRITTEN below
 #   06_master_trials      ctm-mm trials-merge
 #
@@ -44,8 +44,8 @@ from importlib.metadata import version
 RAW_COLLECTION = "00_raw_trials"
 NORMALIZED_COLLECTION = "01_normalized_trials"
 DIFF_COLLECTION = "02_diff_trials"
-CTML_COLLECTION = "03_ctml_drafted_trials"
-CURATED_COLLECTION = "04_curated_trials"
+LLM_GENERAL_COLLECTION = "03_llm_general_trials"
+LLM_BIOMARKER_COLLECTION = "04_llm_biomarker_trials"
 MANUAL_COLLECTION = "05_manual_curated_trials"
 DEFAULT_MASTER_COLLECTION = "06_master_trials"
 
@@ -58,8 +58,8 @@ MACHINE_WRITTEN = frozenset({
     RAW_COLLECTION,
     NORMALIZED_COLLECTION,
     DIFF_COLLECTION,
-    CTML_COLLECTION,
-    CURATED_COLLECTION,
+    LLM_GENERAL_COLLECTION,
+    LLM_BIOMARKER_COLLECTION,
     # trials-merge owns the master: it recomputes the whole snapshot each run and
     # replaces it. 05_manual_curated_trials stays absent — a curator accumulates
     # into it and add-manual appends, so nothing may drop it. A master under a

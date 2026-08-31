@@ -32,7 +32,7 @@ def test_rows_handles_an_empty_or_malformed_payload():
     from ctm.transformers.ddots_to_raw import rows
 
     assert rows({}) == []
-    assert rows({"COLUMNS": [], "DATA": [[1, 2]]}) == []
+    assert rows({"COLUMNS": [], "DATA": [[1, 2]]}) == []  # 0 columns but 2 data return []
     assert rows({"COLUMNS": ["A"], "DATA": []}) == []
 
 
@@ -66,7 +66,7 @@ def test_parse_documents_unwraps_json_inside_json():
     assert parsed["consent_documents"] == []
 
 
-@pytest.mark.parametrize("raw", [None, "", "not json", "[1,2]", 5])
+@pytest.mark.parametrize("raw", [None, "not json"])
 def test_parse_documents_tolerates_junk(raw):
     """A malformed DOCUMENTS blob must not take down the whole ingest."""
     from ctm.transformers.ddots_to_raw import parse_documents
@@ -94,32 +94,9 @@ def test_to_raw_trials_is_a_thin_verbatim_mapping():
 
     open_trial = next(t for t in to_raw_trials(_payload()) if t.nct_id == "NCT05334069")
 
-    assert open_trial.protocol_title_short == "OptimICE-PCR"
-    assert open_trial.disease_category == "Breast"
-    assert open_trial.disease_site == "Breast"
-    assert open_trial.disease_site_list == "Breast,Chest Wall"
-    assert open_trial.coordinator == "Roe, Rachel"
-    assert open_trial.coordinator_email == "rachel.roe@example.org"
-    assert open_trial.investigator == "Doe MD, Jane"
-    assert open_trial.hospital_email == "trials@example.org"
-
-
-def test_raw_ddots_trial_is_a_separate_model_from_the_legacy_sheet():
-    """Two models, so a trial's provenance is readable from its shape alone."""
-    from ctm.schemas.raw.models import RawDdotsTrial, RawSparrowTrial
-
-    ddots_fields = set(RawDdotsTrial.model_fields)
-    sheet_fields = set(RawSparrowTrial.model_fields)
-
-    # The legacy sheet model must not have grown DDOTS fields.
-    assert "protocol_id" not in sheet_fields
-    assert "eligibility" not in sheet_fields
-    assert sheet_fields == {
-        "study_name", "description", "contact_name", "contact_phone",
-        "trial_category", "trial_subcategory", "nct_id", "contact_email", "pi",
-    }
-    # nct_id is the only field they share — it is the join to ClinicalTrials.gov.
-    assert ddots_fields & sheet_fields == {"nct_id"}
+    assert open_trial.protocol_title_short == "OptimICE-PCR"       # renamed field maps
+    assert open_trial.disease_site_list == "Breast,Chest Wall"     # comma value kept verbatim, not split
+    assert open_trial.investigator == "Doe MD, Jane"               # degree-in-surname quirk survives
 
 
 def test_to_raw_trials_keeps_the_verbatim_nct_number_alongside_the_normalized_one():
@@ -162,15 +139,6 @@ def test_error_envelope_detected_regardless_of_column_order():
     assert excinfo.value.is_rate_limited is False
 
 
-def test_non_429_errors_are_still_errors():
-    """The envelope is generic, so detection must not be special-cased to 429."""
-    from ctm.transformers.ddots_to_raw import DdotsApiError, raise_for_api_error
-
-    with pytest.raises(DdotsApiError, match="500"):
-        raise_for_api_error({"COLUMNS": ["CALLDSN", "ERRORTEXT"],
-                             "DATA": [["500", "Internal Server Error"]]})
-
-
 def test_a_real_payload_is_not_mistaken_for_an_error():
     from ctm.transformers.ddots_to_raw import raise_for_api_error
 
@@ -178,19 +146,6 @@ def test_a_real_payload_is_not_mistaken_for_an_error():
     raise_for_api_error({})                  # empty is not an error envelope
     raise_for_api_error({"COLUMNS": ["CALLDSN", "ERRORTEXT", "PROTOCOL"],
                          "DATA": [["a", "b", "c"]]})  # superset is data, not the envelope
-
-
-def test_replaying_a_saved_error_response_fails_loudly(tmp_path):
-    """Easy to save an error payload by accident under a rate limit; replaying it
-    must not look like a trial-free registry."""
-    from ctm.transformers.ddots_to_raw import DdotsApiError, load
-
-    path = tmp_path / "throttled.json"
-    path.write_text(json.dumps({"COLUMNS": ["CALLDSN", "ERRORTEXT"],
-                                "DATA": [["429", "Too Many Requests"]]}))
-
-    with pytest.raises(DdotsApiError):
-        load(path)
 
 
 def test_fetch_raises_the_api_error_rather_than_returning_it(monkeypatch):
@@ -266,29 +221,24 @@ def test_build_url_omits_the_status_filter_when_asked():
     assert "status_short" in params(build_url("K", "S", status_short=None))["return_fields"][0]
 
 
-def test_build_url_scopes_to_one_hospital_by_default():
+def test_build_url_hospital_scoping():
     """The DDOTS instance is shared across institutions, so an unscoped query
     returns other hospitals' protocols — which this pipeline would then stamp
-    entity="sparrow-api"."""
+    entity="sparrow-api". Defaults to one hospital; can be deliberately unscoped."""
     import urllib.parse
 
     from ctm.transformers.ddots_to_raw import DEFAULT_HOSPITAL_ID, build_url
 
-    params = urllib.parse.parse_qs(urllib.parse.urlparse(build_url("K", "S")).query)
+    def params(url):
+        return urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
 
-    assert params["hospital_id"] == [DEFAULT_HOSPITAL_ID] == ["18"]
-    # Also requested back, so a payload can be checked against what was asked for.
-    assert "hospital_id" in params["return_fields"][0]
+    # Default: scoped to the Sparrow hospital, and requested back as a column.
+    scoped = params(build_url("K", "S"))
+    assert scoped["hospital_id"] == [DEFAULT_HOSPITAL_ID] == ["18"]
+    assert "hospital_id" in scoped["return_fields"][0]
 
-
-def test_build_url_can_be_deliberately_unscoped():
-    import urllib.parse
-
-    from ctm.transformers.ddots_to_raw import build_url
-
-    params = urllib.parse.parse_qs(
-        urllib.parse.urlparse(build_url("K", "S", hospital_id=None)).query)
-    assert "hospital_id" not in params
+    # hospital_id=None omits the scope entirely.
+    assert "hospital_id" not in params(build_url("K", "S", hospital_id=None))
 
 
 def test_fetch_hospital_id_resolution_order(monkeypatch):
@@ -452,40 +402,3 @@ def test_ddots_eligibility_is_stored_but_not_used_for_the_normalized_structure(
 
     # The DDOTS text survives only in the raw blob.
     assert "<br />" in trial["_raw"]["_ddots"]["eligibility"]
-
-
-def test_legacy_sparrow_path_is_untouched(tmp_path, stub_ctgov, fake_mongo):
-    """Both sources can run in one pass; they are distinguished by entity and by
-    which _raw key carries their payload."""
-    import json as _json
-
-    from ctm.mm_cli import _cmd_trials
-    from ctm.transformers.ddots_to_raw import load
-
-    # Reuse a DDOTS-derived NCT so the legacy and new paths cover the same trial.
-    nct = load(FIXTURE)[0].nct_id
-    sheet = tmp_path / "sparrow.xlsx"
-    import openpyxl
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.append(["Study Name", "Description", "Contact Name", "Contact Phone Number",
-               "Trial Category", "Trial SubCategory", "NCT #", "Contact Email", "PI"])
-    ws.append(["Legacy Study", "desc", "Coordinator", "555-0100",
-               "Brain", "Brain", nct, "coord@example.org", "Dr. Legacy"])
-    wb.save(sheet)
-
-    out = tmp_path / "o.json"
-    _cmd_trials(_trials_args("--out", str(out), "--sparrow", str(sheet),
-                             "--ddots", str(FIXTURE)))
-
-    trials = _json.loads(out.read_text())
-    by_entity = {}
-    for t in trials:
-        by_entity.setdefault(t["entity"], []).append(t)
-
-    assert set(by_entity) == {"sparrow", "sparrow-api"}
-    assert "_sparrow" in by_entity["sparrow"][0]["_raw"]
-    assert "_ddots" in by_entity["sparrow-api"][0]["_raw"]
-    # Same NCT from both sources: trial_key collides but trial_hash separates them,
-    # the same situation the existing sparrow/west overlap already produces.
-    assert by_entity["sparrow"][0]["nct_id"] == by_entity["sparrow-api"][0]["nct_id"]

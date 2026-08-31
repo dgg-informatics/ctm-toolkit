@@ -24,8 +24,10 @@ def test_west_xlsx_parses_both_rows():
 
     trials = load(WEST)
     assert [t.nct_id for t in trials] == ["NCT04314401", "NCT03560752"]
-    assert trials[0].sponsor == "NCI"
-    assert trials[1].protocol_id == "18007"
+    # non-nct columns are captured verbatim under their own header names,
+    # regardless of column order (this fixture has nct_id in the last column)
+    assert trials[0].model_dump()["Sponsor"] == "NCI"
+    assert trials[1].model_dump()["ID"] == "18007"
 
 
 def test_sparrow_xlsx_parses_both_rows():

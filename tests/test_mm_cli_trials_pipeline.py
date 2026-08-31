@@ -166,15 +166,14 @@ def test_cmd_trials_diff_stores_all_three_buckets_in_one_collection(tmp_path, fa
 @pytest.mark.parametrize(
     "argv, expected_disk",
     [
-        ([], True),                # omitted -> files still written (1.x behaviour)
+        ([], None),                # v2: omitted -> MongoDB only
         (["--disk"], True),
         (["--no-disk"], False),
     ],
 )
-def test_trials_diff_disk_flag_defaults_on_through_the_1x_line(monkeypatch, argv, expected_disk):
-    """The file pipeline must keep working while stages migrate one at a time, so
-    omitting the flag writes files. Flipping this default to False across every
-    migrated stage at once is the 2.0.0 breaking change."""
+def test_trials_diff_disk_flag_defaults_to_mongo_only(monkeypatch, argv, expected_disk):
+    """v2 breaking change: omitting --disk stores to MongoDB only; --out-prefix or
+    --disk opts into the files."""
     import sys as _sys
 
     from ctm import mm_cli
@@ -191,46 +190,31 @@ def test_trials_diff_disk_flag_defaults_on_through_the_1x_line(monkeypatch, argv
     assert captured["disk"] is expected_disk
 
 
-def test_cmd_trials_diff_no_disk_writes_no_files(tmp_path, fake_mongo):
-    """--no-disk stores to MongoDB only."""
+def test_cmd_trials_diff_without_out_prefix_writes_only_mongo(tmp_path, fake_mongo):
+    """v2: omitting --out-prefix stores to MongoDB only — no files, no error."""
     from ctm.mm_cli import _cmd_trials_diff
 
     _, _, args = _three_bucket_case(tmp_path)
-    args.disk = False
+    args.disk = None
     args.out_prefix = None
-    _cmd_trials_diff(args)
+
+    _cmd_trials_diff(args)   # must not raise
 
     assert list(tmp_path.glob("*-unchanged.json")) == []
-    assert list(tmp_path.glob("*-changed.json")) == []
-    assert list(tmp_path.glob("*-deleted.json")) == []
-    # ...but the diff still reached Mongo.
     assert len(fake_mongo["written"]["docs"]) == 3
 
 
-def test_cmd_trials_diff_disk_without_out_prefix_is_an_error(tmp_path, fake_mongo):
-    from ctm.mm_cli import _cmd_trials_diff
-
-    _, _, args = _three_bucket_case(tmp_path)
-    args.disk = True
-    args.out_prefix = None
-
-    with pytest.raises(SystemExit):
-        _cmd_trials_diff(args)
-
-    assert fake_mongo["written"] is None
-
-
-def test_cmd_trials_diff_out_prefix_with_no_disk_is_an_error(tmp_path, fake_mongo):
-    """Silently writing no files while an --out-prefix was named would be worse."""
+def test_cmd_trials_diff_no_disk_suppresses_files_even_with_a_prefix(tmp_path, fake_mongo):
+    """--no-disk stores to MongoDB only, ignoring a given --out-prefix."""
     from ctm.mm_cli import _cmd_trials_diff
 
     _, _, args = _three_bucket_case(tmp_path)
     args.disk = False  # out_prefix is still set by the helper
 
-    with pytest.raises(SystemExit):
-        _cmd_trials_diff(args)
+    _cmd_trials_diff(args)
 
-    assert fake_mongo["written"] is None
+    assert list(tmp_path.glob("*-unchanged.json")) == []
+    assert len(fake_mongo["written"]["docs"]) == 3
 
 
 def test_cmd_trials_diff_keeps_both_copies_of_a_sparrow_west_nct_collision(tmp_path, fake_mongo):
@@ -711,7 +695,7 @@ def test_raw_collection_is_stage_owned():
 
     assert ctm_db.RAW_COLLECTION in ctm_db.MACHINE_WRITTEN
     names = [ctm_db.RAW_COLLECTION, ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION,
-             ctm_db.CTML_COLLECTION, ctm_db.CURATED_COLLECTION, ctm_db.MANUAL_COLLECTION,
+             ctm_db.LLM_GENERAL_COLLECTION, ctm_db.LLM_BIOMARKER_COLLECTION, ctm_db.MANUAL_COLLECTION,
              ctm_db.DEFAULT_MASTER_COLLECTION]
     assert names == sorted(names), "prefixes must sort into pipeline order"
     assert [n.split("_")[0] for n in names] == ["00", "01", "02", "03", "04", "05", "06"]

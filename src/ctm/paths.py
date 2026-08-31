@@ -63,6 +63,24 @@ def cache_dir() -> Path:
     return Path.home() / ".cache" / "ctm"
 
 
+def llm_biomarker_export_dir() -> Path:
+    """Directory `ctm-llm biomarkers` writes its to-curate JSON into by default.
+    Override with ``LLM_BIOMARKER_EXPORT_DIR`` (an empty value is treated as unset,
+    so a blank env var can't resolve to ``Path("")`` = the current directory)."""
+    return Path(
+        os.environ.get("LLM_BIOMARKER_EXPORT_DIR") or "/var/lib/ctm/to-curate"
+    ).expanduser()
+
+
+def master_trial_export_dir() -> Path:
+    """Directory `ctm-mm trials-merge` writes the master backup JSON into by
+    default. Override with ``MASTER_TRIAL_EXPORT_DIR`` (an empty value is treated
+    as unset, not as the current directory)."""
+    return Path(
+        os.environ.get("MASTER_TRIAL_EXPORT_DIR") or "/var/lib/ctm/trials"
+    ).expanduser()
+
+
 def cache_path(name: str) -> Path:
     """Absolute path for cache file ``name``, ensuring its parent exists."""
     path = cache_dir() / name
