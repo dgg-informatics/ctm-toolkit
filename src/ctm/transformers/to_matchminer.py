@@ -53,6 +53,10 @@ _MATCHABLE_CATEGORIES = {"MUTATION", "CNV", "SIGNATURE", "SV"}
 # losslessly in the extras rollup).
 _SKIP_CATEGORIES = {"OTHER"}
 
+# The only wildtype values a MUTATION/CNV/SV row may carry (blank counts as
+# false). Anything else non-blank is flagged and the row is skipped.
+_WILDTYPE_VALUES = {"true", "false", "indeterminate"}
+
 
 def _sample_id(patient: Patient) -> str:
     # pt_uuid, never mrn — the clinical/genomic docs must carry no PHI.
@@ -104,6 +108,8 @@ def to_genomic_docs(
       * a SIGNATURE row's signature_level isn't Deficient/Proficient/Stable —
         i.e. blank, or an explicit no-result sentinel like "Indeterminate" /
         "Not Detected" (recorded, but nothing matchable to store)
+      * a MUTATION/CNV/SV row's wildtype is "Indeterminate" (tested, inconclusive)
+        or invalid — not TRUE/FALSE/INDETERMINATE (warned)
       * an SV row is marked wildtype=TRUE — a tested-negative fusion; there is no
         matchable "negative SV" in matchengine, so it is recorded only
       * there is no biomarker to key on
@@ -111,6 +117,7 @@ def to_genomic_docs(
     sample_id = _sample_id(patient)
     docs: list[dict] = []
     unknown: set[str] = set()
+    invalid_wildtype: set[str] = set()
 
     for f in findings:
         category = (f.variant_category or "").strip().upper()
@@ -135,21 +142,30 @@ def to_genomic_docs(
         if f.nucleotide_change:
             doc["TRUE_CDNA_CHANGE"] = f.nucleotide_change
 
-        # WILDTYPE applies only to MUTATION/CNV; a blank column defaults to False.
-        if category in ("MUTATION", "CNV"):
-            doc["WILDTYPE"] = bool(f.wildtype)
+        # Wildtype applies to the alteration categories (MUTATION/CNV/SV), never
+        # SIGNATURE. It must be TRUE / FALSE / INDETERMINATE — blank counts as
+        # FALSE (detected). Two states suppress the genomic doc (recorded only):
+        #   * INDETERMINATE — tested but inconclusive.
+        #   * TRUE on an SV — a tested-negative fusion. matchengine has no
+        #     "negative SV" (its structured-SV query keys on the partner genes and
+        #     ignores WILDTYPE), so an SV doc would falsely match a fusion trial.
+        # Any other non-blank value is invalid: warned and skipped.
+        if category in ("MUTATION", "CNV", "SV"):
+            wt = f.wildtype
+            if wt is not None and wt not in _WILDTYPE_VALUES:
+                invalid_wildtype.add(wt)
+                continue
+            if wt == "indeterminate":
+                continue
+            if category == "SV" and wt == "true":
+                continue
+            if category in ("MUTATION", "CNV"):
+                doc["WILDTYPE"] = wt == "true"
 
         if category == "CNV" and f.cnv_call:
             doc["CNV_CALL"] = _remap(_CNV_CALL_MAP, f.cnv_call)
 
         if category == "SV":
-            # A wildtype (tested-negative) fusion is recorded in patient_data but
-            # emits no genomic doc. matchengine has no "negative SV" — its
-            # structured-SV query keys on the partner genes and ignores WILDTYPE,
-            # so any SV doc with the genes populated would falsely match a trial
-            # requiring that fusion. wildtype=FALSE / blank still emits (detected).
-            if f.wildtype:
-                continue
             left, right = _split_fusion(f.biomarker)
             doc["TRUE_HUGO_SYMBOL"] = left
             doc["LEFT_PARTNER_GENE"] = left
@@ -170,12 +186,19 @@ def to_genomic_docs(
 
         docs.append(doc)
 
-    if unknown:
+    if unknown or invalid_wildtype:
         import sys
-        print(
-            f"  Warning: skipped findings with unrecognized variant_category: "
-            f"{sorted(unknown)}",
-            file=sys.stderr,
-        )
+        if unknown:
+            print(
+                f"  Warning: skipped findings with unrecognized variant_category: "
+                f"{sorted(unknown)}",
+                file=sys.stderr,
+            )
+        if invalid_wildtype:
+            print(
+                f"  Warning: skipped findings with invalid wildtype (must be "
+                f"TRUE/FALSE/INDETERMINATE): {sorted(invalid_wildtype)}",
+                file=sys.stderr,
+            )
 
     return docs
