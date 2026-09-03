@@ -104,6 +104,8 @@ def to_genomic_docs(
       * a SIGNATURE row's signature_level isn't Deficient/Proficient/Stable —
         i.e. blank, or an explicit no-result sentinel like "Indeterminate" /
         "Not Detected" (recorded, but nothing matchable to store)
+      * an SV row is marked wildtype=TRUE — a tested-negative fusion; there is no
+        matchable "negative SV" in matchengine, so it is recorded only
       * there is no biomarker to key on
     """
     sample_id = _sample_id(patient)
@@ -141,6 +143,13 @@ def to_genomic_docs(
             doc["CNV_CALL"] = _remap(_CNV_CALL_MAP, f.cnv_call)
 
         if category == "SV":
+            # A wildtype (tested-negative) fusion is recorded in patient_data but
+            # emits no genomic doc. matchengine has no "negative SV" — its
+            # structured-SV query keys on the partner genes and ignores WILDTYPE,
+            # so any SV doc with the genes populated would falsely match a trial
+            # requiring that fusion. wildtype=FALSE / blank still emits (detected).
+            if f.wildtype:
+                continue
             left, right = _split_fusion(f.biomarker)
             doc["TRUE_HUGO_SYMBOL"] = left
             doc["LEFT_PARTNER_GENE"] = left

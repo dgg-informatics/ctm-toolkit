@@ -181,16 +181,29 @@ def test_signature_no_result_sentinel_produces_no_doc(sentinel):
     assert docs == []
 
 
-def test_sv_splits_partner_genes_and_has_no_wildtype():
+@pytest.mark.parametrize("wildtype", [False, None])
+def test_detected_sv_splits_partner_genes(wildtype):
+    """A detected fusion (wildtype FALSE or blank) emits an SV doc with partner
+    genes and carries no WILDTYPE field (wildtype is meaningful only structurally)."""
     docs = to_genomic_docs(_patient(), [
-        _finding(biomarker="EML4::ALK", variant_category="SV", wildtype=False),
+        _finding(biomarker="EML4::ALK", variant_category="SV", wildtype=wildtype),
     ])
     doc = docs[0]
     assert doc["TRUE_HUGO_SYMBOL"] == "EML4"
     assert doc["LEFT_PARTNER_GENE"] == "EML4"
     assert doc["RIGHT_PARTNER_GENE"] == "ALK"
     assert doc["VARIANT_CATEGORY"] == "SV"
-    assert "WILDTYPE" not in doc          # wildtype applies only to MUTATION/CNV
+    assert "WILDTYPE" not in doc
+
+
+def test_wildtype_sv_produces_no_doc():
+    """A wildtype (tested-negative) fusion is recorded in patient_data but emits no
+    genomic doc — an SV doc would falsely match a trial requiring that fusion,
+    since matchengine's SV query ignores WILDTYPE."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="RET::ALK", variant_category="SV", wildtype=True),
+    ])
+    assert docs == []
 
 
 @pytest.mark.parametrize("biomarker,left,right", [
