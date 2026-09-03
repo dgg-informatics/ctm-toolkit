@@ -12,16 +12,20 @@ def test_finding_captures_undeclared_raw_column():
 
 
 @pytest.mark.parametrize("value,expected", [
-    (True, True), (False, False),        # bool passthrough
-    ("TRUE", True), ("false", False),    # word strings, case-insensitive
-    (1, True), (0, False),               # ints
-    (None, None), ("maybe", None),       # unset / unrecognized
+    (True, "true"), (False, "false"),            # Excel booleans → canonical strings
+    ("TRUE", "true"), ("false", "false"),        # word strings, case-insensitive
+    ("Indeterminate", "indeterminate"),          # the third valid state
+    ("  TRUE  ", "true"),                         # trimmed
+    (None, None), ("", None),                    # blank → unset
+    ("maybe", "maybe"),                          # invalid passes through lowercased,
+    (1, "1"),                                    # to be flagged at transform time —
+    (0, "0"),                                    # the column must be TRUE/FALSE/INDETERMINATE
 ])
-def test_wildtype_coercion(value, expected):
+def test_wildtype_normalization(value, expected):
     raw = RawFinding.model_validate({
         "pt_uuid": "pt_0000001", "report_uuid": "rp_0000001", "wildtype": value,
     })
-    assert raw.wildtype is expected
+    assert raw.wildtype == expected
 
 
 def test_integer_ids_are_coerced_to_str():
