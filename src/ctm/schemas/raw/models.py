@@ -9,6 +9,8 @@ from datetime import UTC, date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .normalized import _normalize_wildtype
+
 
 def _to_date(v: object) -> date | None:
     if v is None:
@@ -90,7 +92,7 @@ class RawFinding(BaseModel):
     protein_change: str | None = None
     cnv_call: str | None = None
     signature_level: str | None = None
-    wildtype: bool | None = None
+    wildtype: str | None = None
     nucleotide_change: str | None = None
 
     @field_validator("pt_uuid", "report_uuid", mode="before")
@@ -100,15 +102,8 @@ class RawFinding(BaseModel):
 
     @field_validator("wildtype", mode="before")
     @classmethod
-    def _coerce_wildtype(cls, v: object) -> bool | None:
-        if v is None or isinstance(v, bool):
-            return v
-        s = str(v).strip().lower()
-        if s in ("true", "yes", "y", "1"):
-            return True
-        if s in ("false", "no", "n", "0"):
-            return False
-        return None
+    def _coerce_wildtype(cls, v: object) -> str | None:
+        return _normalize_wildtype(v)
 
 
 class RawCTGovTrial(BaseModel):

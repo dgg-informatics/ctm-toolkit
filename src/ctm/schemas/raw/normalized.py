@@ -8,7 +8,19 @@ Three collections:
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+def _normalize_wildtype(v: object) -> str | None:
+    """Normalize a wildtype cell to 'true' / 'false' / 'indeterminate', or None
+    when blank. Any other value is returned lowercased as-is so the transformer
+    can flag it — the column must be TRUE, FALSE, or INDETERMINATE."""
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    s = str(v).strip().lower()
+    return s or None
 
 
 class Patient(BaseModel):
@@ -51,6 +63,11 @@ class Finding(BaseModel):
     protein_change: str | None = None    # → TRUE_PROTEIN_CHANGE (exact match)
     cnv_call: str | None = None          # CNV only; friendly label, remapped in the transformer
     signature_level: str | None = None   # SIGNATURE only: Deficient | Proficient | Stable
-    wildtype: bool | None = None         # MUTATION/CNV only
+    wildtype: str | None = None          # MUTATION/CNV/SV: true | false | indeterminate
     nucleotide_change: str | None = None # → TRUE_CDNA_CHANGE (stored, not matchable)
     raw: dict[str, Any] = {}            # every other finding column, keyed by column name
+
+    @field_validator("wildtype", mode="before")
+    @classmethod
+    def _wildtype(cls, v: object) -> str | None:
+        return _normalize_wildtype(v)
