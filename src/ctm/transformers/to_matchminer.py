@@ -101,7 +101,9 @@ def to_genomic_docs(
     clinical_id: ObjectId of the corresponding clinical doc (None for dry-run).
     Rows are skipped (no genomic doc, but still present in patient_data) when:
       * variant_category is blank or "Other"
-      * a SIGNATURE row has no signature_level (statusless, unmatchable)
+      * a SIGNATURE row's signature_level isn't Deficient/Proficient/Stable —
+        i.e. blank, or an explicit no-result sentinel like "Indeterminate" /
+        "Not Detected" (recorded, but nothing matchable to store)
       * there is no biomarker to key on
     """
     sample_id = _sample_id(patient)
@@ -145,9 +147,17 @@ def to_genomic_docs(
             doc["RIGHT_PARTNER_GENE"] = right
 
         if category == "SIGNATURE":
-            if not f.signature_level:
-                continue  # nothing to store in MMR_STATUS → unmatchable, skip
-            doc["MMR_STATUS"] = _remap(_SIGNATURE_LEVEL_MAP, f.signature_level)
+            # Only the three recognized levels produce a matchable MMR_STATUS.
+            # Anything else — a blank cell, or an explicit no-result sentinel such
+            # as "Indeterminate" / "Not Detected" — yields no genomic doc (so it
+            # never matches), while the row itself still rides into patient_data
+            # as a record of what was tested. Curators write a sentinel rather
+            # than leaving the cell blank so an intentional no-result stays
+            # distinguishable from a not-yet-filled-in row.
+            mapped = _SIGNATURE_LEVEL_MAP.get((f.signature_level or "").strip().lower())
+            if mapped is None:
+                continue
+            doc["MMR_STATUS"] = mapped
 
         docs.append(doc)
 
