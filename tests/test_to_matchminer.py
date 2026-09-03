@@ -171,6 +171,16 @@ def test_blank_signature_level_is_skipped():
     assert docs == []
 
 
+@pytest.mark.parametrize("sentinel", ["Indeterminate", "Not Detected", "QNS", "  indeterminate  "])
+def test_signature_no_result_sentinel_produces_no_doc(sentinel):
+    """An explicit no-result value (anything but Deficient/Proficient/Stable) is
+    recorded in patient_data but emits no genomic doc — never a junk MMR_STATUS."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="MSI", variant_category="SIGNATURE", signature_level=sentinel),
+    ])
+    assert docs == []
+
+
 def test_sv_splits_partner_genes_and_has_no_wildtype():
     docs = to_genomic_docs(_patient(), [
         _finding(biomarker="EML4::ALK", variant_category="SV", wildtype=False),
