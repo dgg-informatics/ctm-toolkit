@@ -24,7 +24,7 @@ def test_normalize_finding_maps_canonical_fields():
     assert f.variant_category == "MUTATION"
     assert f.protein_change == "p.L858R"
     assert f.nucleotide_change == "c.2573T>G"
-    assert f.wildtype is False
+    assert f.wildtype == "false"
 
 
 def test_normalize_finding_captures_all_noncanonical_columns_dropping_none():

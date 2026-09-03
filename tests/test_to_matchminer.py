@@ -206,6 +206,36 @@ def test_wildtype_sv_produces_no_doc():
     assert docs == []
 
 
+@pytest.mark.parametrize("category", ["MUTATION", "CNV", "SV"])
+def test_indeterminate_wildtype_produces_no_doc(category):
+    """wildtype=Indeterminate (tested, inconclusive) → recorded in patient_data,
+    no genomic doc, for every alteration category."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="BRAF", variant_category=category, wildtype="Indeterminate"),
+    ])
+    assert docs == []
+
+
+@pytest.mark.parametrize("category", ["MUTATION", "CNV", "SV"])
+def test_invalid_wildtype_is_skipped_with_a_warning(category, capsys):
+    """A wildtype that isn't TRUE/FALSE/INDETERMINATE emits no doc and warns."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="BRAF", variant_category=category, wildtype="maybe"),
+    ])
+    assert docs == []
+    assert "invalid wildtype" in capsys.readouterr().err
+
+
+def test_indeterminate_wildtype_is_ignored_on_signature():
+    """SIGNATURE ignores wildtype entirely, so a stray wildtype value doesn't
+    affect it — the signature_level alone decides."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="MSI", variant_category="SIGNATURE",
+                 signature_level="Deficient", wildtype="Indeterminate"),
+    ])
+    assert docs[0]["MMR_STATUS"] == "Deficient (MMR-D / MSI-H)"
+
+
 @pytest.mark.parametrize("biomarker,left,right", [
     ("CD74-ROS1", "CD74", "ROS1"),   # hyphen
     ("PML/RARA", "PML", "RARA"),     # slash
