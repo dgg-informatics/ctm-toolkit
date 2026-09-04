@@ -8,6 +8,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | --- | --- |
 | `ctm-mm patients` | Excel workbook → MatchMiner-compatible `{clinical, genomic, extras}` JSON |
 | `ctm-mm load` | Ingest a `ctm-mm patients` JSON into the patient database (clinical + genomic + patient_data) |
+| `ctm-mm match-prep` | Assemble a frozen `<date>_match` db (trials + patients) for matchengine; `--run` to also match |
 | `ctm-mm trials` | AMC feed or XML / DDOTS API / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
 | `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm biomarkers`; removed in 2.0.0 |
@@ -301,6 +302,10 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
    1. `$ ctm-mm load --pt-data patients-normalized.json`
    2. Ingests the `clinical`, `genomic`, and `extras` arrays directly into `MONGO_PATIENT_DBNAME` (e.g. `patients_dev`). Each load writes an immutable dated snapshot — `<date>_clinical`, `<date>_genomic`, `<date>_patient_data` — plus refreshed `latest_clinical`/`latest_genomic`/`latest_patient_data` pointers. Genomic docs are linked to their clinical doc via `CLINICAL_ID` (by `SAMPLE_ID`), so matchengine can join them.
    3. Uses `.env` (not matchengine's `SECRETS_JSON`) and loads the JSON arrays directly — no need to split into one-object-per-file for `matchengine load`. Pass `--disk` to *also* write `clinical/`, `genomic/`, `patient_data/` folders (one JSON per doc), which is the directory format `matchengine load -c/-g` accepts if you ever need that fallback.
+4. Assemble a match database and run matchengine
+   1. `$ ctm-mm match-prep` — copies the current master trials (`MONGO_MASTER_*`) and the latest patient `clinical`/`genomic` (`MONGO_PATIENT_DBNAME`) into a frozen `<date>_match` database, under matchengine's default collection names (`trial`/`clinical`/`genomic`). `_id`s are preserved so the `CLINICAL_ID` links survive — vanilla matchengine matches against it with no fork changes.
+   2. `$ ctm-mm match-prep --run` — also runs `matchengine match --db <date>_match`, passing a `SECRETS_JSON` synthesized from your `.env`, so both tools share one connection config. matchengine writes `trial_match` results back into the same dated db, giving a fully reproducible snapshot of that run.
+   3. For a one-off, source from disk instead of Mongo: `--trials-file <json>` (a trials array) and/or `--pt-data <json>` (a `ctm-mm patients` bundle, linked on the fly). Every source db/collection is overridable (`--trial-db/-collection`, `--clinical-db/-collection`, `--genomic-db/-collection`, `--match-db`).
 
 ### Clinical Trial Data Preparation
 
