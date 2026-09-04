@@ -107,7 +107,7 @@ def toolkit_version() -> str:
     return version("ctm-toolkit")
 
 
-def mongo_config(require_master: bool = False) -> dict:
+def mongo_config(require_master: bool = False, require_dbname: bool = True) -> dict:
     """Resolve Mongo settings from the environment, failing fast by name.
 
     Mirrors ``build_client()``'s failure style: a missing required variable
@@ -117,9 +117,13 @@ def mongo_config(require_master: bool = False) -> dict:
     ``require_master`` additionally demands ``MONGO_MASTER_DBNAME``. Callers set
     it only when they actually intend to read the master from Mongo, so a run
     that passes ``--master <file>`` never fails on a variable it does not use.
+
+    ``require_dbname`` is on for the per-run trial stages; ``ctm-mm load`` sets it
+    off — it is a patient-only command that touches ``MONGO_PATIENT_DBNAME``, never
+    the per-run ``MONGO_DBNAME``.
     """
     dbname = os.environ.get("MONGO_DBNAME")
-    if not dbname:
+    if require_dbname and not dbname:
         raise ValueError("MONGO_DBNAME not set in environment")
 
     # Two ways to point at a server. MONGO_URI wins and is the only form that
@@ -159,6 +163,7 @@ def mongo_config(require_master: bool = False) -> dict:
         "master_collection": (
             os.environ.get("MONGO_MASTER_COLLECTION") or DEFAULT_MASTER_COLLECTION
         ),
+        "patient_dbname": os.environ.get("MONGO_PATIENT_DBNAME"),
     }
 
 
@@ -312,6 +317,21 @@ def open_collection(db, name: str, unique_key: str, lookup_keys=()):
     if lookup_keys:
         collection.create_index([(key, 1) for key in lookup_keys])
     return collection
+
+
+def overwrite_collection(db, name: str, docs: list[dict]) -> int:
+    """Drop ``name`` and insert ``docs`` fresh, returning the count written.
+
+    For the patient snapshots that ``ctm-mm load`` writes — a full replacement of a
+    dated or ``latest_*`` collection. No MACHINE_WRITTEN guard: patient data lives
+    in its own database and is regenerable from the source workbook, so a drop is
+    always safe. Unlike ``replace_collection`` it needs no unique key — patient
+    genomic docs have several rows per SAMPLE_ID, so there is none.
+    """
+    db[name].drop()
+    if docs:
+        db[name].insert_many(docs)
+    return len(docs)
 
 
 def upsert_doc(collection, doc: dict, unique_key: str) -> None:

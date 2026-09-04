@@ -217,6 +217,23 @@ def main() -> None:
     p_trials_merge.add_argument("--changed", metavar="JSON",
                                 help="[legacy file flow] Curated changed trials JSON")
 
+    p_load = sub.add_parser(
+        "load",
+        help="Ingest a ctm-mm patients JSON file into the patient database "
+             "(clinical + genomic + patient_data)",
+    )
+    p_load.add_argument("--pt-data", dest="pt_data", required=True, metavar="JSON",
+                        help="Output of `ctm-mm patients`: {clinical, genomic, extras}")
+    p_load.add_argument("--patient-db", dest="patient_db", metavar="NAME",
+                        help="Override MONGO_PATIENT_DBNAME for this run")
+    p_load.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                        help="Date for the immutable snapshot collections (default: today)")
+    p_load.add_argument("--disk", action="store_true",
+                        help="Also split the payload to clinical/, genomic/, patient_data/ "
+                             "folders (one JSON per doc — a matchengine-loadable fallback)")
+    p_load.add_argument("--out-dir", dest="out_dir", metavar="DIR",
+                        help="Directory for --disk output (default: current directory)")
+
     args = parser.parse_args()
 
     if args.command == "patients":
@@ -233,6 +250,8 @@ def main() -> None:
         _cmd_add_manual(args)
     elif args.command == "trials-merge":
         _cmd_trials_merge(args)
+    elif args.command == "load":
+        _cmd_load(args)
 
 
 def _resolve_out(args, default_path: Path | None) -> Path | None:
@@ -856,6 +875,54 @@ def _cmd_trials_merge(args) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(stamped, indent=2, default=str))
     print(f"Saved {len(stamped)} trial(s) → {out_path}", file=sys.stderr)
+
+
+def _cmd_load(args) -> None:
+    from ctm import db as ctm_db
+    from ctm.patient_load import DOC_SETS, export_to_disk, prepare
+
+    path = Path(args.pt_data)
+    if not path.exists():
+        print(f"Error: file not found: {path}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        prepared = prepare(json.loads(path.read_text()))
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    config = ctm_db.mongo_config(require_dbname=False)
+    patient_db = args.patient_db or config["patient_dbname"]
+    if not patient_db:
+        print("Error: set MONGO_PATIENT_DBNAME in .env, or pass --patient-db",
+              file=sys.stderr)
+        sys.exit(1)
+
+    if prepared.orphans:
+        print(f"  Warning: {len(prepared.orphans)} genomic SAMPLE_ID(s) have no clinical "
+              f"doc — kept without a CLINICAL_ID (unmatchable): {prepared.orphans}",
+              file=sys.stderr)
+
+    run_date = args.run_date or date.today().isoformat()
+    database = ctm_db.get_database(config, patient_db)
+    doc_sets = {
+        "clinical": prepared.clinical,
+        "genomic": prepared.genomic,
+        "patient_data": prepared.patient_data,
+    }
+    for base in DOC_SETS:
+        docs = doc_sets[base]
+        for name in (f"{run_date}_{base}", f"latest_{base}"):
+            ctm_db.overwrite_collection(database, name, docs)
+        print(f"Stored {len(docs)} → {patient_db}.{run_date}_{base} (+ latest_{base})",
+              file=sys.stderr)
+
+    if args.disk:
+        out_dir = Path(args.out_dir) if args.out_dir else Path.cwd()
+        counts = export_to_disk(json.loads(path.read_text()), out_dir)
+        for base in DOC_SETS:
+            print(f"Wrote {counts[base]} file(s) → {out_dir / base}/", file=sys.stderr)
 
 
 if __name__ == "__main__":
