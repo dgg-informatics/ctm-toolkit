@@ -27,6 +27,19 @@ def test_synthesize_secrets_parses_uri_with_credentials():
     assert s["MONGO_AUTH_SOURCE"] == "admin"
 
 
+def test_synthesize_secrets_defaults_authsource_to_admin_when_absent():
+    """A URI with credentials but no authSource/db → matchengine must auth against
+    admin (pymongo's default), not the target db name."""
+    config = {"uri": "mongodb://deemer:pw@localhost:27017/"}
+    s = synthesize_secrets(config, "2026-09-04_match")
+    assert s["MONGO_AUTH_SOURCE"] == "admin"
+
+
+def test_synthesize_secrets_uses_uri_default_db_as_authsource():
+    config = {"uri": "mongodb://deemer:pw@localhost:27017/somedb"}
+    assert synthesize_secrets(config, "2026-09-04_match")["MONGO_AUTH_SOURCE"] == "somedb"
+
+
 def test_matchengine_command():
     assert matchengine_command("2026-09-04_match") == [
         "matchengine", "match", "--db", "2026-09-04_match"]
