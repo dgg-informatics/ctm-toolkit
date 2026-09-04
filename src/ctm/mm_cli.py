@@ -234,6 +234,38 @@ def main() -> None:
     p_load.add_argument("--out-dir", dest="out_dir", metavar="DIR",
                         help="Directory for --disk output (default: current directory)")
 
+    p_match = sub.add_parser(
+        "match-prep",
+        help="Assemble a frozen <date>_match db (trial + clinical + genomic) for "
+             "matchengine; --run to also match",
+    )
+    p_match.add_argument("--match-db", dest="match_db", metavar="NAME",
+                         help="Assembled match database name (default: <date>_match)")
+    p_match.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                         help="Date for the match db name (default: today)")
+    # Trial source: Mongo master (default) or a one-off file
+    p_match.add_argument("--trial-db", dest="trial_db", metavar="NAME",
+                         help="Source db for trials (default: MONGO_MASTER_DBNAME)")
+    p_match.add_argument("--trial-collection", dest="trial_collection", metavar="NAME",
+                         help="Source collection for trials (default: MONGO_MASTER_COLLECTION)")
+    p_match.add_argument("--trials-file", dest="trials_file", metavar="JSON",
+                         help="One-off: read a trials JSON array from disk instead of Mongo")
+    # Patient source: Mongo patient db (default) or a one-off patients bundle
+    p_match.add_argument("--clinical-db", dest="clinical_db", metavar="NAME",
+                         help="Source db for clinical (default: MONGO_PATIENT_DBNAME)")
+    p_match.add_argument("--clinical-collection", dest="clinical_collection", metavar="NAME",
+                         help="Source collection for clinical (default: latest_clinical)")
+    p_match.add_argument("--genomic-db", dest="genomic_db", metavar="NAME",
+                         help="Source db for genomic (default: MONGO_PATIENT_DBNAME)")
+    p_match.add_argument("--genomic-collection", dest="genomic_collection", metavar="NAME",
+                         help="Source collection for genomic (default: latest_genomic)")
+    p_match.add_argument("--pt-data", dest="pt_data", metavar="JSON",
+                         help="One-off: read a ctm-mm patients bundle {clinical, genomic, "
+                              "extras} from disk (linked on the fly) instead of Mongo")
+    p_match.add_argument("--run", action="store_true",
+                         help="Also run matchengine against the assembled db (uses .env-"
+                              "derived SECRETS_JSON)")
+
     args = parser.parse_args()
 
     if args.command == "patients":
@@ -252,6 +284,8 @@ def main() -> None:
         _cmd_trials_merge(args)
     elif args.command == "load":
         _cmd_load(args)
+    elif args.command == "match-prep":
+        _cmd_match_prep(args)
 
 
 def _resolve_out(args, default_path: Path | None) -> Path | None:
@@ -923,6 +957,84 @@ def _cmd_load(args) -> None:
         counts = export_to_disk(json.loads(path.read_text()), out_dir)
         for base in DOC_SETS:
             print(f"Wrote {counts[base]} file(s) → {out_dir / base}/", file=sys.stderr)
+
+
+def _cmd_match_prep(args) -> None:
+    import os
+
+    from ctm import db as ctm_db
+    from ctm.match_prep import (
+        DEFAULT_CLINICAL_COLLECTION,
+        DEFAULT_GENOMIC_COLLECTION,
+        matchengine_command,
+        synthesize_secrets,
+    )
+    from ctm.patient_load import prepare
+
+    run_date = args.run_date or date.today().isoformat()
+    match_db_name = args.match_db or f"{run_date}_match"
+
+    config = ctm_db.mongo_config(require_dbname=False)
+    client = ctm_db.get_client(config)
+    match_db = client[match_db_name]
+
+    # ── trials → match_db.trial (Mongo master, or a one-off file) ──────────────
+    if args.trials_file:
+        trials = json.loads(Path(args.trials_file).read_text())
+        n_trial = ctm_db.overwrite_collection(match_db, "trial", trials)
+        trial_src = args.trials_file
+    else:
+        trial_db = args.trial_db or config["master_dbname"]
+        trial_coll = args.trial_collection or config["master_collection"]
+        if not trial_db:
+            print("Error: set MONGO_MASTER_DBNAME (or --trial-db), or pass --trials-file",
+                  file=sys.stderr)
+            sys.exit(1)
+        n_trial = ctm_db.copy_collection(client[trial_db][trial_coll], match_db["trial"])
+        trial_src = f"{trial_db}.{trial_coll}"
+    print(f"trial:    {n_trial} from {trial_src}", file=sys.stderr)
+
+    # ── clinical + genomic → match_db (Mongo patient db, or a one-off bundle) ──
+    if args.pt_data:
+        prepared = prepare(json.loads(Path(args.pt_data).read_text()))
+        n_clin = ctm_db.overwrite_collection(match_db, "clinical", prepared.clinical)
+        n_gen = ctm_db.overwrite_collection(match_db, "genomic", prepared.genomic)
+        print(f"clinical: {n_clin} from {args.pt_data} (linked)", file=sys.stderr)
+        print(f"genomic:  {n_gen} from {args.pt_data} (linked)", file=sys.stderr)
+    else:
+        clin_db = args.clinical_db or config["patient_dbname"]
+        gen_db = args.genomic_db or config["patient_dbname"]
+        if not clin_db or not gen_db:
+            print("Error: set MONGO_PATIENT_DBNAME (or --clinical-db/--genomic-db), "
+                  "or pass --pt-data", file=sys.stderr)
+            sys.exit(1)
+        clin_coll = args.clinical_collection or DEFAULT_CLINICAL_COLLECTION
+        gen_coll = args.genomic_collection or DEFAULT_GENOMIC_COLLECTION
+        n_clin = ctm_db.copy_collection(client[clin_db][clin_coll], match_db["clinical"])
+        n_gen = ctm_db.copy_collection(client[gen_db][gen_coll], match_db["genomic"])
+        print(f"clinical: {n_clin} from {clin_db}.{clin_coll}", file=sys.stderr)
+        print(f"genomic:  {n_gen} from {gen_db}.{gen_coll}", file=sys.stderr)
+
+    print(f"Assembled → {match_db_name}.{{trial, clinical, genomic}}", file=sys.stderr)
+
+    # ── run matchengine, or print the command ─────────────────────────────────
+    if args.run:
+        import subprocess
+        cmd = matchengine_command(match_db_name)
+        env = {**os.environ, "SECRETS_JSON": json.dumps(synthesize_secrets(config, match_db_name))}
+        print(f"Running: {' '.join(cmd)}", file=sys.stderr)
+        try:
+            result = subprocess.run(cmd, env=env)
+        except FileNotFoundError:
+            print("Error: 'matchengine' not found on PATH. Run it yourself against "
+                  f"{match_db_name}, or install matchengine in this environment.",
+                  file=sys.stderr)
+            sys.exit(1)
+        sys.exit(result.returncode)
+    else:
+        print(f"Run it with:  ctm-mm match-prep --run --match-db {match_db_name}",
+              file=sys.stderr)
+        print(f"        (or:  matchengine match --db {match_db_name})", file=sys.stderr)
 
 
 if __name__ == "__main__":

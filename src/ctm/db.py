@@ -167,17 +167,34 @@ def mongo_config(require_master: bool = False, require_dbname: bool = True) -> d
     }
 
 
-def get_database(config: dict, db_name: str | None = None):
-    """Connect and return a Database. ``db_name`` overrides ``config["dbname"]``.
-
-    A ``MONGO_URI`` is passed to MongoClient as the sole argument, which is the
-    only form that parses credentials; otherwise a bare host/port is used.
-    """
+def get_client(config: dict):
+    """The MongoClient for this config. A ``MONGO_URI`` (which carries credentials)
+    is passed as the sole argument; otherwise a bare host/port. Callers that touch
+    more than one database in a run (e.g. match-prep) share a single client."""
     from pymongo import MongoClient
 
-    client = MongoClient(config["uri"]) if config.get("uri") else \
+    return MongoClient(config["uri"]) if config.get("uri") else \
         MongoClient(config["host"], config["port"])
-    return client[db_name or config["dbname"]]
+
+
+def get_database(config: dict, db_name: str | None = None):
+    """Connect and return a Database. ``db_name`` overrides ``config["dbname"]``."""
+    return get_client(config)[db_name or config["dbname"]]
+
+
+def copy_collection(source, dest) -> int:
+    """Copy every document (preserving ``_id``) from the ``source`` collection into
+    ``dest``, replacing dest's contents. Returns the count.
+
+    Preserving ``_id`` is the whole point: a genomic doc's ``CLINICAL_ID`` points at
+    its clinical doc's ``_id`` (set by ``ctm-mm load``), so both must be copied with
+    their ids intact for the link to survive into the assembled match database.
+    """
+    docs = list(source.find({}))
+    dest.drop()
+    if docs:
+        dest.insert_many(docs)
+    return len(docs)
 
 
 def strip_metadata(doc: dict) -> dict:
