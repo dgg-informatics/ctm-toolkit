@@ -7,6 +7,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | Command | Purpose |
 | --- | --- |
 | `ctm-mm patients` | Excel workbook → MatchMiner-compatible `{clinical, genomic, extras}` JSON |
+| `ctm-mm load` | Ingest a `ctm-mm patients` JSON into the patient database (clinical + genomic + patient_data) |
 | `ctm-mm trials` | AMC feed or XML / DDOTS API / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
 | `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm biomarkers`; removed in 2.0.0 |
@@ -146,6 +147,7 @@ trial's provenance is unambiguous.
 | `MONGO_DBNAME` | yes | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated; `--db NAME` overrides it without editing `.env` |
 | `MONGO_MASTER_DBNAME` | only without `--master` | The master trial list's database. Deliberately **not** per-run — the master is rolling current state, so it has a fixed address. No default: a default here would silently resolve to an empty database and route every trial to `changed` |
 | `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
+| `MONGO_PATIENT_DBNAME` | only for `ctm-mm load` | The patient database `ctm-mm load` ingests into (e.g. `patients_dev`). Fixed, not per-run; `--patient-db` overrides |
 | `LLM_BIOMARKER_EXPORT_DIR` | no | Where `ctm-llm biomarkers` drops its to-curate JSON. Defaults to `/var/lib/ctm/to-curate` |
 | `MASTER_TRIAL_EXPORT_DIR` | no | Where `ctm-mm trials-merge` writes the master backup JSON. Defaults to `/var/lib/ctm/trials` |
 
@@ -295,8 +297,10 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
 2. Run the script to convert manual excel format into MatchMiner-compatible JSON
    1. `$ ctm-mm patients patients-raw.xlsx --out patients-normalized.json`
       1. This writes a JSON with 3 top-level fields: `clinical`, `genomic`, and `extras`. `extras` is the lossless per-patient rollup (the `patient_data` collection) — every column of every row, including `Other` findings and each row's `raw` catch-all. `clinical`/`genomic` carry only the matchable subset and are keyed by `pt_uuid` (`SAMPLE_ID`), never MRN, so they hold no PHI.
-3. Split the JSON file into clinical and genomic entries
-   1. Should have 2 files: 1 is a JSON array of clinical docs and the other a similar array of genomic docs
+3. Load the patient data into MongoDB for matching
+   1. `$ ctm-mm load --pt-data patients-normalized.json`
+   2. Ingests the `clinical`, `genomic`, and `extras` arrays directly into `MONGO_PATIENT_DBNAME` (e.g. `patients_dev`). Each load writes an immutable dated snapshot — `<date>_clinical`, `<date>_genomic`, `<date>_patient_data` — plus refreshed `latest_clinical`/`latest_genomic`/`latest_patient_data` pointers. Genomic docs are linked to their clinical doc via `CLINICAL_ID` (by `SAMPLE_ID`), so matchengine can join them.
+   3. Uses `.env` (not matchengine's `SECRETS_JSON`) and loads the JSON arrays directly — no need to split into one-object-per-file for `matchengine load`. Pass `--disk` to *also* write `clinical/`, `genomic/`, `patient_data/` folders (one JSON per doc), which is the directory format `matchengine load -c/-g` accepts if you ever need that fallback.
 
 ### Clinical Trial Data Preparation
 
