@@ -39,9 +39,17 @@ def synthesize_secrets(config: dict, db_name: str) -> dict:
                 "MONGO_USERNAME": user, "MONGO_PASSWORD": password,
                 "MONGO_RO_USERNAME": user, "MONGO_RO_PASSWORD": password,
             })
-        auth_source = (parsed.get("options") or {}).get("authSource")
-        if auth_source:
-            secrets["MONGO_AUTH_SOURCE"] = auth_source
+            # Resolve authSource the way pymongo does for the source URI — explicit
+            # option, else the URI's default db, else "admin" — and pin it. Without
+            # this, matchengine (which puts db_name into its URI) would auth against
+            # db_name instead of wherever the credentials actually live, so a URI
+            # like mongodb://u:p@host/ (no db, no authSource → admin) that works for
+            # ctm would fail under matchengine.
+            secrets["MONGO_AUTH_SOURCE"] = (
+                (parsed.get("options") or {}).get("authSource")
+                or parsed.get("database")
+                or "admin"
+            )
         return secrets
 
     return {

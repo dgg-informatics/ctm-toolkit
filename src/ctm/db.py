@@ -135,6 +135,14 @@ def mongo_config(require_master: bool = False, require_dbname: bool = True) -> d
     host = os.environ.get("MONGO_HOST")
     port = os.environ.get("MONGO_PORT")
 
+    # Tolerate a full connection URI mistakenly placed in MONGO_HOST — pymongo's
+    # MongoClient(host, port) happens to accept it, so ctm's own connection works,
+    # but a consumer that treats MONGO_HOST as a bare hostname (the SECRETS_JSON
+    # match-prep synthesizes for matchengine) would build a mangled URI. Route it
+    # to MONGO_URI so every consumer treats it as the URI it is.
+    if not uri and host and host.startswith("mongodb://"):
+        uri, host, port = host, None, None
+
     if not uri:
         for name, value in (("MONGO_HOST", host), ("MONGO_PORT", port)):
             if not value:

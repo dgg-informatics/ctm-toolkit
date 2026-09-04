@@ -43,6 +43,20 @@ def test_mongo_config_rejects_a_non_integer_port(monkeypatch):
         mongo_config()
 
 
+def test_mongo_config_routes_a_uri_placed_in_mongo_host_to_uri(monkeypatch):
+    """A common mix-up: the full connection URI put in MONGO_HOST. Route it to the
+    uri slot so consumers (e.g. match-prep's SECRETS_JSON) don't treat it as a host."""
+    from ctm.db import mongo_config
+
+    monkeypatch.delenv("MONGO_URI", raising=False)
+    monkeypatch.setenv("MONGO_DBNAME", "2026-08-17_dev")
+    monkeypatch.setenv("MONGO_HOST", "mongodb://u:p@localhost:27017/?authSource=admin")
+
+    config = mongo_config()
+    assert config["uri"] == "mongodb://u:p@localhost:27017/?authSource=admin"
+    assert config["host"] is None and config["port"] is None
+
+
 def test_mongo_config_defaults_the_master_collection(monkeypatch):
     from ctm.db import DEFAULT_MASTER_COLLECTION, mongo_config
 
