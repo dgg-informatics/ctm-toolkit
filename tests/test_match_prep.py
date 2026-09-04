@@ -102,7 +102,7 @@ def test_match_prep_assembles_from_mongo_defaults(monkeypatch):
         "latest_trials": {"06_master_trials": [{"_id": 1, "protocol_no": "A"},
                                                {"_id": 2, "protocol_no": "B"}]},
         "patients_dev": {
-            "latest_clinical": [{"_id": 10, "SAMPLE_ID": "pt_1"}],
+            "latest_clinical": [{"_id": 10, "SAMPLE_ID": "pt_1", "BIRTH_DATE": "1957-04-28"}],
             "latest_genomic": [{"_id": 20, "SAMPLE_ID": "pt_1", "CLINICAL_ID": 10}],
         },
     })
@@ -112,7 +112,9 @@ def test_match_prep_assembles_from_mongo_defaults(monkeypatch):
 
     match_db = client["2026-09-04_match"]
     assert [d["protocol_no"] for d in match_db["trial"].docs] == ["A", "B"]
-    assert match_db["clinical"].docs == [{"_id": 10, "SAMPLE_ID": "pt_1"}]
+    # clinical copied (id preserved) and healed with matchengine birthdate fields
+    clin = match_db["clinical"].docs[0]
+    assert clin["_id"] == 10 and clin["BIRTH_DATE_INT"] == 19570428
     # _id + CLINICAL_ID preserved through the copy → link survives
     assert match_db["genomic"].docs[0]["CLINICAL_ID"] == 10
 

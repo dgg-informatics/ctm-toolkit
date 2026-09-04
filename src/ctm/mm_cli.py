@@ -969,7 +969,7 @@ def _cmd_match_prep(args) -> None:
         matchengine_command,
         synthesize_secrets,
     )
-    from ctm.patient_load import prepare
+    from ctm.patient_load import ensure_matchengine_clinical, prepare
 
     run_date = args.run_date or date.today().isoformat()
     match_db_name = args.match_db or f"{run_date}_match"
@@ -1010,7 +1010,12 @@ def _cmd_match_prep(args) -> None:
             sys.exit(1)
         clin_coll = args.clinical_collection or DEFAULT_CLINICAL_COLLECTION
         gen_coll = args.genomic_collection or DEFAULT_GENOMIC_COLLECTION
-        n_clin = ctm_db.copy_collection(client[clin_db][clin_coll], match_db["clinical"])
+        # Clinical is read-transformed rather than plain-copied: heal the matchengine
+        # birthdate fields in case latest_clinical was loaded before they were added
+        # (idempotent). Genomic is a straight copy — its CLINICAL_ID is already set.
+        clin_docs = ensure_matchengine_clinical(
+            list(client[clin_db][clin_coll].find({})))
+        n_clin = ctm_db.overwrite_collection(match_db, "clinical", clin_docs)
         n_gen = ctm_db.copy_collection(client[gen_db][gen_coll], match_db["genomic"])
         print(f"clinical: {n_clin} from {clin_db}.{clin_coll}", file=sys.stderr)
         print(f"genomic:  {n_gen} from {gen_db}.{gen_coll}", file=sys.stderr)

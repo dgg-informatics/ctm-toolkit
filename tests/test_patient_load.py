@@ -42,6 +42,42 @@ def test_prepare_flags_orphan_genomic_without_clinical():
     assert "CLINICAL_ID" not in orphan          # kept, but unlinked
 
 
+def test_prepare_adds_matchengine_birthdate_fields():
+    """matchengine needs BIRTH_DATE as a datetime and BIRTH_DATE_INT as YYYYMMDD."""
+    from datetime import datetime
+
+    payload = {**PAYLOAD, "clinical": [{"SAMPLE_ID": "pt_1", "BIRTH_DATE": "1957-04-28"}]}
+    p = prepare(payload)
+    c = p.clinical[0]
+    assert isinstance(c["BIRTH_DATE"], datetime)
+    assert c["BIRTH_DATE"] == datetime(1957, 4, 28)
+    assert c["BIRTH_DATE_INT"] == 19570428
+
+
+def test_prepare_tolerates_missing_or_bad_birthdate():
+    """No/garbage DOB → BIRTH_DATE_INT present (None) so matchengine doesn't KeyError."""
+    payload = {**PAYLOAD, "clinical": [
+        {"SAMPLE_ID": "pt_1", "BIRTH_DATE": None},
+        {"SAMPLE_ID": "pt_2"},
+        {"SAMPLE_ID": "pt_3", "BIRTH_DATE": "not-a-date"},
+    ]}
+    p = prepare(payload)
+    assert all("BIRTH_DATE_INT" in c for c in p.clinical)
+    assert all(c["BIRTH_DATE_INT"] is None for c in p.clinical)
+
+
+def test_ensure_matchengine_clinical_is_idempotent():
+    from datetime import datetime
+
+    from ctm.patient_load import ensure_matchengine_clinical
+
+    docs = [{"SAMPLE_ID": "pt_1", "BIRTH_DATE": "1957-04-28"}]
+    ensure_matchengine_clinical(docs)
+    ensure_matchengine_clinical(docs)                    # second pass on a datetime
+    assert docs[0]["BIRTH_DATE"] == datetime(1957, 4, 28)
+    assert docs[0]["BIRTH_DATE_INT"] == 19570428
+
+
 def test_prepare_shapes_patient_data_one_per_patient():
     p = prepare(PAYLOAD)
     assert len(p.patient_data) == 2

@@ -10,11 +10,42 @@ Pure: no Mongo, no I/O beyond the explicit disk export. Callers handle the write
 """
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from bson import ObjectId
 
 DOC_SETS = ("clinical", "genomic", "patient_data")
+
+
+def _matchengine_birthdate(birth_date):
+    """``(BIRTH_DATE, BIRTH_DATE_INT)`` as matchengine stores them: a ``datetime``
+    (age criteria query ``BIRTH_DATE`` against a datetime, so an ISO string would
+    silently never match) and a ``YYYYMMDD`` int (matchengine reads ``BIRTH_DATE_INT``
+    directly on every clinical doc). An unparseable/absent date yields ``(as-is, None)``
+    — the ``BIRTH_DATE_INT`` key is still present, so matchengine does not KeyError;
+    that patient simply cannot be age-matched. pymongo stores the naive datetime as
+    UTC, matching matchengine's own loader."""
+    dt = None
+    if isinstance(birth_date, datetime):
+        dt = birth_date
+    elif isinstance(birth_date, str) and birth_date:
+        try:
+            dt = datetime.strptime(birth_date[:10], "%Y-%m-%d")
+        except ValueError:
+            dt = None
+    if dt is None:
+        return birth_date, None
+    return dt, int(dt.strftime("%Y%m%d"))
+
+
+def ensure_matchengine_clinical(docs: list[dict]) -> list[dict]:
+    """Stamp the birthdate fields matchengine computes at its own load time onto each
+    clinical doc, in place. Idempotent — safe on docs that already carry a datetime
+    ``BIRTH_DATE``, so ``match-prep`` can heal a ``latest_clinical`` loaded before this."""
+    for d in docs:
+        d["BIRTH_DATE"], d["BIRTH_DATE_INT"] = _matchengine_birthdate(d.get("BIRTH_DATE"))
+    return docs
 
 
 @dataclass
@@ -54,6 +85,7 @@ def prepare(data: dict) -> PreparedLoad:
         c = {**c, "_id": ObjectId()}
         sample_to_id[c.get("SAMPLE_ID")] = c["_id"]
         clinical.append(c)
+    ensure_matchengine_clinical(clinical)
 
     genomic: list[dict] = []
     orphans: set[str] = set()
