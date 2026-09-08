@@ -15,7 +15,7 @@ This module is pure (no I/O). Callers handle MongoDB writes.
 """
 from datetime import UTC, datetime
 
-from ..schemas.raw.normalized import Finding, Patient
+from ..schemas.raw.normalized import Finding, Patient, _is_unprefixed_protein_change
 
 # ── Value remaps — mirror matchengine/plugins/DFCIQueryTransformers.py ─────────
 # Keys are the curator label lowercased (input casing does not matter); values
@@ -118,6 +118,7 @@ def to_genomic_docs(
     docs: list[dict] = []
     unknown: set[str] = set()
     invalid_wildtype: set[str] = set()
+    unrecognized_protein: set[str] = set()
 
     for f in findings:
         category = (f.variant_category or "").strip().upper()
@@ -138,7 +139,12 @@ def to_genomic_docs(
         if clinical_id is not None:
             doc["CLINICAL_ID"] = clinical_id
         if f.protein_change:
+            # The 'p.' prefix is added on the Finding model when the value is
+            # HGVS-shaped. Anything still unprefixed here is stored as typed —
+            # never mangled — but can't match, so flag it for the curator.
             doc["TRUE_PROTEIN_CHANGE"] = f.protein_change
+            if _is_unprefixed_protein_change(f.protein_change):
+                unrecognized_protein.add(f.protein_change)
         if f.nucleotide_change:
             doc["TRUE_CDNA_CHANGE"] = f.nucleotide_change
 
@@ -186,7 +192,7 @@ def to_genomic_docs(
 
         docs.append(doc)
 
-    if unknown or invalid_wildtype:
+    if unknown or invalid_wildtype or unrecognized_protein:
         import sys
         if unknown:
             print(
@@ -198,6 +204,13 @@ def to_genomic_docs(
             print(
                 f"  Warning: skipped findings with invalid wildtype (must be "
                 f"TRUE/FALSE/INDETERMINATE): {sorted(invalid_wildtype)}",
+                file=sys.stderr,
+            )
+        if unrecognized_protein:
+            print(
+                f"  Warning: stored protein_change values that are not HGVS "
+                f"protein changes and so cannot match: "
+                f"{sorted(unrecognized_protein)}",
                 file=sys.stderr,
             )
 

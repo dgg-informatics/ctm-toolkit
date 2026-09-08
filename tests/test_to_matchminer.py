@@ -256,3 +256,34 @@ def test_other_category_produces_no_genomic_doc(value):
         _finding(biomarker="Foo", variant_category=value),
     ])
     assert docs == []
+
+
+# ── protein_change reaches the genomic doc prefixed, or is warned about ───────
+
+def test_unprefixed_protein_change_reaches_the_genomic_doc_prefixed():
+    """A bare "L858R" typed by a curator must arrive as "p.L858R" —
+    TRUE_PROTEIN_CHANGE is an exact-string match in matchengine."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION", protein_change="L858R"),
+    ])
+    assert docs[0]["TRUE_PROTEIN_CHANGE"] == "p.L858R"
+
+
+def test_unrecognized_protein_change_rides_through_untouched_and_warns(capsys):
+    """Free text isn't a protein change, so it is never mangled into
+    "p.Exon 19 deletion" — it is stored as typed and flagged for the curator."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION",
+                 protein_change="Exon 19 deletion"),
+    ])
+    assert docs[0]["TRUE_PROTEIN_CHANGE"] == "Exon 19 deletion"
+    err = capsys.readouterr().err
+    assert "protein_change" in err
+    assert "Exon 19 deletion" in err
+
+
+def test_recognized_protein_change_does_not_warn(capsys):
+    to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION", protein_change="L858R"),
+    ])
+    assert "protein_change" not in capsys.readouterr().err

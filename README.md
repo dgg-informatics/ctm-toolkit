@@ -276,7 +276,7 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
       |---|---|
       | `biomarker` | HGNC gene symbol or marker name (`MSI`, `MMR`) → `TRUE_HUGO_SYMBOL`. For a fusion, `GENE1::GENE2` (`/` or `-` also accepted), e.g. `EML4::ALK`. |
       | `variant_category` | One of `MUTATION`, `CNV`, `SIGNATURE`, `SV`, `Other`. Selects `VARIANT_CATEGORY` directly. `Other` is kept in patient_data but produces no genomic doc. |
-      | `protein_change` | HGVS protein change, e.g. `p.L858R` → `TRUE_PROTEIN_CHANGE`. |
+      | `protein_change` | HGVS protein change, e.g. `p.L858R` → `TRUE_PROTEIN_CHANGE`. The `p.` is **added automatically** when you omit it — `L858R`, `Q192*`, `Leu858Arg`, `E746_A750del` all store as `p.…`. A value that isn't a protein change (free text like `Exon 19 deletion`, or a cDNA change pasted into the wrong column) is stored exactly as typed and warned about, never mangled. |
       | `cnv_call` | `CNV` only. One of `High Amplification`, `Low Amplification`, `Homozygous Deletion`, `Heterozygous Deletion` → `CNV_CALL` (remapped, see below). |
       | `signature_level` | `SIGNATURE` (MSI/MMR) only. One of `Deficient`, `Proficient`, `Stable` → `MMR_STATUS` (remapped, see below). Blank → the row is skipped. |
       | `wildtype` | `MUTATION`/`CNV` only. `TRUE`/`FALSE` → `WILDTYPE`; blank defaults to `FALSE`. |

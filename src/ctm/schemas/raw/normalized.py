@@ -5,6 +5,7 @@ Three collections:
   report_metadata — one document per lab report / test ordered
   findings        — one document per finding, cross-source queryable
 """
+import re
 from datetime import date
 from typing import Any
 
@@ -21,6 +22,45 @@ def _normalize_wildtype(v: object) -> str | None:
         return "true" if v else "false"
     s = str(v).strip().lower()
     return s or None
+
+
+# HGVS protein change, minus its "p." prefix: an amino acid (three-letter form
+# preferred by the alternation, else one-letter or the stop codon "*"), a codon
+# number, then whatever describes the change — "R", "*", "fs*12", "_A750del",
+# "insASV", "=", "ext*17", a closing paren. Requiring the tail to be
+# whitespace-free is what keeps free text ("Exon 19 deletion", "splice site")
+# out; the match is case-sensitive, so "c.2573T>G" and a lowercase "l858r" fall
+# through untouched rather than being mangled into something unmatchable.
+_AMINO_ACID = (
+    r"(?:Ala|Arg|Asn|Asp|Cys|Gln|Glu|Gly|His|Ile|Leu|Lys|Met|Phe|Pro|Ser|Thr|"
+    r"Trp|Tyr|Val|Ter|Sec|Xaa|[ACDEFGHIKLMNPQRSTVWYBZXU*])"
+)
+_PROTEIN_CHANGE_RE = re.compile(rf"^\(?{_AMINO_ACID}\d+\S*$")
+
+
+def _normalize_protein_change(v: object) -> str | None:
+    """Ensure an HGVS-shaped protein change carries its 'p.' prefix.
+
+    matchengine matches TRUE_PROTEIN_CHANGE as an exact string, so a curator's
+    bare 'L858R' silently never matches a 'p.L858R' trial clause. Only values
+    that actually look like a protein change are prefixed; anything else is
+    returned exactly as typed, to be flagged at transform time rather than
+    corrupted (see _is_unprefixed_protein_change).
+    """
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    if s[:2] in ("p.", "P."):
+        return "p." + s[2:]
+    return f"p.{s}" if _PROTEIN_CHANGE_RE.match(s) else s
+
+
+def _is_unprefixed_protein_change(v: str | None) -> bool:
+    """True for a stored protein change that can never match — anything
+    non-blank that _normalize_protein_change could not resolve to 'p.…'."""
+    return bool(v) and not v.startswith("p.")
 
 
 class Patient(BaseModel):
@@ -71,3 +111,8 @@ class Finding(BaseModel):
     @classmethod
     def _wildtype(cls, v: object) -> str | None:
         return _normalize_wildtype(v)
+
+    @field_validator("protein_change", mode="before")
+    @classmethod
+    def _protein_change(cls, v: object) -> str | None:
+        return _normalize_protein_change(v)
