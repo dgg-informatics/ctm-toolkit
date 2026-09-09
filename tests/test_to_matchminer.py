@@ -2,7 +2,7 @@
 document shapes.
 
 The golden tests pin the *whole* conversion of the v1 reference workbook: every
-row in test-pt-data-v1.0.0.xlsx must transform to exactly the clinical/genomic
+row in test-pt-data-v1.1.0.xlsx must transform to exactly the clinical/genomic
 JSON in the committed fixtures. Regenerate the goldens (and eyeball the diff)
 whenever the workbook or the mapping changes — see scripts note in the PR.
 """
@@ -16,7 +16,7 @@ from ctm.transformers.excel_reader import read_and_normalize
 from ctm.transformers.to_matchminer import to_clinical, to_genomic_docs
 
 FIXTURES = Path(__file__).parent / "fixtures"
-WORKBOOK = FIXTURES / "test-pt-data-v1.0.0.xlsx"
+WORKBOOK = FIXTURES / "test-pt-data-v1.1.0.xlsx"
 
 
 def _strip_updated(doc: dict) -> dict:
