@@ -9,7 +9,7 @@ from ctm.transformers.normalize_manual import (
     normalize_report_metadata,
 )
 
-FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.0.0.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.1.0.xlsx"
 
 
 def test_normalize_finding_maps_canonical_fields():
