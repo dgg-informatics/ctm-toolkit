@@ -447,8 +447,18 @@ def test_filter_trials_stamps_match_level():
     assert filter_trials([trial])[0]["match_level"] == 3
 
 
-def test_filter_trials_passthrough_now_adds_three_keys():
-    from ctm.transformers.filter_trials import filter_trials
-    source = _with_match([{"clinical": {"age_numerical": ">=18"}}])
-    out = filter_trials([source])[0]
-    assert set(out) - set(source) == {"entities", "filtered_reason", "match_level"}
+def test_match_level_2_genomic_hidden_under_unrecognised_wrapper():
+    """The allowlist-safety argument (see AGE_ONLY_FIELDS) only protects 1-vs-2:
+    a genomic leaf beneath a wrapper key other than and/or caps at 2, not 3 —
+    matchengine would not parse "not" either, so the trial is inert regardless."""
+    from ctm.transformers.filter_trials import match_level
+    match = [{"not": [{"genomic": {"hugo_symbol": "EGFR"}}]}]
+    assert match_level(_with_match(match)) == 2
+
+
+def test_match_level_1_empty_genomic_node_does_not_lift_level():
+    """A genomic node with no fields is not a criterion, so it cannot outrank
+    the real age-only criterion alongside it."""
+    from ctm.transformers.filter_trials import match_level
+    match = [{"genomic": {}}, {"clinical": {"age_numerical": ">=18"}}]
+    assert match_level(_with_match(match)) == 1

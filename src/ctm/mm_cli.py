@@ -1087,8 +1087,20 @@ def _cmd_match_prep(args) -> None:
     # ── trials → match_db.trial (Mongo master, or a one-off file) ──────────────
     if args.trials_file:
         trials = json.loads(Path(args.trials_file).read_text())
-        n_trial = ctm_db.overwrite_collection(match_db, "trial", trials)
-        trial_src = args.trials_file
+        if args.min_match_level == 0:
+            n_trial = ctm_db.overwrite_collection(match_db, "trial", trials)
+            trial_src = args.trials_file
+        else:
+            # A doc with no match_level key is unclassified, not uncurated — -1
+            # keeps it below every real threshold instead of passing as level 0.
+            if not any("match_level" in t for t in trials):
+                print(f"Error: --min-match-level {args.min_match_level} needs match_level, "
+                      f"which {args.trials_file} does not carry. "
+                      "Run ctm-mm trials-filter, or drop the flag.", file=sys.stderr)
+                sys.exit(1)
+            filtered = [t for t in trials if t.get("match_level", -1) >= args.min_match_level]
+            n_trial = ctm_db.overwrite_collection(match_db, "trial", filtered)
+            trial_src = f"{args.trials_file} (match_level >= {args.min_match_level})"
     else:
         trial_db = args.trial_db or config["master_dbname"]
         if not trial_db:
@@ -1102,13 +1114,21 @@ def _cmd_match_prep(args) -> None:
         source = client[trial_db][trial_coll]
         trial_query = match_level_query(args.min_match_level)
         if trial_query is not None:
-            # Without this guard, filtering a collection that doesn't carry
-            # match_level (e.g. 06_master_trials) would silently copy zero trials
-            # and produce an empty match run with no explanation.
-            if source.count_documents({"match_level": {"$exists": True}}, limit=1) == 0:
+            # An existence probe would pass a partially-stamped collection and
+            # then silently drop every trial missing match_level from the $gte
+            # filter — count what's missing instead, and refuse if anything is.
+            unstamped = source.count_documents({"match_level": {"$exists": False}})
+            total = source.count_documents({})
+            if total == 0:
                 print(f"Error: --min-match-level {args.min_match_level} needs match_level, "
-                      f"which {trial_db}.{trial_coll} does not carry. "
-                      "Run ctm-mm trials-filter, or drop the flag.", file=sys.stderr)
+                      f"but {trial_db}.{trial_coll} is empty. "
+                      "Run ctm-mm trials-filter to populate it.", file=sys.stderr)
+                sys.exit(1)
+            elif unstamped:
+                print(f"Error: --min-match-level {args.min_match_level} needs every trial to "
+                      f"carry match_level, but {unstamped} of {total} in "
+                      f"{trial_db}.{trial_coll} do not. "
+                      "Run ctm-mm trials-filter to regenerate it.", file=sys.stderr)
                 sys.exit(1)
         n_trial = ctm_db.copy_collection(source, match_db["trial"], trial_query)
         trial_src = f"{trial_db}.{trial_coll}"

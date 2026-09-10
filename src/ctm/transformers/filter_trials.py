@@ -153,6 +153,16 @@ def _grouped(rows: list[dict]) -> dict[str, list[dict]]:
 # and hand curation can introduce fields the LLM never emits, so anything
 # unrecognised must make a trial MORE specific, never less — otherwise a genuinely
 # specific trial would be mislabelled age-only and silently dropped from a filtered run.
+#
+# This "anything unrecognised is more specific" reasoning only protects the 1-vs-2
+# boundary (see _match_leaves and _MATCH_WRAPPERS below): only "and"/"or"
+# (lowercase) are recognised as wrappers. A genomic leaf hidden beneath any other
+# key — an unrecognised wrapper like "not"/"OR", or a miscased "GENOMIC" — is
+# never descended into or matched by name, so it cannot reach level 3; the trial
+# caps at 2. Verified: [{"not": [{"genomic": {...}}]}] -> 2,
+# [{"OR": [{"genomic": ...}]}] -> 2, [{"GENOMIC": {...}}] -> 2. This is accepted
+# rather than fixed because matchengine would not parse those keys either — the
+# trial is inert regardless of what match_level says about it.
 AGE_ONLY_FIELDS = frozenset({"age_numerical"})
 
 _MATCH_WRAPPERS = ("and", "or")
@@ -190,6 +200,16 @@ def match_level(trial: dict) -> int:
     Reads only ``treatment_list.step[0].match`` — the curated match clause lives
     nowhere else. Genomic presence is sufficient for 3 regardless of what else the
     clause carries.
+
+    Only ``and``/``or`` (lowercase) are recognised as wrappers (see
+    ``_MATCH_WRAPPERS``); a genomic clause nested beneath any other key cannot
+    reach level 3 — see the note above ``AGE_ONLY_FIELDS`` for why that is
+    acceptable rather than a bug to fix.
+
+    A node with no fields (e.g. ``{"genomic": {}}``) is dropped before scoring:
+    it is not a criterion, so an empty ``genomic``/``clinical`` node cannot lift
+    the level on its own — ``[{"genomic": {}}, {"clinical": {"age_numerical":
+    ">=18"}}]`` scores 1, not 3.
     """
     steps = (trial.get("treatment_list") or {}).get("step") or []
     match = (steps[0].get("match") or []) if steps else []

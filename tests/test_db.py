@@ -395,6 +395,7 @@ def test_copy_collection_without_query_copies_everything():
     src, dest = _Src(), _Dest()
     assert copy_collection(src, dest) == 2
     assert src.seen == {}
+    assert dest.docs == [{"_id": 1}, {"_id": 2}]
 
 
 def test_copy_collection_passes_the_query_through():
