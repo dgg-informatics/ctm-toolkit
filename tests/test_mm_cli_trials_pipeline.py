@@ -699,3 +699,70 @@ def test_raw_collection_is_stage_owned():
              ctm_db.DEFAULT_MASTER_COLLECTION]
     assert names == sorted(names), "prefixes must sort into pipeline order"
     assert [n.split("_")[0] for n in names] == ["00", "01", "02", "03", "04", "05", "06"]
+
+
+def _filter_args(**overrides):
+    """A trials-filter Namespace with every argparse-supplied field present."""
+    defaults = {"master_db": None, "master_collection": None,
+                "filtered_collection": None, "run_date": "2026-09-10", "out": None}
+    return argparse.Namespace(**{**defaults, **overrides})
+
+
+def _master_row(entity, nct, inclusion, trial_hash):
+    # trial_key() (used by db.stamp()) requires a non-empty protocol_no for amc
+    # rows — see ctm.trials_lifecycle.trial_key — so amc rows need a real one
+    # here even though no assertion below inspects its value.
+    protocol_no = f"AMC-{trial_hash[:8]}" if entity == "amc" else None
+    return {"entity": entity, "nct_id": nct, "protocol_no": protocol_no,
+            "trial_hash": trial_hash, "status": "open to accrual",
+            "eligibility": {"inclusion": [{"text": t, "sub_criteria": []} for t in inclusion],
+                            "exclusion": []},
+            "treatment_list": {"step": [{"match": []}]},
+            "_summary": {"short_title": "T", "status": [{"value": "open to accrual"}]},
+            "_raw": {"amc_id": "1"}}
+
+
+def test_trials_filter_writes_the_filtered_collection(fake_mongo):
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64),
+                            _master_row("west", "NCT1", ["B"], "w" * 64)]
+    _cmd_trials_filter(_filter_args())
+    written = fake_mongo["written"]
+    assert written["name"] == "07_filtered_trials"
+    assert len(written["docs"]) == 1
+    assert written["docs"][0]["entity"] == "amc"
+    assert written["docs"][0]["entities"] == ["amc", "west"]
+    assert written["docs"][0]["filtered_reason"] == "entity-precedence"
+
+
+def test_trials_filter_reads_the_master_collection(fake_mongo):
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64)]
+    _cmd_trials_filter(_filter_args())
+    assert fake_mongo["read_from"][1] == "06_master_trials"
+
+
+def test_trials_filter_honours_collection_overrides(fake_mongo):
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64)]
+    _cmd_trials_filter(_filter_args(master_collection="06_custom",
+                                    filtered_collection="07_custom"))
+    assert fake_mongo["read_from"][1] == "06_custom"
+    assert fake_mongo["written"]["name"] == "07_custom"
+
+
+def test_trials_filter_exits_on_empty_master(fake_mongo):
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = []
+    with pytest.raises(SystemExit) as exc:
+        _cmd_trials_filter(_filter_args())
+    assert exc.value.code == 1
+
+
+def test_trials_filter_stamps_the_envelope(fake_mongo):
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64)]
+    _cmd_trials_filter(_filter_args())
+    doc = fake_mongo["written"]["docs"][0]
+    assert doc["run_date"] == "2026-09-10"
+    assert doc["processed_with"].startswith("ctm-mm trials-filter ")

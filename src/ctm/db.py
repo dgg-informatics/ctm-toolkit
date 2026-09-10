@@ -32,6 +32,7 @@ from importlib.metadata import version
 #   04_llm_biomarker_trials ctm-llm biomarkers
 #   05_manual_curated_trials  human curation — see MACHINE_WRITTEN below
 #   06_master_trials      ctm-mm trials-merge
+#   07_filtered_trials    ctm-mm trials-filter
 #
 # Named by *stage*, not by what the LLM extracts. Content-based names were
 # considered and rejected: ctm-ctml's SYSTEM_PROMPT already emits eight fields
@@ -49,6 +50,12 @@ LLM_BIOMARKER_COLLECTION = "04_llm_biomarker_trials"
 MANUAL_COLLECTION = "05_manual_curated_trials"
 DEFAULT_MASTER_COLLECTION = "06_master_trials"
 
+# Derived from 06 by `ctm-mm trials-filter`: one document per trial, chosen by
+# source precedence, so matchengine sees each trial once. Regenerable at any
+# time — it holds no curation of its own, only copies of master documents.
+DEFAULT_FILTERED_COLLECTION = "07_filtered_trials"
+FILTERED_COLLECTION = DEFAULT_FILTERED_COLLECTION
+
 # Collections a pipeline stage owns and may therefore destroy and rewrite.
 # 05_manual_curated_trials is deliberately absent: it holds hand-curated work, and
 # a stage that dropped it would silently discard days of a curator's effort with
@@ -65,6 +72,7 @@ MACHINE_WRITTEN = frozenset({
     # into it and add-manual appends, so nothing may drop it. A master under a
     # non-default MONGO_MASTER_COLLECTION name is not droppable via this gate.
     DEFAULT_MASTER_COLLECTION,
+    FILTERED_COLLECTION,
 })
 
 # Document identity is trial_hash — the sha256 of a trial's _raw blob that
@@ -170,6 +178,9 @@ def mongo_config(require_master: bool = False, require_dbname: bool = True) -> d
         "master_dbname": master_dbname,
         "master_collection": (
             os.environ.get("MONGO_MASTER_COLLECTION") or DEFAULT_MASTER_COLLECTION
+        ),
+        "filtered_collection": (
+            os.environ.get("MONGO_FILTERED_COLLECTION") or DEFAULT_FILTERED_COLLECTION
         ),
         "patient_dbname": os.environ.get("MONGO_PATIENT_DBNAME"),
     }
