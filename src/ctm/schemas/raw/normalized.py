@@ -24,43 +24,49 @@ def _normalize_wildtype(v: object) -> str | None:
     return s or None
 
 
-# HGVS protein change, minus its "p." prefix: an amino acid (three-letter form
-# preferred by the alternation, else one-letter or the stop codon "*"), a codon
-# number, then whatever describes the change — "R", "*", "fs*12", "_A750del",
-# "insASV", "=", "ext*17", a closing paren. Requiring the tail to be
-# whitespace-free is what keeps free text ("Exon 19 deletion", "splice site")
-# out; the match is case-sensitive, so "c.2573T>G" and a lowercase "l858r" fall
-# through untouched rather than being mangled into something unmatchable.
+# A protein change, minus its "p." prefix: an amino acid, a codon number, then
+# whatever describes the change — "R", "*", "FS*12", "_A750DEL", "INSASV", "=",
+# "EXT*17", a closing paren. Requiring the tail to be whitespace-free is what
+# tells a real protein change from free text ("EXON 19 DELETION", "SPLICE SITE").
+#
+# The three-letter codes are here for RECOGNITION ONLY — so "Leu858Arg" is
+# understood to be a protein change and isn't reported as junk. They are never
+# translated: it is stored as "p.LEU858ARG", not "p.L858R".
+#
+# IGNORECASE because the check runs before uppercasing, so a curator's lowercase
+# "l858r" is recognized rather than flagged.
 _AMINO_ACID = (
     r"(?:Ala|Arg|Asn|Asp|Cys|Gln|Glu|Gly|His|Ile|Leu|Lys|Met|Phe|Pro|Ser|Thr|"
     r"Trp|Tyr|Val|Ter|Sec|Xaa|[ACDEFGHIKLMNPQRSTVWYBZXU*])"
 )
-_PROTEIN_CHANGE_RE = re.compile(rf"^\(?{_AMINO_ACID}\d+\S*$")
+_PROTEIN_CHANGE_RE = re.compile(rf"^\(?{_AMINO_ACID}\d+\S*$", re.IGNORECASE)
 
 
 def _normalize_protein_change(v: object) -> str | None:
-    """Ensure an HGVS-shaped protein change carries its 'p.' prefix.
+    """Store every protein change as 'p.' + UPPERCASE; blank becomes None.
 
-    matchengine matches TRUE_PROTEIN_CHANGE as an exact string, so a curator's
-    bare 'L858R' silently never matches a 'p.L858R' trial clause. Only values
-    that actually look like a protein change are prefixed; anything else is
-    returned exactly as typed, to be flagged at transform time rather than
-    corrupted (see _is_unprefixed_protein_change).
+    matchengine compares TRUE_PROTEIN_CHANGE as an exact string, so both the
+    prefix and the casing are fixed here regardless of what the curator typed —
+    'l858r', 'L858R' and 'P.L858R' all land on 'p.L858R'.
+
+    A value that isn't shaped like a protein change is prefixed all the same
+    (free text becomes 'p.EXON 19 DELETION'); it can never match, so it is
+    reported at transform time instead — see _is_malformed_protein_change.
     """
     if v is None:
         return None
     s = str(v).strip()
     if not s:
         return None
-    if s[:2] in ("p.", "P."):
-        return "p." + s[2:]
-    return f"p.{s}" if _PROTEIN_CHANGE_RE.match(s) else s
+    if s[:2].upper() == "P.":
+        s = s[2:]
+    return f"p.{s.upper()}"
 
 
-def _is_unprefixed_protein_change(v: str | None) -> bool:
-    """True for a stored protein change that can never match — anything
-    non-blank that _normalize_protein_change could not resolve to 'p.…'."""
-    return bool(v) and not v.startswith("p.")
+def _is_malformed_protein_change(v: str | None) -> bool:
+    """True for a stored protein change whose payload isn't shaped like one —
+    it will never match, so the curator needs to hear about it."""
+    return bool(v) and not _PROTEIN_CHANGE_RE.match(v.removeprefix("p."))
 
 
 class Patient(BaseModel):
