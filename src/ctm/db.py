@@ -200,15 +200,16 @@ def get_database(config: dict, db_name: str | None = None):
     return get_client(config)[db_name or config["dbname"]]
 
 
-def copy_collection(source, dest) -> int:
-    """Copy every document (preserving ``_id``) from the ``source`` collection into
-    ``dest``, replacing dest's contents. Returns the count.
+def copy_collection(source, dest, query=None) -> int:
+    """Copy documents (preserving ``_id``) from ``source`` into ``dest``, replacing
+    dest's contents. ``query`` restricts what is copied; None copies everything.
+    Returns the count.
 
     Preserving ``_id`` is the whole point: a genomic doc's ``CLINICAL_ID`` points at
     its clinical doc's ``_id`` (set by ``ctm-mm load``), so both must be copied with
     their ids intact for the link to survive into the assembled match database.
     """
-    docs = list(source.find({}))
+    docs = list(source.find(query or {}))
     dest.drop()
     if docs:
         dest.insert_many(docs)

@@ -147,6 +147,67 @@ def _grouped(rows: list[dict]) -> dict[str, list[dict]]:
     return {key: groups[key] for key in sorted(groups)}
 
 
+# Fields that do not make a trial specific. A trial matching on age alone matches
+# nearly every adult patient, so it is separated from trials with real criteria.
+# An ALLOWLIST rather than a list of "specific" fields: CtmlStep.match is list[Any]
+# and hand curation can introduce fields the LLM never emits, so anything
+# unrecognised must make a trial MORE specific, never less — otherwise a genuinely
+# specific trial would be mislabelled age-only and silently dropped from a filtered run.
+AGE_ONLY_FIELDS = frozenset({"age_numerical"})
+
+_MATCH_WRAPPERS = ("and", "or")
+
+
+def _match_leaves(match) -> list[tuple[str, object]]:
+    """Every non-wrapper (key, value) pair in a match tree, at any depth.
+
+    The tree nests: measured on the master, 250 clinical clauses sit one level down
+    inside `or` nodes and one genomic clause sits two levels down. A classifier that
+    read only the top level would mislabel all of them.
+    """
+    leaves: list[tuple[str, object]] = []
+
+    def walk(node) -> None:
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+            return
+        if not isinstance(node, dict):
+            return
+        for key, value in node.items():
+            if key in _MATCH_WRAPPERS:
+                walk(value)
+            else:
+                leaves.append((key, value))
+
+    walk(match)
+    return leaves
+
+
+def match_level(trial: dict) -> int:
+    """How specific a trial's match clause is: 0 uncurated, 1 age-only, 2 clinical, 3 genomic.
+
+    Reads only ``treatment_list.step[0].match`` — the curated match clause lives
+    nowhere else. Genomic presence is sufficient for 3 regardless of what else the
+    clause carries.
+    """
+    steps = (trial.get("treatment_list") or {}).get("step") or []
+    match = (steps[0].get("match") or []) if steps else []
+
+    # A node expressing no fields is not a criterion, so it cannot lift the level.
+    leaves = [(key, value) for key, value in _match_leaves(match) if value]
+    if not leaves:
+        return 0
+    if any(key == "genomic" for key, _ in leaves):
+        return 3
+    for key, value in leaves:
+        if key != "clinical":
+            return 2
+        if set(value) - AGE_ONLY_FIELDS:
+            return 2
+    return 1
+
+
 def filter_trials(rows: list[dict]) -> list[dict]:
     """The subset of master rows that represents each trial exactly once.
 
@@ -171,8 +232,8 @@ def filter_trials(rows: list[dict]) -> list[dict]:
     test.
 
     Each returned document is its source row verbatim plus ``entities`` (every
-    contributing row's entity, sorted, duplicates retained) and
-    ``filtered_reason``.
+    contributing row's entity, sorted, duplicates retained), ``filtered_reason``,
+    and ``match_level`` (see ``match_level`` above).
     """
     filtered = []
     for group in _grouped(rows).values():
@@ -199,5 +260,6 @@ def filter_trials(rows: list[dict]) -> list[dict]:
                 reason = "same-nct-unique-eligibility"
             else:
                 reason = "entity-precedence"
-            filtered.append({**members[0], "entities": entities, "filtered_reason": reason})
+            filtered.append({**members[0], "entities": entities, "filtered_reason": reason,
+                             "match_level": match_level(members[0])})
     return filtered

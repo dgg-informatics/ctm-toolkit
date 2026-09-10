@@ -289,6 +289,12 @@ def main() -> None:
     p_match.add_argument("--run", action="store_true",
                          help="Also run matchengine against the assembled db (uses .env-"
                               "derived SECRETS_JSON)")
+    p_match.add_argument("--min-match-level", dest="min_match_level", type=int,
+                         choices=[0, 1, 2, 3], default=0, metavar="N",
+                         help="Only match trials whose match clause is at least this "
+                              "specific: 0 all, 1 any criteria, 2 clinical beyond age, "
+                              "3 genomic. Requires a collection carrying match_level "
+                              "(07_filtered_trials)")
 
     args = parser.parse_args()
 
@@ -1064,6 +1070,7 @@ def _cmd_match_prep(args) -> None:
     from ctm.match_prep import (
         DEFAULT_CLINICAL_COLLECTION,
         DEFAULT_GENOMIC_COLLECTION,
+        match_level_query,
         matchengine_command,
         resolve_trial_collection,
         synthesize_secrets,
@@ -1092,8 +1099,21 @@ def _cmd_match_prep(args) -> None:
             config, args.trial_collection,
             set(client[trial_db].list_collection_names()),
         )
-        n_trial = ctm_db.copy_collection(client[trial_db][trial_coll], match_db["trial"])
+        source = client[trial_db][trial_coll]
+        trial_query = match_level_query(args.min_match_level)
+        if trial_query is not None:
+            # Without this guard, filtering a collection that doesn't carry
+            # match_level (e.g. 06_master_trials) would silently copy zero trials
+            # and produce an empty match run with no explanation.
+            if source.count_documents({"match_level": {"$exists": True}}, limit=1) == 0:
+                print(f"Error: --min-match-level {args.min_match_level} needs match_level, "
+                      f"which {trial_db}.{trial_coll} does not carry. "
+                      "Run ctm-mm trials-filter, or drop the flag.", file=sys.stderr)
+                sys.exit(1)
+        n_trial = ctm_db.copy_collection(source, match_db["trial"], trial_query)
         trial_src = f"{trial_db}.{trial_coll}"
+        if trial_query is not None:
+            trial_src += f" (match_level >= {args.min_match_level})"
     print(f"trial:    {n_trial} from {trial_src}", file=sys.stderr)
 
     # ── clinical + genomic → match_db (Mongo patient db, or a one-off bundle) ──
