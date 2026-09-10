@@ -1,0 +1,1308 @@
+﻿company,test,biomarker,variant_category,production_ready
+caris,mi_cancer_seek,ABL1 ,MUTATION,TRUE
+caris,mi_cancer_seek,ACVR1 ,MUTATION,TRUE
+caris,mi_cancer_seek,AIP ,MUTATION,TRUE
+caris,mi_cancer_seek,AKT1 ,MUTATION,TRUE
+caris,mi_cancer_seek,AKT2 ,MUTATION,TRUE
+caris,mi_cancer_seek,AKT3 ,MUTATION,TRUE
+caris,mi_cancer_seek,ALK ,MUTATION,TRUE
+caris,mi_cancer_seek,AMER1 ,MUTATION,TRUE
+caris,mi_cancer_seek,APC ,MUTATION,TRUE
+caris,mi_cancer_seek,AR ,MUTATION,TRUE
+caris,mi_cancer_seek,ARAF ,MUTATION,TRUE
+caris,mi_cancer_seek,ARID1A ,MUTATION,TRUE
+caris,mi_cancer_seek,ARID2 ,MUTATION,TRUE
+caris,mi_cancer_seek,ASXL1 ,MUTATION,TRUE
+caris,mi_cancer_seek,ATM ,MUTATION,TRUE
+caris,mi_cancer_seek,ATRX ,MUTATION,TRUE
+caris,mi_cancer_seek,AXIN2 ,MUTATION,TRUE
+caris,mi_cancer_seek,B2M ,MUTATION,TRUE
+caris,mi_cancer_seek,BAP1 ,MUTATION,TRUE
+caris,mi_cancer_seek,BARD1 ,MUTATION,TRUE
+caris,mi_cancer_seek,BCL2 ,MUTATION,TRUE
+caris,mi_cancer_seek,BCL9 ,MUTATION,TRUE
+caris,mi_cancer_seek,BCOR ,MUTATION,TRUE
+caris,mi_cancer_seek,BLM ,MUTATION,TRUE
+caris,mi_cancer_seek,BMPR1A ,MUTATION,TRUE
+caris,mi_cancer_seek,BRAF ,MUTATION,TRUE
+caris,mi_cancer_seek,BRCA1 ,MUTATION,TRUE
+caris,mi_cancer_seek,BRCA2 ,MUTATION,TRUE
+caris,mi_cancer_seek,BRIP1 ,MUTATION,TRUE
+caris,mi_cancer_seek,BTK ,MUTATION,TRUE
+caris,mi_cancer_seek,CALR ,MUTATION,TRUE
+caris,mi_cancer_seek,CARD11 ,MUTATION,TRUE
+caris,mi_cancer_seek,CBFB ,MUTATION,TRUE
+caris,mi_cancer_seek,CCND1 ,MUTATION,TRUE
+caris,mi_cancer_seek,CCND2 ,MUTATION,TRUE
+caris,mi_cancer_seek,CCND3 ,MUTATION,TRUE
+caris,mi_cancer_seek,CD79B ,MUTATION,TRUE
+caris,mi_cancer_seek,CDC73 ,MUTATION,TRUE
+caris,mi_cancer_seek,CDH1 ,MUTATION,TRUE
+caris,mi_cancer_seek,CDK12 ,MUTATION,TRUE
+caris,mi_cancer_seek,CDK4 ,MUTATION,TRUE
+caris,mi_cancer_seek,CDKN1B ,MUTATION,TRUE
+caris,mi_cancer_seek,CDKN2A ,MUTATION,TRUE
+caris,mi_cancer_seek,CHEK1 ,MUTATION,TRUE
+caris,mi_cancer_seek,CHEK2 ,MUTATION,TRUE
+caris,mi_cancer_seek,CIC ,MUTATION,TRUE
+caris,mi_cancer_seek,CREBBP ,MUTATION,TRUE
+caris,mi_cancer_seek,CSF1R ,MUTATION,TRUE
+caris,mi_cancer_seek,CTCF ,MUTATION,TRUE
+caris,mi_cancer_seek,CTNNA1 ,MUTATION,TRUE
+caris,mi_cancer_seek,CTNNB1 ,MUTATION,TRUE
+caris,mi_cancer_seek,CXCR4 ,MUTATION,TRUE
+caris,mi_cancer_seek,CYLD ,MUTATION,TRUE
+caris,mi_cancer_seek,DDR2 ,MUTATION,TRUE
+caris,mi_cancer_seek,DICER1 ,MUTATION,TRUE
+caris,mi_cancer_seek,DNMT3A ,MUTATION,TRUE
+caris,mi_cancer_seek,EGFR ,MUTATION,TRUE
+caris,mi_cancer_seek,EP300 ,MUTATION,TRUE
+caris,mi_cancer_seek,EPHA2 ,MUTATION,TRUE
+caris,mi_cancer_seek,ERBB2 ,MUTATION,TRUE
+caris,mi_cancer_seek,ERBB3 ,MUTATION,TRUE
+caris,mi_cancer_seek,ERBB4 ,MUTATION,TRUE
+caris,mi_cancer_seek,ERCC2 ,MUTATION,TRUE
+caris,mi_cancer_seek,ESR1 ,MUTATION,TRUE
+caris,mi_cancer_seek,EZH2 ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCA ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCB ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCC ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCD2 ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCE ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCF ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCG ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCI ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCL ,MUTATION,TRUE
+caris,mi_cancer_seek,FANCM ,MUTATION,TRUE
+caris,mi_cancer_seek,FAS ,MUTATION,TRUE
+caris,mi_cancer_seek,FAT1 ,MUTATION,TRUE
+caris,mi_cancer_seek,FBXW7 ,MUTATION,TRUE
+caris,mi_cancer_seek,FGFR1 ,MUTATION,TRUE
+caris,mi_cancer_seek,FGFR2 ,MUTATION,TRUE
+caris,mi_cancer_seek,FGFR3 ,MUTATION,TRUE
+caris,mi_cancer_seek,FGFR4 ,MUTATION,TRUE
+caris,mi_cancer_seek,FH ,MUTATION,TRUE
+caris,mi_cancer_seek,FLCN ,MUTATION,TRUE
+caris,mi_cancer_seek,FLT1 ,MUTATION,TRUE
+caris,mi_cancer_seek,FLT3 ,MUTATION,TRUE
+caris,mi_cancer_seek,FOXA1 ,MUTATION,TRUE
+caris,mi_cancer_seek,FOXL2 ,MUTATION,TRUE
+caris,mi_cancer_seek,FUBP1 ,MUTATION,TRUE
+caris,mi_cancer_seek,GATA3 ,MUTATION,TRUE
+caris,mi_cancer_seek,GNA11 ,MUTATION,TRUE
+caris,mi_cancer_seek,GNA13 ,MUTATION,TRUE
+caris,mi_cancer_seek,GNAQ ,MUTATION,TRUE
+caris,mi_cancer_seek,GNAS ,MUTATION,TRUE
+caris,mi_cancer_seek,H3F3A ,MUTATION,TRUE
+caris,mi_cancer_seek,H3F3B ,MUTATION,TRUE
+caris,mi_cancer_seek,HIST1H3B ,MUTATION,TRUE
+caris,mi_cancer_seek,HNF1A ,MUTATION,TRUE
+caris,mi_cancer_seek,HOXB13 ,MUTATION,TRUE
+caris,mi_cancer_seek,HRAS ,MUTATION,TRUE
+caris,mi_cancer_seek,IDH1 ,MUTATION,TRUE
+caris,mi_cancer_seek,IDH2 ,MUTATION,TRUE
+caris,mi_cancer_seek,IRF4 ,MUTATION,TRUE
+caris,mi_cancer_seek,JAK1 ,MUTATION,TRUE
+caris,mi_cancer_seek,JAK2 ,MUTATION,TRUE
+caris,mi_cancer_seek,JAK3 ,MUTATION,TRUE
+caris,mi_cancer_seek,KDM5C ,MUTATION,TRUE
+caris,mi_cancer_seek,KDM6A ,MUTATION,TRUE
+caris,mi_cancer_seek,KDR ,MUTATION,TRUE
+caris,mi_cancer_seek,KEAP1 ,MUTATION,TRUE
+caris,mi_cancer_seek,KIT ,MUTATION,TRUE
+caris,mi_cancer_seek,KLF4 ,MUTATION,TRUE
+caris,mi_cancer_seek,KMT2A ,MUTATION,TRUE
+caris,mi_cancer_seek,KMT2C ,MUTATION,TRUE
+caris,mi_cancer_seek,KMT2D ,MUTATION,TRUE
+caris,mi_cancer_seek,KRAS ,MUTATION,TRUE
+caris,mi_cancer_seek,LZTR1 ,MUTATION,TRUE
+caris,mi_cancer_seek,MAP2K1 ,MUTATION,TRUE
+caris,mi_cancer_seek,MAP2K2 ,MUTATION,TRUE
+caris,mi_cancer_seek,MAP2K4 ,MUTATION,TRUE
+caris,mi_cancer_seek,MAP3K1 ,MUTATION,TRUE
+caris,mi_cancer_seek,MAPK1 ,MUTATION,TRUE
+caris,mi_cancer_seek,MAX ,MUTATION,TRUE
+caris,mi_cancer_seek,MED12 ,MUTATION,TRUE
+caris,mi_cancer_seek,MEF2B ,MUTATION,TRUE
+caris,mi_cancer_seek,MEN1 ,MUTATION,TRUE
+caris,mi_cancer_seek,MET ,MUTATION,TRUE
+caris,mi_cancer_seek,MITF ,MUTATION,TRUE
+caris,mi_cancer_seek,MLH1 ,MUTATION,TRUE
+caris,mi_cancer_seek,MLH3 ,MUTATION,TRUE
+caris,mi_cancer_seek,MPL ,MUTATION,TRUE
+caris,mi_cancer_seek,MRE11 ,MUTATION,TRUE
+caris,mi_cancer_seek,MSH2 ,MUTATION,TRUE
+caris,mi_cancer_seek,MSH3 ,MUTATION,TRUE
+caris,mi_cancer_seek,MSH6 ,MUTATION,TRUE
+caris,mi_cancer_seek,MTOR ,MUTATION,TRUE
+caris,mi_cancer_seek,MUTYH ,MUTATION,TRUE
+caris,mi_cancer_seek,MYC ,MUTATION,TRUE
+caris,mi_cancer_seek,MYCN ,MUTATION,TRUE
+caris,mi_cancer_seek,MYD88 ,MUTATION,TRUE
+caris,mi_cancer_seek,NBN ,MUTATION,TRUE
+caris,mi_cancer_seek,NF1 ,MUTATION,TRUE
+caris,mi_cancer_seek,NF2 ,MUTATION,TRUE
+caris,mi_cancer_seek,NFE2L2 ,MUTATION,TRUE
+caris,mi_cancer_seek,NFKBIA ,MUTATION,TRUE
+caris,mi_cancer_seek,NOTCH1 ,MUTATION,TRUE
+caris,mi_cancer_seek,NPM1 ,MUTATION,TRUE
+caris,mi_cancer_seek,NRAS ,MUTATION,TRUE
+caris,mi_cancer_seek,NSD1 ,MUTATION,TRUE
+caris,mi_cancer_seek,NSD2 ,MUTATION,TRUE
+caris,mi_cancer_seek,NTHL1 ,MUTATION,TRUE
+caris,mi_cancer_seek,NTRK1 ,MUTATION,TRUE
+caris,mi_cancer_seek,NTRK2 ,MUTATION,TRUE
+caris,mi_cancer_seek,NTRK3 ,MUTATION,TRUE
+caris,mi_cancer_seek,PALB2 ,MUTATION,TRUE
+caris,mi_cancer_seek,PBRM1 ,MUTATION,TRUE
+caris,mi_cancer_seek,PDGFRA ,MUTATION,TRUE
+caris,mi_cancer_seek,PDGFRB ,MUTATION,TRUE
+caris,mi_cancer_seek,PIK3CA ,MUTATION,TRUE
+caris,mi_cancer_seek,PIK3CB ,MUTATION,TRUE
+caris,mi_cancer_seek,PIK3R1 ,MUTATION,TRUE
+caris,mi_cancer_seek,PIK3R2 ,MUTATION,TRUE
+caris,mi_cancer_seek,PIM1 ,MUTATION,TRUE
+caris,mi_cancer_seek,PMS2 ,MUTATION,TRUE
+caris,mi_cancer_seek,POLD1 ,MUTATION,TRUE
+caris,mi_cancer_seek,POLE ,MUTATION,TRUE
+caris,mi_cancer_seek,POT1 ,MUTATION,TRUE
+caris,mi_cancer_seek,PPP2R1A ,MUTATION,TRUE
+caris,mi_cancer_seek,PPP2R2A ,MUTATION,TRUE
+caris,mi_cancer_seek,PRDM1 ,MUTATION,TRUE
+caris,mi_cancer_seek,PRKACA ,MUTATION,TRUE
+caris,mi_cancer_seek,PRKAR1A ,MUTATION,TRUE
+caris,mi_cancer_seek,PRKDC ,MUTATION,TRUE
+caris,mi_cancer_seek,PTCH1 ,MUTATION,TRUE
+caris,mi_cancer_seek,PTEN ,MUTATION,TRUE
+caris,mi_cancer_seek,PTPN11 ,MUTATION,TRUE
+caris,mi_cancer_seek,RAC1 ,MUTATION,TRUE
+caris,mi_cancer_seek,RAD50 ,MUTATION,TRUE
+caris,mi_cancer_seek,RAD51B ,MUTATION,TRUE
+caris,mi_cancer_seek,RAD51C ,MUTATION,TRUE
+caris,mi_cancer_seek,RAD51D ,MUTATION,TRUE
+caris,mi_cancer_seek,RAD54L ,MUTATION,TRUE
+caris,mi_cancer_seek,RAF1 ,MUTATION,TRUE
+caris,mi_cancer_seek,RASA1 ,MUTATION,TRUE
+caris,mi_cancer_seek,RB1 ,MUTATION,TRUE
+caris,mi_cancer_seek,RET ,MUTATION,TRUE
+caris,mi_cancer_seek,RHOA ,MUTATION,TRUE
+caris,mi_cancer_seek,RNF43 ,MUTATION,TRUE
+caris,mi_cancer_seek,ROS1 ,MUTATION,TRUE
+caris,mi_cancer_seek,RUNX1 ,MUTATION,TRUE
+caris,mi_cancer_seek,SDHA ,MUTATION,TRUE
+caris,mi_cancer_seek,SDHAF2 ,MUTATION,TRUE
+caris,mi_cancer_seek,SDHB ,MUTATION,TRUE
+caris,mi_cancer_seek,SDHC ,MUTATION,TRUE
+caris,mi_cancer_seek,SDHD ,MUTATION,TRUE
+caris,mi_cancer_seek,SETD2 ,MUTATION,TRUE
+caris,mi_cancer_seek,SF3B1 ,MUTATION,TRUE
+caris,mi_cancer_seek,SMAD2 ,MUTATION,TRUE
+caris,mi_cancer_seek,SMAD4 ,MUTATION,TRUE
+caris,mi_cancer_seek,SMARCA4 ,MUTATION,TRUE
+caris,mi_cancer_seek,SMARCB1 ,MUTATION,TRUE
+caris,mi_cancer_seek,SMARCE1 ,MUTATION,TRUE
+caris,mi_cancer_seek,SMO ,MUTATION,TRUE
+caris,mi_cancer_seek,SOCS1 ,MUTATION,TRUE
+caris,mi_cancer_seek,SOS1 ,MUTATION,TRUE
+caris,mi_cancer_seek,SPEN ,MUTATION,TRUE
+caris,mi_cancer_seek,SPOP ,MUTATION,TRUE
+caris,mi_cancer_seek,SRC ,MUTATION,TRUE
+caris,mi_cancer_seek,STAG2 ,MUTATION,TRUE
+caris,mi_cancer_seek,STAT3,MUTATION,TRUE
+caris,mi_cancer_seek,STK11,MUTATION,TRUE
+caris,mi_cancer_seek,SUFU,MUTATION,TRUE
+caris,mi_cancer_seek,TCF7L2,MUTATION,TRUE
+caris,mi_cancer_seek,TERT,MUTATION,TRUE
+caris,mi_cancer_seek,TET2,MUTATION,TRUE
+caris,mi_cancer_seek,TMEM127,MUTATION,TRUE
+caris,mi_cancer_seek,TNFAIP3,MUTATION,TRUE
+caris,mi_cancer_seek,TNFRSF14,MUTATION,TRUE
+caris,mi_cancer_seek,TP53,MUTATION,TRUE
+caris,mi_cancer_seek,TRAF7,MUTATION,TRUE
+caris,mi_cancer_seek,TSC1,MUTATION,TRUE
+caris,mi_cancer_seek,TSC2,MUTATION,TRUE
+caris,mi_cancer_seek,U2AF1,MUTATION,TRUE
+caris,mi_cancer_seek,VHL,MUTATION,TRUE
+caris,mi_cancer_seek,WRN,MUTATION,TRUE
+caris,mi_cancer_seek,WT1,MUTATION,TRUE
+caris,mi_cancer_seek,XPO1,MUTATION,TRUE
+caris,mi_cancer_seek,XRCC1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,ANKRD26,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,ASXL1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,BCOR,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,BCORL1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,BRAF,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,CALR,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,CEBPA,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,CSF3R,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,DDX41,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,DNMT3A,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,ELANE,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,ETNK1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,ETV6,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,EZH2,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,FLT3,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,GATA2,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,IDH1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,IDH2,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,JAK2,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,KDM6A,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,KIT,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,KRAS,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,NRAS,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,PHF6,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,PPM1D,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,PTPN11,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,RAD21,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,RUNX1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,SETBP1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,SH2B3,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,SF3B1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,SMC3,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,SRSF2,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,STAG2,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,STAT3,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,TERT,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,TET2,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,TP53,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,U2AF1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,UBA1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,WT1,MUTATION,TRUE
+mayo_clinic,comprehensive_oncoheme,ZRSR2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,AIP,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,ALK,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,APC,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,ATM,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,BAP1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,BARD1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,BMPR1A,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,BRCA1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,BRCA2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,BRIP1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CDC73,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CDH1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CDK4,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CDKN1B,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CDKN2A,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CEBPA,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CHEK2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,DICER1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,ETV6,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,FH,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,FLCN,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,GATA2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,LZTR1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MAX,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MEN1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MET,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MLH1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MSH2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MSH6,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MUTYH,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,NF1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,NF2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,NTHL1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PALB2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PHOX2B,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PMS2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,POT1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PRKAR1A,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PTCH1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PTEN,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,RAD51C,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,RAD51D,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,RB1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,RET,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,RPS20,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,RUNX1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SDHA,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SDHAF2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SDHB,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SDHC,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SDHD,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SMAD4,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SMARCA4,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SMARCB1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SMARCE1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,STK11,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SUFU,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,TMEM127,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,TP53,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,TSC1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,TSC2,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,VHL,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,WT1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,AXIN1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CFTR,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CPA1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CTNNA1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,CTRC,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,DDX41,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,EGFR,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,HOXB13,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,KIT,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MBD4,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MITF,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MLH3,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,MSH3,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PDGFRA,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,POLD1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,POLE,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,PRSS1,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,SPINK,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,EPCAM,MUTATION,TRUE
+ambry,cancernext_expanded_rnainsight,GREM1,MUTATION,TRUE
+tempus,xt_ cdx,ABCB1,MUTATION,TRUE
+tempus,xt_ cdx,ABCC3,MUTATION,TRUE
+tempus,xt_ cdx,ABL1,MUTATION,TRUE
+tempus,xt_ cdx,ABL2,MUTATION,TRUE
+tempus,xt_ cdx,ABRAXAS1,MUTATION,TRUE
+tempus,xt_ cdx,ACTA2,MUTATION,TRUE
+tempus,xt_ cdx,ACVR1(ALK2),MUTATION,TRUE
+tempus,xt_ cdx,ACVR1B,MUTATION,TRUE
+tempus,xt_ cdx,AGO1,MUTATION,TRUE
+tempus,xt_ cdx,AJUBA,MUTATION,TRUE
+tempus,xt_ cdx,AKT1,MUTATION,TRUE
+tempus,xt_ cdx,AKT2,MUTATION,TRUE
+tempus,xt_ cdx,AKT3,MUTATION,TRUE
+tempus,xt_ cdx,ALK,MUTATION,TRUE
+tempus,xt_ cdx,AMER1,MUTATION,TRUE
+tempus,xt_ cdx,APC,MUTATION,TRUE
+tempus,xt_ cdx,APLNR,MUTATION,TRUE
+tempus,xt_ cdx,APOB,MUTATION,TRUE
+tempus,xt_ cdx,AR,MUTATION,TRUE
+tempus,xt_ cdx,ARAF,MUTATION,TRUE
+tempus,xt_ cdx,ARHGAP26,MUTATION,TRUE
+tempus,xt_ cdx,ARHGAP35,MUTATION,TRUE
+tempus,xt_ cdx,ARID1A,MUTATION,TRUE
+tempus,xt_ cdx,ARID1B,MUTATION,TRUE
+tempus,xt_ cdx,ARID2,MUTATION,TRUE
+tempus,xt_ cdx,ARID5B,MUTATION,TRUE
+tempus,xt_ cdx,ASNS,MUTATION,TRUE
+tempus,xt_ cdx,ASPSCR1,MUTATION,TRUE
+tempus,xt_ cdx,ASXL1,MUTATION,TRUE
+tempus,xt_ cdx,ATIC,MUTATION,TRUE
+tempus,xt_ cdx,ATM,MUTATION,TRUE
+tempus,xt_ cdx,ATP7B,MUTATION,TRUE
+tempus,xt_ cdx,BRAF,MUTATION,TRUE
+tempus,xt_ cdx,BRCA1,MUTATION,TRUE
+tempus,xt_ cdx,BRCA2,MUTATION,TRUE
+tempus,xt_ cdx,BRD4,MUTATION,TRUE
+tempus,xt_ cdx,BRIP1,MUTATION,TRUE
+tempus,xt_ cdx,BTG1,MUTATION,TRUE
+tempus,xt_ cdx,BTK,MUTATION,TRUE
+tempus,xt_ cdx,BUB1B,MUTATION,TRUE
+tempus,xt_ cdx,C11orf65,MUTATION,TRUE
+tempus,xt_ cdx,C3orf70,MUTATION,TRUE
+tempus,xt_ cdx,C8orf34,MUTATION,TRUE
+tempus,xt_ cdx,CALR,MUTATION,TRUE
+tempus,xt_ cdx,CARD11,MUTATION,TRUE
+tempus,xt_ cdx,CARM1,MUTATION,TRUE
+tempus,xt_ cdx,CASP8,MUTATION,TRUE
+tempus,xt_ cdx,CASR,MUTATION,TRUE
+tempus,xt_ cdx,CBFB,MUTATION,TRUE
+tempus,xt_ cdx,CBL,MUTATION,TRUE
+tempus,xt_ cdx,CBLB,MUTATION,TRUE
+tempus,xt_ cdx,CBLC,MUTATION,TRUE
+tempus,xt_ cdx,CBR3,MUTATION,TRUE
+tempus,xt_ cdx,CCDC6,MUTATION,TRUE
+tempus,xt_ cdx,CCND1,MUTATION,TRUE
+tempus,xt_ cdx,CCND2,MUTATION,TRUE
+tempus,xt_ cdx,CCND3,MUTATION,TRUE
+tempus,xt_ cdx,CCNE1,MUTATION,TRUE
+tempus,xt_ cdx,CD19,MUTATION,TRUE
+tempus,xt_ cdx,CD22,MUTATION,TRUE
+tempus,xt_ cdx,CD274(PDL1),MUTATION,TRUE
+tempus,xt_ cdx,CD40,MUTATION,TRUE
+tempus,xt_ cdx,CD70,MUTATION,TRUE
+tempus,xt_ cdx,CD79A,MUTATION,TRUE
+tempus,xt_ cdx,CD79B,MUTATION,TRUE
+tempus,xt_ cdx,CDC73,MUTATION,TRUE
+tempus,xt_ cdx,CDH1,MUTATION,TRUE
+tempus,xt_ cdx,CDK12,MUTATION,TRUE
+tempus,xt_ cdx,CDK4,MUTATION,TRUE
+tempus,xt_ cdx,CDK6,MUTATION,TRUE
+tempus,xt_ cdx,CDK8,MUTATION,TRUE
+tempus,xt_ cdx,CDKN1A,MUTATION,TRUE
+tempus,xt_ cdx,CDKN1B,MUTATION,TRUE
+tempus,xt_ cdx,CDKN1C,MUTATION,TRUE
+tempus,xt_ cdx,CDKN2A,MUTATION,TRUE
+tempus,xt_ cdx,CDKN2B,MUTATION,TRUE
+tempus,xt_ cdx,CDKN2C,MUTATION,TRUE
+tempus,xt_ cdx,CEBPA,MUTATION,TRUE
+tempus,xt_ cdx,CEP57,MUTATION,TRUE
+tempus,xt_ cdx,CFTR,MUTATION,TRUE
+tempus,xt_ cdx,CXCR4,MUTATION,TRUE
+tempus,xt_ cdx,CYLD,MUTATION,TRUE
+tempus,xt_ cdx,CYSLTR2,MUTATION,TRUE
+tempus,xt_ cdx,CYP1B1,MUTATION,TRUE
+tempus,xt_ cdx,CYP2D6,MUTATION,TRUE
+tempus,xt_ cdx,CYP3A5,MUTATION,TRUE
+tempus,xt_ cdx,DAXX,MUTATION,TRUE
+tempus,xt_ cdx,DDB2,MUTATION,TRUE
+tempus,xt_ cdx,DDX3X,MUTATION,TRUE
+tempus,xt_ cdx,DDR2,MUTATION,TRUE
+tempus,xt_ cdx,DICER1,MUTATION,TRUE
+tempus,xt_ cdx,DICER2,MUTATION,TRUE
+tempus,xt_ cdx,DIRC2,MUTATION,TRUE
+tempus,xt_ cdx,DIS3,MUTATION,TRUE
+tempus,xt_ cdx,DIS3L2,MUTATION,TRUE
+tempus,xt_ cdx,DKC1,MUTATION,TRUE
+tempus,xt_ cdx,DNM2,MUTATION,TRUE
+tempus,xt_ cdx,DNMT3A,MUTATION,TRUE
+tempus,xt_ cdx,DOT1L,MUTATION,TRUE
+tempus,xt_ cdx,DPYD,MUTATION,TRUE
+tempus,xt_ cdx,DYNC2H1,MUTATION,TRUE
+tempus,xt_ cdx,EBF1,MUTATION,TRUE
+tempus,xt_ cdx,ECT2L,MUTATION,TRUE
+tempus,xt_ cdx,EGF,MUTATION,TRUE
+tempus,xt_ cdx,EGFR,MUTATION,TRUE
+tempus,xt_ cdx,EGLN1,MUTATION,TRUE
+tempus,xt_ cdx,EIF1AX,MUTATION,TRUE
+tempus,xt_ cdx,ELF3,MUTATION,TRUE
+tempus,xt_ cdx,ELOC(TCEB1),MUTATION,TRUE
+tempus,xt_ cdx,EMSY,MUTATION,TRUE
+tempus,xt_ cdx,ENG,MUTATION,TRUE
+tempus,xt_ cdx,EP300,MUTATION,TRUE
+tempus,xt_ cdx,EPCAM,MUTATION,TRUE
+tempus,xt_ cdx,EPHA2,MUTATION,TRUE
+tempus,xt_ cdx,EPHA7,MUTATION,TRUE
+tempus,xt_ cdx,EPHB1,MUTATION,TRUE
+tempus,xt_ cdx,EPHB2,MUTATION,TRUE
+tempus,xt_ cdx,EPOR,MUTATION,TRUE
+tempus,xt_ cdx,ERBB2(HER2),MUTATION,TRUE
+tempus,xt_ cdx,ERBB3,MUTATION,TRUE
+tempus,xt_ cdx,ERBB4,MUTATION,TRUE
+tempus,xt_ cdx,ERCC1,MUTATION,TRUE
+tempus,xt_ cdx,ERCC2,MUTATION,TRUE
+tempus,xt_ cdx,ERCC3,MUTATION,TRUE
+tempus,xt_ cdx,ERCC4,MUTATION,TRUE
+tempus,xt_ cdx,ERCC5,MUTATION,TRUE
+tempus,xt_ cdx,ERCC6,MUTATION,TRUE
+tempus,xt_ cdx,ERG,MUTATION,TRUE
+tempus,xt_ cdx,ERRFI1,MUTATION,TRUE
+tempus,xt_ cdx,ESR1,MUTATION,TRUE
+tempus,xt_ cdx,FLCN,MUTATION,TRUE
+tempus,xt_ cdx,FNTB,MUTATION,TRUE
+tempus,xt_ cdx,FOXA1,MUTATION,TRUE
+tempus,xt_ cdx,FOXL2,MUTATION,TRUE
+tempus,xt_ cdx,FOXO1,MUTATION,TRUE
+tempus,xt_ cdx,FOXO3,MUTATION,TRUE
+tempus,xt_ cdx,FOXP1,MUTATION,TRUE
+tempus,xt_ cdx,FOXQ1,MUTATION,TRUE
+tempus,xt_ cdx,FRS2,MUTATION,TRUE
+tempus,xt_ cdx,FUBP1,MUTATION,TRUE
+tempus,xt_ cdx,FUS,MUTATION,TRUE
+tempus,xt_ cdx,G6PD,MUTATION,TRUE
+tempus,xt_ cdx,GABRA6,MUTATION,TRUE
+tempus,xt_ cdx,GALNT12,MUTATION,TRUE
+tempus,xt_ cdx,GATA1,MUTATION,TRUE
+tempus,xt_ cdx,GATA2,MUTATION,TRUE
+tempus,xt_ cdx,GATA3,MUTATION,TRUE
+tempus,xt_ cdx,GATA4,MUTATION,TRUE
+tempus,xt_ cdx,GATA6,MUTATION,TRUE
+tempus,xt_ cdx,GEN1,MUTATION,TRUE
+tempus,xt_ cdx,GLI1,MUTATION,TRUE
+tempus,xt_ cdx,GLI2,MUTATION,TRUE
+tempus,xt_ cdx,GNA11,MUTATION,TRUE
+tempus,xt_ cdx,GNA13,MUTATION,TRUE
+tempus,xt_ cdx,GNAS,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DPA1,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DPB1,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DPB2,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DQA1,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DQA2,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DQB1,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DQB2,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DRA,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DRB1,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DRB5,MUTATION,TRUE
+tempus,xt_ cdx,HLA-DRB6,MUTATION,TRUE
+tempus,xt_ cdx,HLA-E,MUTATION,TRUE
+tempus,xt_ cdx,HLA-F,MUTATION,TRUE
+tempus,xt_ cdx,HLA-G,MUTATION,TRUE
+tempus,xt_ cdx,HNF1A,MUTATION,TRUE
+tempus,xt_ cdx,HNF1B,MUTATION,TRUE
+tempus,xt_ cdx,HOXA11,MUTATION,TRUE
+tempus,xt_ cdx,HOXB13,MUTATION,TRUE
+tempus,xt_ cdx,HRAS,MUTATION,TRUE
+tempus,xt_ cdx,HSD11B2,MUTATION,TRUE
+tempus,xt_ cdx,HSD3B1,MUTATION,TRUE
+tempus,xt_ cdx,HSD3B2,MUTATION,TRUE
+tempus,xt_ cdx,HSP90AA1,MUTATION,TRUE
+tempus,xt_ cdx,HSPH1,MUTATION,TRUE
+tempus,xt_ cdx,IDH1,MUTATION,TRUE
+tempus,xt_ cdx,IDH2,MUTATION,TRUE
+tempus,xt_ cdx,IDO1,MUTATION,TRUE
+tempus,xt_ cdx,IFIT1,MUTATION,TRUE
+tempus,xt_ cdx,IFIT2,MUTATION,TRUE
+tempus,xt_ cdx,IFIT3,MUTATION,TRUE
+tempus,xt_ cdx,IFNAR1,MUTATION,TRUE
+tempus,xt_ cdx,IFNAR2,MUTATION,TRUE
+tempus,xt_ cdx,IFNGR1,MUTATION,TRUE
+tempus,xt_ cdx,IFNGR2,MUTATION,TRUE
+tempus,xt_ cdx,IFNL3,MUTATION,TRUE
+tempus,xt_ cdx,IKBKE,MUTATION,TRUE
+tempus,xt_ cdx,IKZF1,MUTATION,TRUE
+tempus,xt_ cdx,IL10RA,MUTATION,TRUE
+tempus,xt_ cdx,IL15,MUTATION,TRUE
+tempus,xt_ cdx,IL2RA,MUTATION,TRUE
+tempus,xt_ cdx,IL6R,MUTATION,TRUE
+tempus,xt_ cdx,IL7R,MUTATION,TRUE
+tempus,xt_ cdx,ING1,MUTATION,TRUE
+tempus,xt_ cdx,INPP4B,MUTATION,TRUE
+tempus,xt_ cdx,IRF1,MUTATION,TRUE
+tempus,xt_ cdx,JAK1,MUTATION,TRUE
+tempus,xt_ cdx,JAK2,MUTATION,TRUE
+tempus,xt_ cdx,JAK3,MUTATION,TRUE
+tempus,xt_ cdx,KDR,MUTATION,TRUE
+tempus,xt_ cdx,KIT,MUTATION,TRUE
+tempus,xt_ cdx,KMT2D,MUTATION,TRUE
+tempus,xt_ cdx,KRAS,MUTATION,TRUE
+tempus,xt_ cdx,L2HGDH,MUTATION,TRUE
+tempus,xt_ cdx,LAG3,MUTATION,TRUE
+tempus,xt_ cdx,LATS1,MUTATION,TRUE
+tempus,xt_ cdx,LCK,MUTATION,TRUE
+tempus,xt_ cdx,LDLR,MUTATION,TRUE
+tempus,xt_ cdx,LEF1,MUTATION,TRUE
+tempus,xt_ cdx,LMNA,MUTATION,TRUE
+tempus,xt_ cdx,LMO1,MUTATION,TRUE
+tempus,xt_ cdx,LRP1B,MUTATION,TRUE
+tempus,xt_ cdx,LTK,MUTATION,TRUE
+tempus,xt_ cdx,LYN,MUTATION,TRUE
+tempus,xt_ cdx,LZTR1,MUTATION,TRUE
+tempus,xt_ cdx,MALT1,MUTATION,TRUE
+tempus,xt_ cdx,MAF,MUTATION,TRUE
+tempus,xt_ cdx,MAFB,MUTATION,TRUE
+tempus,xt_ cdx,MAD2L2,MUTATION,TRUE
+tempus,xt_ cdx,MAGI2,MUTATION,TRUE
+tempus,xt_ cdx,MAP2K1,MUTATION,TRUE
+tempus,xt_ cdx,MAP2K2,MUTATION,TRUE
+tempus,xt_ cdx,MAP2K4,MUTATION,TRUE
+tempus,xt_ cdx,MAP3K1,MUTATION,TRUE
+tempus,xt_ cdx,MAP3K7,MUTATION,TRUE
+tempus,xt_ cdx,MAPK1,MUTATION,TRUE
+tempus,xt_ cdx,MAX,MUTATION,TRUE
+tempus,xt_ cdx,MC1R,MUTATION,TRUE
+tempus,xt_ cdx,MCL1,MUTATION,TRUE
+tempus,xt_ cdx,MDM2,MUTATION,TRUE
+tempus,xt_ cdx,MDM4,MUTATION,TRUE
+tempus,xt_ cdx,MED12,MUTATION,TRUE
+tempus,xt_ cdx,MEF2B,MUTATION,TRUE
+tempus,xt_ cdx,MEN1,MUTATION,TRUE
+tempus,xt_ cdx,MET,MUTATION,TRUE
+tempus,xt_ cdx,MGMT,MUTATION,TRUE
+tempus,xt_ cdx,MIB1,MUTATION,TRUE
+tempus,xt_ cdx,MITF,MUTATION,TRUE
+tempus,xt_ cdx,MKI67,MUTATION,TRUE
+tempus,xt_ cdx,MLH1,MUTATION,TRUE
+tempus,xt_ cdx,MLH3,MUTATION,TRUE
+tempus,xt_ cdx,MLLT3,MUTATION,TRUE
+tempus,xt_ cdx,MN1,MUTATION,TRUE
+tempus,xt_ cdx,MPL,MUTATION,TRUE
+tempus,xt_ cdx,MRE11,MUTATION,TRUE
+tempus,xt_ cdx,MS4A1,MUTATION,TRUE
+tempus,xt_ cdx,MSH2,MUTATION,TRUE
+tempus,xt_ cdx,MSH3,MUTATION,TRUE
+tempus,xt_ cdx,MSH6,MUTATION,TRUE
+tempus,xt_ cdx,MTAP,MUTATION,TRUE
+tempus,xt_ cdx,NFKBIA,MUTATION,TRUE
+tempus,xt_ cdx,NFKBIZ,MUTATION,TRUE
+tempus,xt_ cdx,NPM1,MUTATION,TRUE
+tempus,xt_ cdx,NRAS,MUTATION,TRUE
+tempus,xt_ cdx,NRG1,MUTATION,TRUE
+tempus,xt_ cdx,NSD1,MUTATION,TRUE
+tempus,xt_ cdx,NSD2,MUTATION,TRUE
+tempus,xt_ cdx,NT5C2,MUTATION,TRUE
+tempus,xt_ cdx,NTHL1,MUTATION,TRUE
+tempus,xt_ cdx,NTRK1,MUTATION,TRUE
+tempus,xt_ cdx,NTRK2,MUTATION,TRUE
+tempus,xt_ cdx,NTRK3,MUTATION,TRUE
+tempus,xt_ cdx,NUDT15,MUTATION,TRUE
+tempus,xt_ cdx,NUP98,MUTATION,TRUE
+tempus,xt_ cdx,NOTCH1,MUTATION,TRUE
+tempus,xt_ cdx,NOTCH2,MUTATION,TRUE
+tempus,xt_ cdx,NOTCH3,MUTATION,TRUE
+tempus,xt_ cdx,NOTCH4,MUTATION,TRUE
+tempus,xt_ cdx,P2RY8,MUTATION,TRUE
+tempus,xt_ cdx,PAK1,MUTATION,TRUE
+tempus,xt_ cdx,PALB2,MUTATION,TRUE
+tempus,xt_ cdx,PALLD,MUTATION,TRUE
+tempus,xt_ cdx,PAX3,MUTATION,TRUE
+tempus,xt_ cdx,PAX5,MUTATION,TRUE
+tempus,xt_ cdx,PAX7,MUTATION,TRUE
+tempus,xt_ cdx,PAX8,MUTATION,TRUE
+tempus,xt_ cdx,PBRM1,MUTATION,TRUE
+tempus,xt_ cdx,PCBP1,MUTATION,TRUE
+tempus,xt_ cdx,PDCD1,MUTATION,TRUE
+tempus,xt_ cdx,PDCD1LG2,MUTATION,TRUE
+tempus,xt_ cdx,PDGFRA,MUTATION,TRUE
+tempus,xt_ cdx,PDGFRB,MUTATION,TRUE
+tempus,xt_ cdx,PDK1,MUTATION,TRUE
+tempus,xt_ cdx,PHF6,MUTATION,TRUE
+tempus,xt_ cdx,PHGDH,MUTATION,TRUE
+tempus,xt_ cdx,PHLPP1,MUTATION,TRUE
+tempus,xt_ cdx,PHLPP2,MUTATION,TRUE
+tempus,xt_ cdx,PHOX2B,MUTATION,TRUE
+tempus,xt_ cdx,PIAS4,MUTATION,TRUE
+tempus,xt_ cdx,PIK3C2B,MUTATION,TRUE
+tempus,xt_ cdx,PIK3CA,MUTATION,TRUE
+tempus,xt_ cdx,PIK3CB,MUTATION,TRUE
+tempus,xt_ cdx,PIK3CD,MUTATION,TRUE
+tempus,xt_ cdx,PIK3CG,MUTATION,TRUE
+tempus,xt_ cdx,PIK3R1,MUTATION,TRUE
+tempus,xt_ cdx,PIK3R2,MUTATION,TRUE
+tempus,xt_ cdx,PIM1,MUTATION,TRUE
+tempus,xt_ cdx,PML,MUTATION,TRUE
+tempus,xt_ cdx,PMS1,MUTATION,TRUE
+tempus,xt_ cdx,POLE,MUTATION,TRUE
+tempus,xt_ cdx,POLQ,MUTATION,TRUE
+tempus,xt_ cdx,PRDM1,MUTATION,TRUE
+tempus,xt_ cdx,PRKAR1A,MUTATION,TRUE
+tempus,xt_ cdx,PTEN,MUTATION,TRUE
+tempus,xt_ cdx,PTPN11,MUTATION,TRUE
+tempus,xt_ cdx,PTPN13,MUTATION,TRUE
+tempus,xt_ cdx,PTPN22,MUTATION,TRUE
+tempus,xt_ cdx,PTPRD,MUTATION,TRUE
+tempus,xt_ cdx,PTPRT,MUTATION,TRUE
+tempus,xt_ cdx,QKI,MUTATION,TRUE
+tempus,xt_ cdx,RAC1,MUTATION,TRUE
+tempus,xt_ cdx,RAD21,MUTATION,TRUE
+tempus,xt_ cdx,RAD50,MUTATION,TRUE
+tempus,xt_ cdx,RAD51,MUTATION,TRUE
+tempus,xt_ cdx,RAD51B,MUTATION,TRUE
+tempus,xt_ cdx,RAD51C,MUTATION,TRUE
+tempus,xt_ cdx,RAD51D,MUTATION,TRUE
+tempus,xt_ cdx,RAD54L,MUTATION,TRUE
+tempus,xt_ cdx,RAF1,MUTATION,TRUE
+tempus,xt_ cdx,RANBP2,MUTATION,TRUE
+tempus,xt_ cdx,RARA,MUTATION,TRUE
+tempus,xt_ cdx,RASA1,MUTATION,TRUE
+tempus,xt_ cdx,RB1,MUTATION,TRUE
+tempus,xt_ cdx,RBM10,MUTATION,TRUE
+tempus,xt_ cdx,RECQL4,MUTATION,TRUE
+tempus,xt_ cdx,RET,MUTATION,TRUE
+tempus,xt_ cdx,RHEB,MUTATION,TRUE
+tempus,xt_ cdx,RHOA,MUTATION,TRUE
+tempus,xt_ cdx,RICTOR,MUTATION,TRUE
+tempus,xt_ cdx,RINT1,MUTATION,TRUE
+tempus,xt_ cdx,RIT1,MUTATION,TRUE
+tempus,xt_ cdx,RNF139,MUTATION,TRUE
+tempus,xt_ cdx,RNF43,MUTATION,TRUE
+tempus,xt_ cdx,ROS1,MUTATION,TRUE
+tempus,xt_ cdx,RPL5,MUTATION,TRUE
+tempus,xt_ cdx,RPS15,MUTATION,TRUE
+tempus,xt_ cdx,RPS6KB1,MUTATION,TRUE
+tempus,xt_ cdx,RPTOR,MUTATION,TRUE
+tempus,xt_ cdx,RRAGC,MUTATION,TRUE
+tempus,xt_ cdx,RRM1,MUTATION,TRUE
+tempus,xt_ cdx,RUNX1,MUTATION,TRUE
+tempus,xt_ cdx,RUNX1T1,MUTATION,TRUE
+tempus,xt_ cdx,RXRA,MUTATION,TRUE
+tempus,xt_ cdx,SCG5,MUTATION,TRUE
+tempus,xt_ cdx,SDHA,MUTATION,TRUE
+tempus,xt_ cdx,SDHAF2,MUTATION,TRUE
+tempus,xt_ cdx,SDHB,MUTATION,TRUE
+tempus,xt_ cdx,SDHC,MUTATION,TRUE
+tempus,xt_ cdx,SDHD,MUTATION,TRUE
+tempus,xt_ cdx,SEC23B,MUTATION,TRUE
+tempus,xt_ cdx,SEMA3C,MUTATION,TRUE
+tempus,xt_ cdx,SETD2,MUTATION,TRUE
+tempus,xt_ cdx,SF3B1,MUTATION,TRUE
+tempus,xt_ cdx,SMAD2,MUTATION,TRUE
+tempus,xt_ cdx,SMAD3,MUTATION,TRUE
+tempus,xt_ cdx,SMAD4,MUTATION,TRUE
+tempus,xt_ cdx,SMARCA4,MUTATION,TRUE
+tempus,xt_ cdx,SMARCB1,MUTATION,TRUE
+tempus,xt_ cdx,SMARCE1,MUTATION,TRUE
+tempus,xt_ cdx,SMO,MUTATION,TRUE
+tempus,xt_ cdx,SOCS1,MUTATION,TRUE
+tempus,xt_ cdx,SOX2,MUTATION,TRUE
+tempus,xt_ cdx,SOX9,MUTATION,TRUE
+tempus,xt_ cdx,SPEN,MUTATION,TRUE
+tempus,xt_ cdx,SPINK1,MUTATION,TRUE
+tempus,xt_ cdx,SPOP,MUTATION,TRUE
+tempus,xt_ cdx,SPRED1,MUTATION,TRUE
+tempus,xt_ cdx,SRC,MUTATION,TRUE
+tempus,xt_ cdx,SRSF2,MUTATION,TRUE
+tempus,xt_ cdx,STAG2,MUTATION,TRUE
+tempus,xt_ cdx,STAT3,MUTATION,TRUE
+tempus,xt_ cdx,STAT4,MUTATION,TRUE
+tempus,xt_ cdx,STAT5A,MUTATION,TRUE
+tempus,xt_ cdx,STAT5B,MUTATION,TRUE
+tempus,xt_ cdx,STAT6,MUTATION,TRUE
+tempus,xt_ cdx,STK11,MUTATION,TRUE
+tempus,xt_ cdx,SUFU,MUTATION,TRUE
+tempus,xt_ cdx,SUZ12,MUTATION,TRUE
+tempus,xt_ cdx,SYK,MUTATION,TRUE
+tempus,xt_ cdx,SYNE1,MUTATION,TRUE
+tempus,xt_ cdx,TAF1,MUTATION,TRUE
+tempus,xt_ cdx,TANC1,MUTATION,TRUE
+tempus,xt_ cdx,TAP1,MUTATION,TRUE
+tempus,xt_ cdx,TAP2,MUTATION,TRUE
+tempus,xt_ cdx,TARBP2,MUTATION,TRUE
+tempus,xt_ cdx,TBC1D12,MUTATION,TRUE
+tempus,xt_ cdx,TBX3,MUTATION,TRUE
+tempus,xt_ cdx,TCEB1,MUTATION,TRUE
+tempus,xt_ cdx,TCF3,MUTATION,TRUE
+tempus,xt_ cdx,TCF7L2,MUTATION,TRUE
+tempus,xt_ cdx,TCL1A,MUTATION,TRUE
+tempus,xt_ cdx,TERT*,MUTATION,TRUE
+tempus,xt_ cdx,TET2,MUTATION,TRUE
+tempus,xt_ cdx,TFE3,MUTATION,TRUE
+tempus,xt_ cdx,TFEB,MUTATION,TRUE
+tempus,xt_ cdx,TFEC,MUTATION,TRUE
+tempus,xt_ cdx,TGFBR1,MUTATION,TRUE
+tempus,xt_ cdx,TGFBR2,MUTATION,TRUE
+tempus,xt_ cdx,TIGIT,MUTATION,TRUE
+tempus,xt_ cdx,TMEM127,MUTATION,TRUE
+tempus,xt_ cdx,TMEM173,MUTATION,TRUE
+tempus,xt_ cdx,TMPRSS2,MUTATION,TRUE
+tempus,xt_ cdx,TNF,MUTATION,TRUE
+tempus,xt_ cdx,TNFAIP3,MUTATION,TRUE
+tempus,xt_ cdx,TNFRSF14,MUTATION,TRUE
+tempus,xt_ cdx,TNFRSF17,MUTATION,TRUE
+tempus,xt_ cdx,TNFRSF9,MUTATION,TRUE
+tempus,xt_ cdx,TOP1,MUTATION,TRUE
+tempus,xt_ cdx,TOP2A,MUTATION,TRUE
+tempus,xt_ cdx,TP53,MUTATION,TRUE
+tempus,xt_ cdx,TRAF7,MUTATION,TRUE
+tempus,xt_ cdx,TRIM24,MUTATION,TRUE
+tempus,xt_ cdx,TRIM33,MUTATION,TRUE
+tempus,xt_ cdx,TSHR,MUTATION,TRUE
+tempus,xt_ cdx,TSC1,MUTATION,TRUE
+tempus,xt_ cdx,TSC2,MUTATION,TRUE
+tempus,xt_ cdx,U2AF1,MUTATION,TRUE
+tempus,xt_ cdx,VHL,MUTATION,TRUE
+tempus,xt_ cdx,WT1,MUTATION,TRUE
+tempus,xt_ cdx,XPA,MUTATION,TRUE
+tempus,xt_ cdx,XPC,MUTATION,TRUE
+tempus,xt_ cdx,XPO1,MUTATION,TRUE
+tempus,xt_ cdx,XRCC1,MUTATION,TRUE
+tempus,xt_ cdx,XRCC2,MUTATION,TRUE
+tempus,xt_ cdx,XRCC3,MUTATION,TRUE
+tempus,xt_ cdx,YAP1,MUTATION,TRUE
+tempus,xt_ cdx,YES1,MUTATION,TRUE
+tempus,xt_ cdx,ZFHX3,MUTATION,TRUE
+tempus,xt_ cdx,ZMYM3,MUTATION,TRUE
+tempus,xt_ cdx,ZNF217,MUTATION,TRUE
+tempus,xt_ cdx,ZNF471,MUTATION,TRUE
+tempus,xt_ cdx,ZNF620,MUTATION,TRUE
+tempus,xt_ cdx,ZNF750,MUTATION,TRUE
+tempus,xt_ cdx,ZNRF3,MUTATION,TRUE
+tempus,xt_ cdx,ZRSR2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ABL1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,AKT1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,AKT2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,AKT3,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ALK,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,APC,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,AR,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ARID1A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ATM,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ATR,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,AXL,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BAP1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BARD1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BCL2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BCL6,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BRAF,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BRCA1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BRCA2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BRIP1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,BTK,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CARD11,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CCND1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CCND2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CCND3,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CCNE1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CD79A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CD79B,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CDH1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CDK12,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CDK4,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CDK6,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CDKN2A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CEBPA,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CHEK1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CHEK2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CREBBP,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CSF1R,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,CTNNB1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,DDR2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,DNMT3A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,EGFR,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,EML4,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,EP300,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ERBB2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ERBB3,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ERBB4,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ERCC1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ERCC2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ERG,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ESR1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ETS1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ETV1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ETV4,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ETV5,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,EWSR1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,EZH2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FAM175A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FANCI,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FANCL,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FBXW7,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF10,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF14,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF19,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF23,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF3,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF4,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF5,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF6,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF7,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF8,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGF9,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGFR1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGFR2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGFR3,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FGFR4,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FLI1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FLT1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FLT3,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,FOXL2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,GEN1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,GNA11,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,GNAQ,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,GNAS,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,HNF1A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,HRAS,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,IDH1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,IDH2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,INPP4B,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,JAK2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,JAK3,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,KDR,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,KIF5B,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,KIT,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,KMT2A,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,KRAS,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,LAMP1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MAP2K1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MAP2K2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MCL1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MDM2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MDM4,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MET,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MLH1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MLLT3,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MPL,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MRE11A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MSH2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MSH3,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MSH6,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MTOR,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MUTYH,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MYC,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MYCL1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MYCN,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,MYD88,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NBN,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NF1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NOTCH1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NOTCH2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NOTCH3,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NPM1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NRAS,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NRG1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NTRK1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NTRK2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,NTRK3,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PALB2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PAX3,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PAX7,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PDGFRA,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PDGFRB,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PIK3CA,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PIK3CB,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PIK3CD,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PIK3CG,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PIK3R1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PMS2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PPARG,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PPP2R2A,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PTCH1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PTEN,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,PTPN11,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RAD51,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RAD51B,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RAD51C,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RAD51D,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RAD54L,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RAF1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RB1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RET,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RICTOR,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,ROS1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,RPS6KB1,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,SLX4,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,SMAD4,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,SMARCB1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,SMO,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,SRC,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,STK11,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,TERT,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,TET2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,TFRC,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,TMPRSS2,SV,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,TP53,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,TSC1,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,TSC2,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,VHL,MUTATION,TRUE
+henry_ford,comprehensive_solid_tumor_cancer_panel,XRCC2,MUTATION,TRUE
+foundation_one,foundation_one_cdx ,ABL1 ,,FALSE
+foundation_one,foundation_one_cdx ,AR ,,FALSE
+foundation_one,foundation_one_cdx ,AURKB ,,FALSE
+foundation_one,foundation_one_cdx ,BCOR ,,FALSE
+foundation_one,foundation_one_cdx ,BTK ,,FALSE
+foundation_one,foundation_one_cdx ,CCND3 ,,FALSE
+foundation_one,foundation_one_cdx ,CDK12 ,,FALSE
+foundation_one,foundation_one_cdx ,CEBPA ,,FALSE
+foundation_one,foundation_one_cdx ,CTNNA1 ,,FALSE
+foundation_one,foundation_one_cdx ,DIS3 ,,FALSE
+foundation_one,foundation_one_cdx ,ERBB2 ,,FALSE
+foundation_one,foundation_one_cdx ,FANCA ,,FALSE
+foundation_one,foundation_one_cdx ,FGF19 ,,FALSE
+foundation_one,foundation_one_cdx ,FH ,,FALSE
+foundation_one,foundation_one_cdx ,GATA6 ,,FALSE
+foundation_one,foundation_one_cdx ,HDAC1 ,,FALSE
+foundation_one,foundation_one_cdx ,IKBKE ,,FALSE
+foundation_one,foundation_one_cdx ,JUN,,FALSE
+foundation_one,foundation_one_cdx ,KMT2A (MLL) ,,FALSE
+foundation_one,foundation_one_cdx ,MAP3K1 ,,FALSE
+foundation_one,foundation_one_cdx ,MERTK ,,FALSE
+foundation_one,foundation_one_cdx ,MSH6 ,,FALSE
+foundation_one,foundation_one_cdx ,NBN ,,FALSE
+foundation_one,foundation_one_cdx ,NPM1 ,,FALSE
+foundation_one,foundation_one_cdx ,PARP1 ,,FALSE
+foundation_one,foundation_one_cdx ,PDK1 ,,FALSE
+foundation_one,foundation_one_cdx ,POLE ,,FALSE
+foundation_one,foundation_one_cdx ,PTPN11 ,,FALSE
+foundation_one,foundation_one_cdx ,RAD52 ,,FALSE
+foundation_one,foundation_one_cdx ,RNF43 ,,FALSE
+foundation_one,foundation_one_cdx ,SGK1 ,,FALSE
+foundation_one,foundation_one_cdx ,SOX9 ,,FALSE
+foundation_one,foundation_one_cdx ,TBX3 ,,FALSE
+foundation_one,foundation_one_cdx ,TSC2 ,,FALSE
+foundation_one,foundation_one_cdx ,XRCC2 ,,FALSE
+foundation_one,foundation_one_cdx ,ACVR1B,,FALSE
+foundation_one,foundation_one_cdx ,ARAF ,,FALSE
+foundation_one,foundation_one_cdx ,AXIN1 ,,FALSE
+foundation_one,foundation_one_cdx ,BCORL1 ,,FALSE
+foundation_one,foundation_one_cdx ,C11ORF30 (EMSY) ,,FALSE
+foundation_one,foundation_one_cdx ,CCNE1 ,,FALSE
+foundation_one,foundation_one_cdx ,CDK4 ,,FALSE
+foundation_one,foundation_one_cdx ,CHEK1 ,,FALSE
+foundation_one,foundation_one_cdx ,CTNNB1 ,,FALSE
+foundation_one,foundation_one_cdx ,DNMT3A ,,FALSE
+foundation_one,foundation_one_cdx ,ERBB3 ,,FALSE
+foundation_one,foundation_one_cdx ,FANCC ,,FALSE
+foundation_one,foundation_one_cdx ,FGF23 ,,FALSE
+foundation_one,foundation_one_cdx ,FLCN ,,FALSE
+foundation_one,foundation_one_cdx ,GID4 (C17ORF39) ,,FALSE
+foundation_one,foundation_one_cdx ,HGF ,,FALSE
+foundation_one,foundation_one_cdx ,IKZF1 ,,FALSE
+foundation_one,foundation_one_cdx ,KDM5A,,FALSE
+foundation_one,foundation_one_cdx ,KMT2D (MLL2) ,,FALSE
+foundation_one,foundation_one_cdx ,MAP3K13 ,,FALSE
+foundation_one,foundation_one_cdx ,MET ,,FALSE
+foundation_one,foundation_one_cdx ,MST1R ,,FALSE
+foundation_one,foundation_one_cdx ,NF1 ,,FALSE
+foundation_one,foundation_one_cdx ,NRAS ,,FALSE
+foundation_one,foundation_one_cdx ,PARP2 ,,FALSE
+foundation_one,foundation_one_cdx ,PIK3C2B ,,FALSE
+foundation_one,foundation_one_cdx ,PPARG ,,FALSE
+foundation_one,foundation_one_cdx ,PTPRO ,,FALSE
+foundation_one,foundation_one_cdx ,RAD54L ,,FALSE
+foundation_one,foundation_one_cdx ,ROS1 ,,FALSE
+foundation_one,foundation_one_cdx ,SMAD2 ,,FALSE
+foundation_one,foundation_one_cdx ,SPEN ,,FALSE
+foundation_one,foundation_one_cdx ,TEK ,,FALSE
+foundation_one,foundation_one_cdx ,TYRO3 ,,FALSE
+foundation_one,foundation_one_cdx ,ZNF217,,FALSE
+foundation_one,foundation_one_cdx ,AKT1,,FALSE
+foundation_one,foundation_one_cdx ,ARFRP1 ,,FALSE
+foundation_one,foundation_one_cdx ,AXL ,,FALSE
+foundation_one,foundation_one_cdx ,BRAF ,,FALSE
+foundation_one,foundation_one_cdx ,CALR ,,FALSE
+foundation_one,foundation_one_cdx ,CD22 ,,FALSE
+foundation_one,foundation_one_cdx ,CDK6 ,,FALSE
+foundation_one,foundation_one_cdx ,CHEK2 ,,FALSE
+foundation_one,foundation_one_cdx ,CUL3 ,,FALSE
+foundation_one,foundation_one_cdx ,DOT1L ,,FALSE
+foundation_one,foundation_one_cdx ,ERBB4 ,,FALSE
+foundation_one,foundation_one_cdx ,FANCG ,,FALSE
+foundation_one,foundation_one_cdx ,FGF3 ,,FALSE
+foundation_one,foundation_one_cdx ,FLT1 ,,FALSE
+foundation_one,foundation_one_cdx ,GNA11 ,,FALSE
+foundation_one,foundation_one_cdx ,HNF1A ,,FALSE
+foundation_one,foundation_one_cdx ,INPP4B ,,FALSE
+foundation_one,foundation_one_cdx ,KDM5C,,FALSE
+foundation_one,foundation_one_cdx ,KRAS ,,FALSE
+foundation_one,foundation_one_cdx ,MAPK1 ,,FALSE
+foundation_one,foundation_one_cdx ,MITF ,,FALSE
+foundation_one,foundation_one_cdx ,MTAP ,,FALSE
+foundation_one,foundation_one_cdx ,NF2 ,,FALSE
+foundation_one,foundation_one_cdx ,NT5C2 ,,FALSE
+foundation_one,foundation_one_cdx ,PARP3 ,,FALSE
+foundation_one,foundation_one_cdx ,PIK3C2G ,,FALSE
+foundation_one,foundation_one_cdx ,PPP2R1A ,,FALSE
+foundation_one,foundation_one_cdx ,QKI ,,FALSE
+foundation_one,foundation_one_cdx ,RAF1 ,,FALSE
+foundation_one,foundation_one_cdx ,RPTOR ,,FALSE
+foundation_one,foundation_one_cdx ,SMAD4 ,,FALSE
+foundation_one,foundation_one_cdx ,SPOP ,,FALSE
+foundation_one,foundation_one_cdx ,TET2 ,,FALSE
+foundation_one,foundation_one_cdx ,U2AF1 ,,FALSE
+foundation_one,foundation_one_cdx ,ZNF703,,FALSE
+foundation_one,foundation_one_cdx ,AKT2,,FALSE
+foundation_one,foundation_one_cdx ,ARID1A ,,FALSE
+foundation_one,foundation_one_cdx ,BAP1 ,,FALSE
+foundation_one,foundation_one_cdx ,BRCA1 ,,FALSE
+foundation_one,foundation_one_cdx ,CARD11 ,,FALSE
+foundation_one,foundation_one_cdx ,CD274 (PD-L1) ,,FALSE
+foundation_one,foundation_one_cdx ,CDK8 ,,FALSE
+foundation_one,foundation_one_cdx ,CIC ,,FALSE
+foundation_one,foundation_one_cdx ,CUL4A ,,FALSE
+foundation_one,foundation_one_cdx ,EED ,,FALSE
+foundation_one,foundation_one_cdx ,ERCC4 ,,FALSE
+foundation_one,foundation_one_cdx ,FANCL ,,FALSE
+foundation_one,foundation_one_cdx ,FGF4 ,,FALSE
+foundation_one,foundation_one_cdx ,FLT3 ,,FALSE
+foundation_one,foundation_one_cdx ,GNA13 ,,FALSE
+foundation_one,foundation_one_cdx ,HRAS ,,FALSE
+foundation_one,foundation_one_cdx ,IRF2 ,,FALSE
+foundation_one,foundation_one_cdx ,KDM6A,,FALSE
+foundation_one,foundation_one_cdx ,LTK ,,FALSE
+foundation_one,foundation_one_cdx ,MCL1 ,,FALSE
+foundation_one,foundation_one_cdx ,MKNK1 ,,FALSE
+foundation_one,foundation_one_cdx ,MTOR ,,FALSE
+foundation_one,foundation_one_cdx ,NFE2L2 ,,FALSE
+foundation_one,foundation_one_cdx ,NTRK1 ,,FALSE
+foundation_one,foundation_one_cdx ,PAX5 ,,FALSE
+foundation_one,foundation_one_cdx ,PIK3CA ,,FALSE
+foundation_one,foundation_one_cdx ,PPP2R2A ,,FALSE
+foundation_one,foundation_one_cdx ,RAC1 ,,FALSE
+foundation_one,foundation_one_cdx ,RARA ,,FALSE
+foundation_one,foundation_one_cdx ,SDHA ,,FALSE
+foundation_one,foundation_one_cdx ,SMARCA4 ,,FALSE
+foundation_one,foundation_one_cdx ,SRC ,,FALSE
+foundation_one,foundation_one_cdx ,TGFBR2 ,,FALSE
+foundation_one,foundation_one_cdx ,VEGFA ,,FALSE
+foundation_one,foundation_one_cdx ,AKT3,,FALSE
+foundation_one,foundation_one_cdx ,ASXL1 ,,FALSE
+foundation_one,foundation_one_cdx ,BARD1 ,,FALSE
+foundation_one,foundation_one_cdx ,BRCA2 ,,FALSE
+foundation_one,foundation_one_cdx ,CASP8 ,,FALSE
+foundation_one,foundation_one_cdx ,CD70 ,,FALSE
+foundation_one,foundation_one_cdx ,CDKN1A ,,FALSE
+foundation_one,foundation_one_cdx ,CREBBP ,,FALSE
+foundation_one,foundation_one_cdx ,CXCR4 ,,FALSE
+foundation_one,foundation_one_cdx ,EGFR ,,FALSE
+foundation_one,foundation_one_cdx ,ERG ,,FALSE
+foundation_one,foundation_one_cdx ,FAS ,,FALSE
+foundation_one,foundation_one_cdx ,FGF6 ,,FALSE
+foundation_one,foundation_one_cdx ,FOXL2 ,,FALSE
+foundation_one,foundation_one_cdx ,GNAQ ,,FALSE
+foundation_one,foundation_one_cdx ,HSD3B1 ,,FALSE
+foundation_one,foundation_one_cdx ,IRF4 ,,FALSE
+foundation_one,foundation_one_cdx ,    KDR ,,FALSE
+foundation_one,foundation_one_cdx ,LYN ,,FALSE
+foundation_one,foundation_one_cdx ,MDM2 ,,FALSE
+foundation_one,foundation_one_cdx ,MLH1 ,,FALSE
+foundation_one,foundation_one_cdx ,MUTYH ,,FALSE
+foundation_one,foundation_one_cdx ,NFKBIA ,,FALSE
+foundation_one,foundation_one_cdx ,NTRK2 ,,FALSE
+foundation_one,foundation_one_cdx ,PBRM1 ,,FALSE
+foundation_one,foundation_one_cdx ,PIK3CB ,,FALSE
+foundation_one,foundation_one_cdx ,PRDM1 ,,FALSE
+foundation_one,foundation_one_cdx ,RAD21 ,,FALSE
+foundation_one,foundation_one_cdx ,RB1 ,,FALSE
+foundation_one,foundation_one_cdx ,SDHB ,,FALSE
+foundation_one,foundation_one_cdx ,SMARCB1 ,,FALSE
+foundation_one,foundation_one_cdx ,STAG2 ,,FALSE
+foundation_one,foundation_one_cdx ,TIPARP ,,FALSE
+foundation_one,foundation_one_cdx ,VHL ,,FALSE
+foundation_one,foundation_one_cdx ,ALK ,,FALSE
+foundation_one,foundation_one_cdx ,ATM ,,FALSE
+foundation_one,foundation_one_cdx ,BCL2 ,,FALSE
+foundation_one,foundation_one_cdx ,BRD4 ,,FALSE
+foundation_one,foundation_one_cdx ,CBFB ,,FALSE
+foundation_one,foundation_one_cdx ,CD79A ,,FALSE
+foundation_one,foundation_one_cdx ,CDKN1B ,,FALSE
+foundation_one,foundation_one_cdx ,CRKL ,,FALSE
+foundation_one,foundation_one_cdx ,CYP17A1 ,,FALSE
+foundation_one,foundation_one_cdx ,EP300 ,,FALSE
+foundation_one,foundation_one_cdx ,ERRFI1 ,,FALSE
+foundation_one,foundation_one_cdx ,FBXW7 ,,FALSE
+foundation_one,foundation_one_cdx ,FGFR1 ,,FALSE
+foundation_one,foundation_one_cdx ,FUBP1 ,,FALSE
+foundation_one,foundation_one_cdx ,GNAS ,,FALSE
+foundation_one,foundation_one_cdx ,ID3 ,,FALSE
+foundation_one,foundation_one_cdx ,IRS2 ,,FALSE
+foundation_one,foundation_one_cdx ,KEAP1 ,,FALSE
+foundation_one,foundation_one_cdx ,MAF ,,FALSE
+foundation_one,foundation_one_cdx ,MDM4 ,,FALSE
+foundation_one,foundation_one_cdx ,MPL ,,FALSE
+foundation_one,foundation_one_cdx ,MYC ,,FALSE
+foundation_one,foundation_one_cdx ,NKX2-1 ,,FALSE
+foundation_one,foundation_one_cdx ,NTRK3 ,,FALSE
+foundation_one,foundation_one_cdx ,PDCD1 (PD-1) ,,FALSE
+foundation_one,foundation_one_cdx ,PIK3R1 ,,FALSE
+foundation_one,foundation_one_cdx ,PRKAR1A ,,FALSE
+foundation_one,foundation_one_cdx ,RAD51 ,,FALSE
+foundation_one,foundation_one_cdx ,RBM10 ,,FALSE
+foundation_one,foundation_one_cdx ,SDHC ,,FALSE
+foundation_one,foundation_one_cdx ,SMO ,,FALSE
+foundation_one,foundation_one_cdx ,STAT3 ,,FALSE
+foundation_one,foundation_one_cdx ,TNFAIP3 ,,FALSE
+foundation_one,foundation_one_cdx ,WHSC1 (MMSET) ,,FALSE
+foundation_one,foundation_one_cdx ,ALOX12B,,FALSE
+foundation_one,foundation_one_cdx ,ATR ,,FALSE
+foundation_one,foundation_one_cdx ,BCL2L1 ,,FALSE
+foundation_one,foundation_one_cdx ,BRIP1 ,,FALSE
+foundation_one,foundation_one_cdx ,CBL ,,FALSE
+foundation_one,foundation_one_cdx ,CD79B ,,FALSE
+foundation_one,foundation_one_cdx ,CDKN2A ,,FALSE
+foundation_one,foundation_one_cdx ,CSF1R ,,FALSE
+foundation_one,foundation_one_cdx ,DAXX ,,FALSE
+foundation_one,foundation_one_cdx ,EPHA3 ,,FALSE
+foundation_one,foundation_one_cdx ,ESR1 ,,FALSE
+foundation_one,foundation_one_cdx ,FGF10 ,,FALSE
+foundation_one,foundation_one_cdx ,FGFR2 ,,FALSE
+foundation_one,foundation_one_cdx ,GABRA6 ,,FALSE
+foundation_one,foundation_one_cdx ,GRM3 ,,FALSE
+foundation_one,foundation_one_cdx ,IDH1 ,,FALSE
+foundation_one,foundation_one_cdx ,JAK1 ,,FALSE
+foundation_one,foundation_one_cdx ,KEL ,,FALSE
+foundation_one,foundation_one_cdx ,MAP2K1 (MEK1) ,,FALSE
+foundation_one,foundation_one_cdx ,MED12 ,,FALSE
+foundation_one,foundation_one_cdx ,MRE11A ,,FALSE
+foundation_one,foundation_one_cdx ,MYCL (MYCL1) ,,FALSE
+foundation_one,foundation_one_cdx ,NOTCH1 ,,FALSE
+foundation_one,foundation_one_cdx ,P2RY8 ,,FALSE
+foundation_one,foundation_one_cdx ,PDCD1LG2 (PD-L2) ,,FALSE
+foundation_one,foundation_one_cdx ,PIM1 ,,FALSE
+foundation_one,foundation_one_cdx ,PRKCI ,,FALSE
+foundation_one,foundation_one_cdx ,RAD51B ,,FALSE
+foundation_one,foundation_one_cdx ,REL ,,FALSE
+foundation_one,foundation_one_cdx ,SDHD ,,FALSE
+foundation_one,foundation_one_cdx ,SNCAIP ,,FALSE
+foundation_one,foundation_one_cdx ,STK11 ,,FALSE
+foundation_one,foundation_one_cdx ,TNFRSF14 ,,FALSE
+foundation_one,foundation_one_cdx ,WHSC1L1 ,,FALSE
+foundation_one,foundation_one_cdx ,AMERI1 (FAM123B),,FALSE
+foundation_one,foundation_one_cdx ,ATRX ,,FALSE
+foundation_one,foundation_one_cdx ,BCL2L2 ,,FALSE
+foundation_one,foundation_one_cdx ,BTG1 ,,FALSE
+foundation_one,foundation_one_cdx ,CCND1 ,,FALSE
+foundation_one,foundation_one_cdx ,CDC73 ,,FALSE
+foundation_one,foundation_one_cdx ,CDKN2B ,,FALSE
+foundation_one,foundation_one_cdx ,CSF3R ,,FALSE
+foundation_one,foundation_one_cdx ,DDR1 ,,FALSE
+foundation_one,foundation_one_cdx ,EPHB1 ,,FALSE
+foundation_one,foundation_one_cdx ,EZH2 ,,FALSE
+foundation_one,foundation_one_cdx ,FGF12 ,,FALSE
+foundation_one,foundation_one_cdx ,FGFR3 ,,FALSE
+foundation_one,foundation_one_cdx ,GATA3 ,,FALSE
+foundation_one,foundation_one_cdx ,GSK3B ,,FALSE
+foundation_one,foundation_one_cdx ,IDH2 ,,FALSE
+foundation_one,foundation_one_cdx ,JAK2 ,,FALSE
+foundation_one,foundation_one_cdx ,KIT ,,FALSE
+foundation_one,foundation_one_cdx ,MAP2K2 (MEK2) ,,FALSE
+foundation_one,foundation_one_cdx ,MEF2B,,FALSE
+foundation_one,foundation_one_cdx ,MSH2,,FALSE
+foundation_one,foundation_one_cdx ,MYCN,,FALSE
+foundation_one,foundation_one_cdx ,NOTCH2,,FALSE
+foundation_one,foundation_one_cdx ,PALB2,,FALSE
+foundation_one,foundation_one_cdx ,PDGFRA,,FALSE
+foundation_one,foundation_one_cdx ,PMS2,,FALSE
+foundation_one,foundation_one_cdx ,PTCH1,,FALSE
+foundation_one,foundation_one_cdx ,RAD51C,,FALSE
+foundation_one,foundation_one_cdx ,RET,,FALSE
+foundation_one,foundation_one_cdx ,SETD2,,FALSE
+foundation_one,foundation_one_cdx ,SOCS1,,FALSE
+foundation_one,foundation_one_cdx ,SUFU,,FALSE
+foundation_one,foundation_one_cdx ,TP53,,FALSE
+foundation_one,foundation_one_cdx ,WT1,,FALSE
+foundation_one,foundation_one_cdx ,APC,,FALSE
+foundation_one,foundation_one_cdx ,AURKA,,FALSE
+foundation_one,foundation_one_cdx ,BCL6,,FALSE
+foundation_one,foundation_one_cdx ,BTG2,,FALSE
+foundation_one,foundation_one_cdx ,CCND2,,FALSE
+foundation_one,foundation_one_cdx ,CDH1,,FALSE
+foundation_one,foundation_one_cdx ,CDKN2C,,FALSE
+foundation_one,foundation_one_cdx ,CTCF,,FALSE
+foundation_one,foundation_one_cdx ,DDR2,,FALSE
+foundation_one,foundation_one_cdx ,EPHB4,,FALSE
+foundation_one,foundation_one_cdx ,FAM46C,,FALSE
+foundation_one,foundation_one_cdx ,FGF14,,FALSE
+foundation_one,foundation_one_cdx ,FGFR4,,FALSE
+foundation_one,foundation_one_cdx ,GATA4,,FALSE
+foundation_one,foundation_one_cdx ,H3F3A,,FALSE
+foundation_one,foundation_one_cdx ,IGF1R,,FALSE
+foundation_one,foundation_one_cdx ,JAK3,,FALSE
+foundation_one,foundation_one_cdx ,KLHL6,,FALSE
+foundation_one,foundation_one_cdx ,MAP2K4,,FALSE
+foundation_one,foundation_one_cdx ,MEN1,,FALSE
+foundation_one,foundation_one_cdx ,MSH3,,FALSE
+foundation_one,foundation_one_cdx ,MYD88,,FALSE
+foundation_one,foundation_one_cdx ,NOTCH3,,FALSE
+foundation_one,foundation_one_cdx ,PARK2,,FALSE
+foundation_one,foundation_one_cdx ,PDGFRB,,FALSE
+foundation_one,foundation_one_cdx ,POLD1,,FALSE
+foundation_one,foundation_one_cdx ,PTEN,,FALSE
+foundation_one,foundation_one_cdx ,RAD51D,,FALSE
+foundation_one,foundation_one_cdx ,RICTOR,,FALSE
+foundation_one,foundation_one_cdx ,SF3B1,,FALSE
+foundation_one,foundation_one_cdx ,SOX2,,FALSE
+foundation_one,foundation_one_cdx ,SYK,,FALSE
+foundation_one,foundation_one_cdx ,TSC1,,FALSE
+foundation_one,foundation_one_cdx ,XPO1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,ALK,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,BCL2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,BCR,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,BRAF,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,BRCA1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,BRCA2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,CD74,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,EGFR,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,ETV4,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,ETV5,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,ETV6,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,EWSR1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,EZR,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,FGFR1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,FGFR2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,FGFR3,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,KIT,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,KMT2A (MLL),,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,MSH2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,MYB,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,MYC,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,NOTCH2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,NTRK1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,NTRK2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,NUTM1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,PDGFRA,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,RAF1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,RARA,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,RET,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,ROS1,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,RSPO2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,SDC4,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,SLC34A2,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,TERC,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,TERT,,FALSE
+foundation_one,foundation_one_cdx_select_rearrangements,TMPRSS2,,FALSE
