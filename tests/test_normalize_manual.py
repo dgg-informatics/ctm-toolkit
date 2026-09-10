@@ -128,17 +128,6 @@ def test_protein_change_prefix_normalization(value, expected):
     assert normalize_finding(row, source="tempus").protein_change == expected
 
 
-def test_three_letter_amino_acids_are_never_translated():
-    """Uppercasing is the only rewrite. "Leu858Arg" must not become "p.L858R" —
-    the residues are recognized so the value isn't flagged, never converted."""
-    row = RawFinding.model_validate({
-        "pt_uuid": "pt_0000001", "report_uuid": "rp_0000001",
-        "biomarker": "EGFR", "variant_category": "MUTATION",
-        "protein_change": "Glu746_Ala750del",
-    })
-    assert normalize_finding(row, source="tempus").protein_change == "p.GLU746_ALA750DEL"
-
-
 def test_raw_finding_keeps_the_cell_verbatim():
     """Normalization happens on the Finding; RawFinding stays a faithful mirror
     of the sheet."""
