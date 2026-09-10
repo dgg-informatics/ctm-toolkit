@@ -256,3 +256,46 @@ def test_other_category_produces_no_genomic_doc(value):
         _finding(biomarker="Foo", variant_category=value),
     ])
     assert docs == []
+
+
+# ── protein_change reaches the genomic doc prefixed, or is warned about ───────
+
+def test_unprefixed_protein_change_reaches_the_genomic_doc_prefixed():
+    """A bare "l858r" typed by a curator must arrive as "p.L858R" —
+    TRUE_PROTEIN_CHANGE is an exact-string match in matchengine."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION", protein_change="l858r"),
+    ])
+    assert docs[0]["TRUE_PROTEIN_CHANGE"] == "p.L858R"
+
+
+def test_malformed_protein_change_is_still_prefixed_and_reported(capsys):
+    """Free text is prefixed like everything else, but it can't match, so the
+    curator is told — with the gene, which is their only handle on the row."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION",
+                 protein_change="Exon 19 deletion"),
+    ])
+    assert docs[0]["TRUE_PROTEIN_CHANGE"] == "p.EXON 19 DELETION"
+    err = capsys.readouterr().err
+    assert "Error" in err
+    assert "protein_change" in err
+    assert "EGFR: p.EXON 19 DELETION" in err
+
+
+def test_malformed_protein_change_still_produces_its_genomic_doc():
+    """Reporting is not skipping — the row is still matchable on gene and
+    category, and still rides into patient_data."""
+    docs = to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION",
+                 protein_change="EXON 10 DEL"),
+    ])
+    assert len(docs) == 1
+    assert docs[0]["TRUE_HUGO_SYMBOL"] == "EGFR"
+
+
+def test_well_formed_protein_change_is_not_reported(capsys):
+    to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION", protein_change="L858R"),
+    ])
+    assert "protein_change" not in capsys.readouterr().err

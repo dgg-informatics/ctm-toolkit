@@ -278,7 +278,7 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
       |---|---|
       | `biomarker` | HGNC gene symbol or marker name (`MSI`, `MMR`) → `TRUE_HUGO_SYMBOL`. For a fusion, `GENE1::GENE2` (`/` or `-` also accepted), e.g. `EML4::ALK`. |
       | `variant_category` | One of `MUTATION`, `CNV`, `SIGNATURE`, `SV`, `Other`. Selects `VARIANT_CATEGORY` directly. `Other` is kept in patient_data but produces no genomic doc. |
-      | `protein_change` | HGVS protein change, e.g. `p.L858R` → `TRUE_PROTEIN_CHANGE`. |
+      | `protein_change` | HGVS protein change, e.g. `p.L858R` → `TRUE_PROTEIN_CHANGE`. Stored as **`p.` + UPPERCASE**, always: the `p.` is added when you omit it, and the rest is uppercased, because matchengine compares this field as an exact string. `L858R`, `l858r` and `P.L858R` all store as `p.L858R`. Three-letter residues are uppercased but **never** translated — `Leu858Arg` → `p.LEU858ARG`, not `p.L858R`. A value that isn't shaped like a protein change is prefixed all the same (`Exon 19 deletion` → `p.EXON 19 DELETION`) and reported as an error at the end of the run; the row still produces a genomic doc, matchable on gene and category. |
       | `cnv_call` | `CNV` only. One of `High Amplification`, `Low Amplification`, `Homozygous Deletion`, `Heterozygous Deletion` → `CNV_CALL` (remapped, see below). |
       | `signature_level` | `SIGNATURE` (MSI/MMR) only. One of `Deficient`, `Proficient`, `Stable` → `MMR_STATUS` (remapped, see below). Blank → the row is skipped. |
       | `wildtype` | `MUTATION`/`CNV` only. `TRUE`/`FALSE` → `WILDTYPE`; blank defaults to `FALSE`. |
