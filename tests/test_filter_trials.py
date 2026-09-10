@@ -72,6 +72,18 @@ def test_fingerprint_handles_missing_eligibility():
     assert eligibility_fingerprint(None) == eligibility_fingerprint({})
 
 
+def test_fingerprint_is_a_multiset_not_a_set():
+    """[X, X, Y] must not fingerprint the same as [X, Y] — a set comprehension
+    would silently collapse a genuinely repeated criterion."""
+    from ctm.transformers.filter_trials import eligibility_fingerprint
+    dup = {"inclusion": [{"text": "X", "sub_criteria": []}, {"text": "X", "sub_criteria": []},
+                         {"text": "Y", "sub_criteria": []}],
+           "exclusion": []}
+    single = {"inclusion": [{"text": "X", "sub_criteria": []}, {"text": "Y", "sub_criteria": []}],
+              "exclusion": []}
+    assert eligibility_fingerprint(dup) != eligibility_fingerprint(single)
+
+
 # ── grouping ────────────────────────────────────────────────────────────────
 
 def test_group_key_prefers_nct_id():
@@ -121,8 +133,14 @@ def test_winning_entity_is_deterministic_for_unknown_entities():
 
 
 def test_precedence_drops_lower_entities():
+    """The west row's trial_hash is deliberately lower than amc's ("a"*8 < "w"*8
+    by default), so if entity precedence were deleted the eligibility-collapse
+    tie-break alone would still pick... west, and this test would only pass by
+    entity precedence actually running. Force the opposite trial_hash ordering
+    so only entity precedence — not the tie-break — can produce the amc answer."""
     from ctm.transformers.filter_trials import filter_trials
-    out = filter_trials([_row("west", nct="NCT1"), _row("amc", nct="NCT1")])
+    out = filter_trials([_row("west", nct="NCT1", trial_hash="0" * 64),
+                         _row("amc", nct="NCT1", trial_hash="z" * 64)])
     assert len(out) == 1
     assert out[0]["entity"] == "amc"
 
@@ -160,6 +178,38 @@ def test_differing_eligibility_keeps_both():
                               trial_hash="b" * 64)])
     assert len(out) == 2
     assert sorted(t["protocol_no"] for t in out) == ["2015.001", "2015.063"]
+
+
+# ── empty-eligibility bucketing ─────────────────────────────────────────────
+# A zero-criterion eligibility fingerprints as sha256(""), the same for every
+# trial that has one — raw_amc_to_ctml produces this when OnCore's eligibility
+# field is blank or unparseable. These rows must not collapse together just
+# because both lack data; see filter_trials._bucket_key.
+
+def test_empty_eligibility_amc_rows_with_different_protocols_both_survive():
+    from ctm.transformers.filter_trials import filter_trials
+    out = filter_trials([
+        _row("amc", nct="NCT1", protocol="2015.001", inclusion=(), trial_hash="a" * 64),
+        _row("amc", nct="NCT1", protocol="2015.063", inclusion=(), trial_hash="b" * 64)])
+    assert len(out) == 2
+    assert sorted(t["protocol_no"] for t in out) == ["2015.001", "2015.063"]
+
+
+def test_empty_eligibility_west_rows_with_no_protocol_collapse_to_one():
+    from ctm.transformers.filter_trials import filter_trials
+    out = filter_trials([
+        _row("west", nct="NCT1", protocol=None, inclusion=(), trial_hash="b" * 64),
+        _row("west", nct="NCT1", protocol=None, inclusion=(), trial_hash="a" * 64)])
+    assert len(out) == 1
+    assert out[0]["trial_hash"] == "a" * 64
+
+
+def test_empty_eligibility_never_collapses_with_a_row_that_has_criteria():
+    from ctm.transformers.filter_trials import filter_trials
+    out = filter_trials([
+        _row("west", nct="NCT1", protocol=None, inclusion=(), trial_hash="a" * 64),
+        _row("west", nct="NCT1", protocol=None, inclusion=("Age >= 18",), trial_hash="b" * 64)])
+    assert len(out) == 2
 
 
 def test_treatment_list_is_excluded_from_equality():

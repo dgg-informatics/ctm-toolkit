@@ -355,9 +355,9 @@ def test_strip_metadata_keeps_trial_hash():
 
 def test_filtered_collection_is_machine_written():
     """A stage that cannot clear its own output cannot be re-run."""
-    from ctm.db import FILTERED_COLLECTION, MACHINE_WRITTEN
-    assert FILTERED_COLLECTION == "07_filtered_trials"
-    assert FILTERED_COLLECTION in MACHINE_WRITTEN
+    from ctm.db import DEFAULT_FILTERED_COLLECTION, MACHINE_WRITTEN
+    assert DEFAULT_FILTERED_COLLECTION == "07_filtered_trials"
+    assert DEFAULT_FILTERED_COLLECTION in MACHINE_WRITTEN
 
 
 def test_mongo_config_defaults_filtered_collection(monkeypatch):

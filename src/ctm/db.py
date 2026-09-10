@@ -54,7 +54,6 @@ DEFAULT_MASTER_COLLECTION = "06_master_trials"
 # source precedence, so matchengine sees each trial once. Regenerable at any
 # time — it holds no curation of its own, only copies of master documents.
 DEFAULT_FILTERED_COLLECTION = "07_filtered_trials"
-FILTERED_COLLECTION = DEFAULT_FILTERED_COLLECTION
 
 # Collections a pipeline stage owns and may therefore destroy and rewrite.
 # 05_manual_curated_trials is deliberately absent: it holds hand-curated work, and
@@ -72,7 +71,7 @@ MACHINE_WRITTEN = frozenset({
     # into it and add-manual appends, so nothing may drop it. A master under a
     # non-default MONGO_MASTER_COLLECTION name is not droppable via this gate.
     DEFAULT_MASTER_COLLECTION,
-    FILTERED_COLLECTION,
+    DEFAULT_FILTERED_COLLECTION,
 })
 
 # Document identity is trial_hash — the sha256 of a trial's _raw blob that

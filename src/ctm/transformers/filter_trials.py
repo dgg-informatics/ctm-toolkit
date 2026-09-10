@@ -69,13 +69,41 @@ def eligibility_fingerprint(eligibility: dict | None) -> str:
     source reorders its criteria. Used for comparison only and never stored:
     ``07_filtered_trials`` is regenerable, so a cached fingerprint would only be
     an opportunity to drift.
+
+    A sorted **list**, not a set: a set would collapse a genuinely repeated
+    criterion (``[X, X, Y]``) down to the same fingerprint as ``[X, Y]``, hiding
+    a real difference in criterion count between two copies of a study.
     """
-    hashes = {
+    hashes = [
         criterion_hash(criterion, section)
         for section in _SECTIONS
         for criterion in ((eligibility or {}).get(section) or [])
-    }
+    ]
     return hashlib.sha256("\n".join(sorted(hashes)).encode()).hexdigest()
+
+
+def _has_criteria(eligibility: dict | None) -> bool:
+    """Whether an eligibility block carries any inclusion or exclusion criterion."""
+    eligibility = eligibility or {}
+    return bool(eligibility.get("inclusion")) or bool(eligibility.get("exclusion"))
+
+
+def _bucket_key(trial: dict) -> tuple[str, str]:
+    """Discriminator for the eligibility-collapse bucket.
+
+    A zero-criterion eligibility fingerprints as ``sha256("")`` regardless of
+    which trial it came from, so two rows that merely *lack* eligibility data
+    (``raw_amc_to_ctml`` produces this when OnCore's field is blank or
+    unparseable) would compare equal on fingerprint alone and one would be
+    dropped — absence of eligibility evidence must not be read as proof two
+    rows are the same trial. Such rows are bucketed by ``protocol_no`` instead,
+    so they collapse only when they actually share a protocol; rows that do
+    carry criteria are unaffected and still bucket by fingerprint.
+    """
+    eligibility = trial.get("eligibility")
+    if _has_criteria(eligibility):
+        return ("elig", eligibility_fingerprint(eligibility))
+    return ("empty", trial.get("protocol_no") or "")
 
 
 def group_key(trial: dict) -> str:
@@ -132,7 +160,9 @@ def filter_trials(rows: list[dict]) -> list[dict]:
        identical eligibility are true duplicates and collapse to the one with the
        lowest ``trial_hash``; those with differing eligibility are distinct studies
        sharing an NCT (measured: two AMC protocols under NCT02445222) and are all
-       kept.
+       kept. Rows with *no* eligibility criteria at all are never compared by
+       fingerprint — see ``_bucket_key`` — because two rows that both lack data
+       are not thereby known to be the same trial.
 
     ``treatment_list`` is excluded from the equality test because it is
     hand-curated and can differ subtly between copies of one study;
@@ -156,9 +186,9 @@ def filter_trials(rows: list[dict]) -> list[dict]:
             key=lambda row: row.get("trial_hash") or "",
         )
 
-        buckets: dict[str, list[dict]] = {}
+        buckets: dict[tuple[str, str], list[dict]] = {}
         for row in candidates:
-            buckets.setdefault(eligibility_fingerprint(row.get("eligibility")), []).append(row)
+            buckets.setdefault(_bucket_key(row), []).append(row)
 
         for members in buckets.values():
             if len(members) > 1:

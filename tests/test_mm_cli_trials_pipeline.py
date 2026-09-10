@@ -696,9 +696,10 @@ def test_raw_collection_is_stage_owned():
     assert ctm_db.RAW_COLLECTION in ctm_db.MACHINE_WRITTEN
     names = [ctm_db.RAW_COLLECTION, ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION,
              ctm_db.LLM_GENERAL_COLLECTION, ctm_db.LLM_BIOMARKER_COLLECTION, ctm_db.MANUAL_COLLECTION,
-             ctm_db.DEFAULT_MASTER_COLLECTION]
+             ctm_db.DEFAULT_MASTER_COLLECTION, ctm_db.DEFAULT_FILTERED_COLLECTION]
     assert names == sorted(names), "prefixes must sort into pipeline order"
-    assert [n.split("_")[0] for n in names] == ["00", "01", "02", "03", "04", "05", "06"]
+    assert [n.split("_")[0] for n in names] == \
+        ["00", "01", "02", "03", "04", "05", "06", "07"]
 
 
 def _filter_args(**overrides):
@@ -743,12 +744,34 @@ def test_trials_filter_reads_the_master_collection(fake_mongo):
 
 
 def test_trials_filter_honours_collection_overrides(fake_mongo):
+    """Only asserts what is actually true: the handler reads from the overridden
+    master collection and targets the overridden filtered name. It cannot assert
+    that a real write to "07_custom" succeeds — prepare_collection() (db.py:328)
+    refuses any name outside the MACHINE_WRITTEN frozenset, which holds only the
+    literal "07_filtered_trials", so a real run with this override would raise
+    "refusing to clear ...". fake_mongo stubs replace_collection (and therefore
+    prepare_collection) out entirely, which is why this test can observe a
+    "07_custom" write at all. See test_prepare_collection_refuses_a_custom_filtered_collection_name
+    below for the real constraint, unstubbed."""
     from ctm.mm_cli import _cmd_trials_filter
     fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64)]
     _cmd_trials_filter(_filter_args(master_collection="06_custom",
                                     filtered_collection="07_custom"))
     assert fake_mongo["read_from"][1] == "06_custom"
     assert fake_mongo["written"]["name"] == "07_custom"
+
+
+def test_prepare_collection_refuses_a_custom_filtered_collection_name():
+    """The real constraint FIX 4 documents above: unstubbed, prepare_collection()
+    refuses any name outside MACHINE_WRITTEN, so an override like "07_custom" is
+    not actually writable — only "07_filtered_trials" is. Equivalent coverage for
+    the general rule (a non-machine-written name, e.g. 05_manual_curated_trials)
+    already exists as test_prepare_collection_refuses_a_collection_no_stage_owns
+    in tests/test_db.py; this test pins the specific filtered-collection case."""
+    from ctm.db import DIFF_UNIQUE_KEY, prepare_collection
+
+    with pytest.raises(ValueError, match="not a machine-written collection"):
+        prepare_collection(object(), "07_custom", DIFF_UNIQUE_KEY)
 
 
 def test_trials_filter_exits_on_empty_master(fake_mongo):
