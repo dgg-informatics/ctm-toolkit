@@ -94,11 +94,17 @@ def fake_mongo(monkeypatch):
         # so the trials-diff tests keep reading the way they always did.
         return captured.get("collections", {}).get(name, captured["master"])
 
+    captured["writes"] = []
+
     def _replace_collection(db, name, docs, unique_key, lookup_keys=()):
-        captured["written"] = {
+        write = {
             "db": db, "name": name, "docs": docs,
             "unique_key": unique_key, "lookup_keys": lookup_keys,
         }
+        # `written` stays the most recent write so existing tests are unaffected;
+        # `writes` accumulates, which is what a command writing to two databases needs.
+        captured["writes"].append(write)
+        captured["written"] = write
 
     captured["prepared"] = None
 

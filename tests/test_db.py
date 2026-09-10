@@ -351,3 +351,28 @@ def test_strip_metadata_keeps_trial_hash():
 
     assert stripped["trial_hash"] == "a" * 64
     assert "_id" not in stripped
+
+
+def test_filtered_collection_is_machine_written():
+    """A stage that cannot clear its own output cannot be re-run."""
+    from ctm.db import DEFAULT_FILTERED_COLLECTION, MACHINE_WRITTEN
+    assert DEFAULT_FILTERED_COLLECTION == "07_filtered_trials"
+    assert DEFAULT_FILTERED_COLLECTION in MACHINE_WRITTEN
+
+
+def test_mongo_config_defaults_filtered_collection(monkeypatch):
+    monkeypatch.setenv("MONGO_HOST", "localhost")
+    monkeypatch.setenv("MONGO_PORT", "27017")
+    monkeypatch.setenv("MONGO_DBNAME", "testdb")
+    monkeypatch.delenv("MONGO_FILTERED_COLLECTION", raising=False)
+    from ctm.db import mongo_config
+    assert mongo_config()["filtered_collection"] == "07_filtered_trials"
+
+
+def test_mongo_config_honours_filtered_collection_override(monkeypatch):
+    monkeypatch.setenv("MONGO_HOST", "localhost")
+    monkeypatch.setenv("MONGO_PORT", "27017")
+    monkeypatch.setenv("MONGO_DBNAME", "testdb")
+    monkeypatch.setenv("MONGO_FILTERED_COLLECTION", "07_custom")
+    from ctm.db import mongo_config
+    assert mongo_config()["filtered_collection"] == "07_custom"

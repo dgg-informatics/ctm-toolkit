@@ -217,6 +217,28 @@ def main() -> None:
     p_trials_merge.add_argument("--changed", metavar="JSON",
                                 help="[legacy file flow] Curated changed trials JSON")
 
+    p_trials_filter = sub.add_parser(
+        "trials-filter",
+        help="Derive 07_filtered_trials from 06_master_trials: one document per trial, "
+             "chosen by source precedence (amc > sparrow-api > west)",
+    )
+    p_trials_filter.add_argument("--db", metavar="NAME",
+                                 help="Override MONGO_DBNAME — this run's database, which "
+                                      "also receives a copy of the filtered trials")
+    p_trials_filter.add_argument("--master-db", dest="master_db", metavar="NAME",
+                                 help="Override MONGO_MASTER_DBNAME — where the master is read "
+                                      "from and the filtered collection is written")
+    p_trials_filter.add_argument("--master-collection", dest="master_collection", metavar="NAME",
+                                 help="Override MONGO_MASTER_COLLECTION (default 06_master_trials)")
+    p_trials_filter.add_argument("--filtered-collection", dest="filtered_collection",
+                                 metavar="NAME",
+                                 help="Override MONGO_FILTERED_COLLECTION (default 07_filtered_trials)")
+    p_trials_filter.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                                 help="Run date stamped on the storage envelope "
+                                      "(default: inherited from the master)")
+    p_trials_filter.add_argument("--out", metavar="JSON",
+                                 help="Also write the filtered trials to this JSON file")
+
     p_load = sub.add_parser(
         "load",
         help="Ingest a ctm-mm patients JSON file into the patient database "
@@ -247,7 +269,9 @@ def main() -> None:
     p_match.add_argument("--trial-db", dest="trial_db", metavar="NAME",
                          help="Source db for trials (default: MONGO_MASTER_DBNAME)")
     p_match.add_argument("--trial-collection", dest="trial_collection", metavar="NAME",
-                         help="Source collection for trials (default: MONGO_MASTER_COLLECTION)")
+                         help="Source collection for trials (overrides both "
+                              "MONGO_FILTERED_COLLECTION and MONGO_MASTER_COLLECTION; "
+                              "default: 07_filtered_trials if present, else 06_master_trials)")
     p_match.add_argument("--trials-file", dest="trials_file", metavar="JSON",
                          help="One-off: read a trials JSON array from disk instead of Mongo")
     # Patient source: Mongo patient db (default) or a one-off patients bundle
@@ -282,6 +306,8 @@ def main() -> None:
         _cmd_add_manual(args)
     elif args.command == "trials-merge":
         _cmd_trials_merge(args)
+    elif args.command == "trials-filter":
+        _cmd_trials_filter(args)
     elif args.command == "load":
         _cmd_load(args)
     elif args.command == "match-prep":
@@ -903,12 +929,84 @@ def _cmd_trials_merge(args) -> None:
                               ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
     print(f"Stored {len(stamped)} doc(s) → {master_db}.{master_collection}", file=sys.stderr)
 
+    # Also snapshot the master into this run's own database, so a run's record is
+    # self-contained: 01 through 05 plus the 06 it produced. The master database
+    # stays authoritative — this copy is history, never a read source.
+    if target_db != master_db:
+        ctm_db.replace_collection(run_database, master_collection, stamped,
+                                  ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
+        print(f"Stored {len(stamped)} doc(s) → {target_db}.{master_collection}",
+              file=sys.stderr)
+    else:
+        print(f"Run database is {target_db}, same as the master — skipping the run copy.",
+              file=sys.stderr)
+
     # Canonical master backup by default; --out overrides the path.
     default_export = master_trial_export_dir() / f"trials_master-{run_date}.json"
     out_path = Path(args.out) if args.out else default_export
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(stamped, indent=2, default=str))
     print(f"Saved {len(stamped)} trial(s) → {out_path}", file=sys.stderr)
+
+
+def _cmd_trials_filter(args) -> None:
+    """Derive 07_filtered_trials from 06_master_trials.
+
+    Read-only with respect to the master. The filtered collection holds no
+    curation of its own — only copies of master documents — so it is safe to
+    regenerate at any time, and a bad run costs nothing but a re-run.
+    """
+    from ctm import db as ctm_db
+    from ctm.transformers.filter_trials import filter_trials
+
+    config = ctm_db.mongo_config(require_master=not args.master_db)
+    master_db = args.master_db or config["master_dbname"]
+    master_collection = args.master_collection or config["master_collection"]
+    filtered_collection = args.filtered_collection or config["filtered_collection"]
+    run_db = args.db or config["dbname"]
+
+    database = ctm_db.get_database(config, master_db)
+    rows = ctm_db.read_collection(database, master_collection, keep_metadata=True)
+    if not rows:
+        print(f"Error: no trials in {master_db}.{master_collection}. "
+              "Run ctm-mm trials-merge first.", file=sys.stderr)
+        sys.exit(1)
+
+    # A stage must not read the clock when its input already carries a run_date:
+    # the weekly cycle spans days, and date.today() would decorrelate this run's
+    # documents from the master they came from.
+    run_date = args.run_date or ctm_db.inherited_run_date(rows, date.today().isoformat())
+
+    filtered = filter_trials([ctm_db.strip_metadata(row) for row in rows])
+    print(f"Master:   {len(rows)} row(s) from {master_db}.{master_collection}", file=sys.stderr)
+    print(f"Filtered: {len(filtered)} trial(s) ({len(rows) - len(filtered)} excluded)",
+          file=sys.stderr)
+    reasons: dict[str, int] = {}
+    for trial in filtered:
+        reasons[trial["filtered_reason"]] = reasons.get(trial["filtered_reason"], 0) + 1
+    for reason in sorted(reasons):
+        print(f"  {reason}: {reasons[reason]}", file=sys.stderr)
+
+    stamped = [ctm_db.stamp(trial, "ctm-mm trials-filter", run_date) for trial in filtered]
+    ctm_db.replace_collection(database, filtered_collection, stamped,
+                              ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
+    print(f"Stored {len(stamped)} doc(s) → {master_db}.{filtered_collection}", file=sys.stderr)
+
+    # Also snapshot the filtered set into this run's own database — a per-run
+    # audit copy. The master database stays authoritative for reads (match-prep
+    # reads 07 from the master, never from this copy).
+    if run_db != master_db:
+        ctm_db.replace_collection(ctm_db.get_database(config, run_db), filtered_collection,
+                                  stamped, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
+        print(f"Stored {len(stamped)} doc(s) → {run_db}.{filtered_collection}",
+              file=sys.stderr)
+    else:
+        print(f"Run database is {run_db}, same as the master — skipping the run copy.",
+              file=sys.stderr)
+
+    if args.out:
+        Path(args.out).write_text(json.dumps(filtered, indent=2, default=str))
+        print(f"Saved {len(filtered)} trial(s) → {args.out}", file=sys.stderr)
 
 
 def _cmd_load(args) -> None:
@@ -967,6 +1065,7 @@ def _cmd_match_prep(args) -> None:
         DEFAULT_CLINICAL_COLLECTION,
         DEFAULT_GENOMIC_COLLECTION,
         matchengine_command,
+        resolve_trial_collection,
         synthesize_secrets,
     )
     from ctm.patient_load import ensure_matchengine_clinical, prepare
@@ -985,11 +1084,14 @@ def _cmd_match_prep(args) -> None:
         trial_src = args.trials_file
     else:
         trial_db = args.trial_db or config["master_dbname"]
-        trial_coll = args.trial_collection or config["master_collection"]
         if not trial_db:
             print("Error: set MONGO_MASTER_DBNAME (or --trial-db), or pass --trials-file",
                   file=sys.stderr)
             sys.exit(1)
+        trial_coll = resolve_trial_collection(
+            config, args.trial_collection,
+            set(client[trial_db].list_collection_names()),
+        )
         n_trial = ctm_db.copy_collection(client[trial_db][trial_coll], match_db["trial"])
         trial_src = f"{trial_db}.{trial_coll}"
     print(f"trial:    {n_trial} from {trial_src}", file=sys.stderr)
