@@ -68,6 +68,9 @@ class _FakeDB:
     def __getitem__(self, name):
         return self.collections.setdefault(name, _FakeCollection())
 
+    def list_collection_names(self):
+        return list(self.collections)
+
 
 class _FakeClient:
     def __init__(self, dbs=None):
@@ -182,3 +185,33 @@ def test_match_prep_errors_without_master_db(monkeypatch):
 
     with pytest.raises(SystemExit):
         mm_cli._cmd_match_prep(_match_args())
+
+
+# ── resolve_trial_collection ───────────────────────────────────────────────────
+
+def test_match_prep_prefers_filtered_collection():
+    """07 is why matchengine stops seeing duplicates; the default must point there."""
+    from ctm.match_prep import resolve_trial_collection
+    config = {"master_collection": "06_master_trials",
+              "filtered_collection": "07_filtered_trials"}
+    assert resolve_trial_collection(config, override=None,
+                                    existing={"06_master_trials", "07_filtered_trials"}) \
+        == "07_filtered_trials"
+
+
+def test_match_prep_falls_back_to_master_when_unfiltered():
+    """An existing deployment that has not run trials-filter yet must keep working."""
+    from ctm.match_prep import resolve_trial_collection
+    config = {"master_collection": "06_master_trials",
+              "filtered_collection": "07_filtered_trials"}
+    assert resolve_trial_collection(config, override=None,
+                                    existing={"06_master_trials"}) == "06_master_trials"
+
+
+def test_match_prep_override_wins_over_both():
+    from ctm.match_prep import resolve_trial_collection
+    config = {"master_collection": "06_master_trials",
+              "filtered_collection": "07_filtered_trials"}
+    assert resolve_trial_collection(config, override="my_trials",
+                                    existing={"06_master_trials", "07_filtered_trials"}) \
+        == "my_trials"

@@ -266,7 +266,9 @@ def main() -> None:
     p_match.add_argument("--trial-db", dest="trial_db", metavar="NAME",
                          help="Source db for trials (default: MONGO_MASTER_DBNAME)")
     p_match.add_argument("--trial-collection", dest="trial_collection", metavar="NAME",
-                         help="Source collection for trials (default: MONGO_MASTER_COLLECTION)")
+                         help="Source collection for trials (overrides both "
+                              "MONGO_FILTERED_COLLECTION and MONGO_MASTER_COLLECTION; "
+                              "default: 07_filtered_trials if present, else 06_master_trials)")
     p_match.add_argument("--trials-file", dest="trials_file", metavar="JSON",
                          help="One-off: read a trials JSON array from disk instead of Mongo")
     # Patient source: Mongo patient db (default) or a one-off patients bundle
@@ -1035,6 +1037,7 @@ def _cmd_match_prep(args) -> None:
         DEFAULT_CLINICAL_COLLECTION,
         DEFAULT_GENOMIC_COLLECTION,
         matchengine_command,
+        resolve_trial_collection,
         synthesize_secrets,
     )
     from ctm.patient_load import ensure_matchengine_clinical, prepare
@@ -1053,11 +1056,14 @@ def _cmd_match_prep(args) -> None:
         trial_src = args.trials_file
     else:
         trial_db = args.trial_db or config["master_dbname"]
-        trial_coll = args.trial_collection or config["master_collection"]
         if not trial_db:
             print("Error: set MONGO_MASTER_DBNAME (or --trial-db), or pass --trials-file",
                   file=sys.stderr)
             sys.exit(1)
+        trial_coll = resolve_trial_collection(
+            config, args.trial_collection,
+            set(client[trial_db].list_collection_names()),
+        )
         n_trial = ctm_db.copy_collection(client[trial_db][trial_coll], match_db["trial"])
         trial_src = f"{trial_db}.{trial_coll}"
     print(f"trial:    {n_trial} from {trial_src}", file=sys.stderr)

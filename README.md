@@ -14,6 +14,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm biomarkers`; removed in 2.0.0 |
 | `ctm-mm trials-confidence-split` | **[beta]** Bucket curated trials into auto-pass / needs-a-human |
 | `ctm-mm trials-merge` | Merge carried-forward and freshly-curated trials into a new dated master |
+| `ctm-mm trials-filter` | Derive one deduplicated trial per NCT/protocol from the master, for matching |
 | `ctm-llm general` | LLM pass drafting CTML match nodes from each eligibility criterion and the trial title |
 | `ctm-llm biomarkers` | LLM scan for biomarker references across titles, disease keywords, curator genes and criteria |
 | `ctm-ctml` | **[deprecated]** Alias for `ctm-llm general`; removed in 2.0.0 |
@@ -148,6 +149,7 @@ trial's provenance is unambiguous.
 | `MONGO_DBNAME` | yes | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated; `--db NAME` overrides it without editing `.env` |
 | `MONGO_MASTER_DBNAME` | only without `--master` | The master trial list's database. Deliberately **not** per-run — the master is rolling current state, so it has a fixed address. No default: a default here would silently resolve to an empty database and route every trial to `changed` |
 | `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
+| `MONGO_FILTERED_COLLECTION` | no | Defaults to `07_filtered_trials` — what `ctm-mm match-prep` reads, falling back to `MONGO_MASTER_COLLECTION` if `ctm-mm trials-filter` hasn't run yet |
 | `MONGO_PATIENT_DBNAME` | only for `ctm-mm load` | The patient database `ctm-mm load` ingests into (e.g. `patients_dev`). Fixed, not per-run; `--patient-db` overrides |
 | `LLM_BIOMARKER_EXPORT_DIR` | no | Where `ctm-llm biomarkers` drops its to-curate JSON. Defaults to `/var/lib/ctm/to-curate` |
 | `MASTER_TRIAL_EXPORT_DIR` | no | Where `ctm-mm trials-merge` writes the master backup JSON. Defaults to `/var/lib/ctm/trials` |
@@ -303,7 +305,7 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
    2. Ingests the `clinical`, `genomic`, and `extras` arrays directly into `MONGO_PATIENT_DBNAME` (e.g. `patients_dev`). Each load writes an immutable dated snapshot — `<date>_clinical`, `<date>_genomic`, `<date>_patient_data` — plus refreshed `latest_clinical`/`latest_genomic`/`latest_patient_data` pointers. Genomic docs are linked to their clinical doc via `CLINICAL_ID` (by `SAMPLE_ID`), so matchengine can join them.
    3. Uses `.env` (not matchengine's `SECRETS_JSON`) and loads the JSON arrays directly — no need to split into one-object-per-file for `matchengine load`. Pass `--disk` to *also* write `clinical/`, `genomic/`, `patient_data/` folders (one JSON per doc), which is the directory format `matchengine load -c/-g` accepts if you ever need that fallback.
 4. Assemble a match database and run matchengine
-   1. `$ ctm-mm match-prep` — copies the current master trials (`MONGO_MASTER_*`) and the latest patient `clinical`/`genomic` (`MONGO_PATIENT_DBNAME`) into a frozen `<date>_match` database, under matchengine's default collection names (`trial`/`clinical`/`genomic`). `_id`s are preserved so the `CLINICAL_ID` links survive — vanilla matchengine matches against it with no fork changes.
+   1. `$ ctm-mm match-prep` — copies trials (`MONGO_MASTER_DBNAME`) and the latest patient `clinical`/`genomic` (`MONGO_PATIENT_DBNAME`) into a frozen `<date>_match` database, under matchengine's default collection names (`trial`/`clinical`/`genomic`). `_id`s are preserved so the `CLINICAL_ID` links survive — vanilla matchengine matches against it with no fork changes. Trials are read from `07_filtered_trials` when it exists, falling back to `06_master_trials` (`MONGO_MASTER_COLLECTION`) for a deployment that hasn't run `trials-filter` yet — see "Deduplicating trials" below. `--trial-collection` overrides either.
    2. `$ ctm-mm match-prep --run` — also runs `matchengine match --db <date>_match`, passing a `SECRETS_JSON` synthesized from your `.env`, so both tools share one connection config. matchengine writes `trial_match` results back into the same dated db, giving a fully reproducible snapshot of that run.
    3. For a one-off, source from disk instead of Mongo: `--trials-file <json>` (a trials array) and/or `--pt-data <json>` (a `ctm-mm patients` bundle, linked on the fly). Every source db/collection is overridable (`--trial-db/-collection`, `--clinical-db/-collection`, `--genomic-db/-collection`, `--match-db`).
 
@@ -373,6 +375,23 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 
 > [!NOTE]
 > Keep every dated master (`2026-07-13-trials.json`, `2026-07-14-trials.json`, ...) around rather than overwriting one file in place — the dated masters *are* the historical record. Each trial also carries a `trial_hash` field (a fingerprint of its raw source data, stamped automatically by `ctm-mm trials`) for later audit: it lets you notice a trial's metadata quietly changed under an `unchanged` routing, without forcing a real-time review of every such change.
+
+### Deduplicating trials
+
+`sparrow-api` and `west` resolve against ClinicalTrials.gov; `amc` comes from OnCore CTMS with its own protocol numbers and its own (often edited) titles. The same NCT therefore appears in `06_master_trials` two to four times, and matchengine emits one match per document — so without deduplication a patient's report lists the same trial repeatedly with different match reasons.
+
+`ctm-mm trials-filter` derives `07_filtered_trials`, one document per trial, from the master. It does not merge documents — the winning one is stored as is, plus `entities` and `filtered_reason` — and it is fully regenerable from `06_master_trials` at any time, so it carries no curation of its own.
+
+1. `$ ctm-mm trials-filter --out 2026-07-14-filtered.json` — reads the master from `MONGO_MASTER_DBNAME`.`MONGO_MASTER_COLLECTION` (or `--master` for a file), stores the result to `07_filtered_trials`, and (optionally) writes it to a file.
+2. Rows are grouped by `nct_id` (falling back to `protocol_no` for the rare trial with none), then reduced in two steps:
+   - **Entity precedence** — within a group, only the highest-precedence entity's rows survive: `amc > sparrow-api > west`. AMC is the local enrolling site and the freshest source, so where a trial appears at more than one entity, AMC's document represents it regardless of which copy is more detailed.
+   - **Eligibility collapse** — among the winning entity's rows, those with identical eligibility are true duplicates and collapse to the one with the lowest `trial_hash`; those with differing eligibility are distinct studies sharing an NCT (e.g. two AMC protocols under one umbrella trial) and are all kept. `treatment_list` and `short_title` are deliberately excluded from that equality test — the former is hand-curated and can differ subtly between copies of one study, the latter is edited by AMC — so including either would wrongly preserve duplicates that eligibility, the field that actually drives matching, says are the same.
+3. Each stored document carries two added keys: `entities` — the sorted multiset of every contributing row's entity (duplicates retained, so `["amc", "sparrow-api", "sparrow-api", "west"]` shows two `sparrow-api` copies existed) — and `filtered_reason`, one of:
+   - `unique-nct` — the trial had exactly one row in the master to begin with (no other entity carried it).
+   - `entity-precedence` — more than one entity had the trial, and a lower-precedence entity's copy was dropped.
+   - `same-nct-unique-eligibility` — more than one row from the winning entity survived because their eligibility differs.
+   - `same-nct-duplicate-eligibility` — more than one row from the winning entity collapsed into this one because their eligibility was identical.
+4. `ctm-mm match-prep` reads `07_filtered_trials` when it exists, falling back to `06_master_trials` for a deployment that hasn't run `trials-filter` yet — see "Assemble a match database and run matchengine" above.
 
 ### MatchMiner Preparation and Running
 

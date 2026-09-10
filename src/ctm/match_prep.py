@@ -59,6 +59,27 @@ def synthesize_secrets(config: dict, db_name: str) -> dict:
     }
 
 
+def resolve_trial_collection(config: dict, override: str | None,
+                             existing: set[str] | frozenset[str]) -> str:
+    """Which collection match-prep copies trials from.
+
+    Prefers the filtered collection — that is the whole point of the filter stage,
+    since matchengine emits one match per document and the master holds a trial
+    two to four times. Falls back to the master when the filtered collection does
+    not exist yet, so a deployment that has not run `trials-filter` keeps working
+    unchanged. An explicit --trial-collection always wins.
+
+    ``existing`` is the set of collection names present in the database; the
+    caller supplies it so this stays a pure function.
+    """
+    if override:
+        return override
+    filtered = config.get("filtered_collection")
+    if filtered and filtered in existing:
+        return filtered
+    return config["master_collection"]
+
+
 def matchengine_command(match_db: str) -> list[str]:
     """The matchengine invocation for the assembled db. Matchengine's defaults cover
     config-path and plugin-dir; only the database differs run to run."""
