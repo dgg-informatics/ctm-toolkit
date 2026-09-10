@@ -705,8 +705,25 @@ def test_raw_collection_is_stage_owned():
 def _filter_args(**overrides):
     """A trials-filter Namespace with every argparse-supplied field present."""
     defaults = {"master_db": None, "master_collection": None,
-                "filtered_collection": None, "run_date": "2026-09-10", "out": None}
+                "filtered_collection": None, "run_date": "2026-09-10", "out": None,
+                "db": None}
     return argparse.Namespace(**{**defaults, **overrides})
+
+
+def _merge_args(**overrides):
+    """A trials-merge Namespace with every argparse-supplied field present."""
+    defaults = {"db": None, "master_db": None, "master_collection": None,
+                "run_date": "2026-09-10", "out": None, "allow_empty_master": False,
+                "unchanged": None, "changed": None}
+    return argparse.Namespace(**{**defaults, **overrides})
+
+
+def _curated_trial():
+    """A trial shaped like 05_manual_curated_trials: a valid trial plus curation
+    provenance, fit to pass validate_master() once trials-merge stamps it."""
+    from ctm.db import stamp_curation
+    trial = _master_row("amc", None, ["A"], "a" * 64)
+    return stamp_curation(trial, curated_by_user="jcurator")
 
 
 def _master_row(entity, nct, inclusion, trial_hash):
@@ -789,3 +806,75 @@ def test_trials_filter_stamps_the_envelope(fake_mongo):
     doc = fake_mongo["written"]["docs"][0]
     assert doc["run_date"] == "2026-09-10"
     assert doc["processed_with"].startswith("ctm-mm trials-filter ")
+
+
+# ── dual-write: 06 and 07 also land in the run database ─────────────────────
+
+def test_trials_merge_also_writes_the_run_database(fake_mongo, monkeypatch, tmp_path):
+    """Each run keeps a snapshot of the master it produced."""
+    from ctm.mm_cli import _cmd_trials_merge
+    monkeypatch.setenv("MASTER_TRIAL_EXPORT_DIR", str(tmp_path))
+    fake_mongo["collections"] = {
+        "05_manual_curated_trials": [_curated_trial()],
+        "02_diff_trials": [],
+    }
+    fake_mongo["master"] = []
+    _cmd_trials_merge(_merge_args(allow_empty_master=True))
+    targets = [(w["db"], w["name"]) for w in fake_mongo["writes"]]
+    assert ("<db ctm_master_test>", "06_master_trials") in targets
+    assert ("<db 2026-08-17_test>", "06_master_trials") in targets
+
+
+def test_trials_merge_writes_master_before_the_run_copy(fake_mongo, monkeypatch, tmp_path):
+    """The master write is the validated one; a failing copy must not pre-empt it."""
+    from ctm.mm_cli import _cmd_trials_merge
+    monkeypatch.setenv("MASTER_TRIAL_EXPORT_DIR", str(tmp_path))
+    fake_mongo["collections"] = {
+        "05_manual_curated_trials": [_curated_trial()],
+        "02_diff_trials": [],
+    }
+    fake_mongo["master"] = []
+    _cmd_trials_merge(_merge_args(allow_empty_master=True))
+    dbs = [w["db"] for w in fake_mongo["writes"] if w["name"] == "06_master_trials"]
+    assert dbs[0] == "<db ctm_master_test>"
+
+
+def test_trials_merge_run_copy_is_identical_to_the_master_write(fake_mongo, monkeypatch, tmp_path):
+    from ctm.mm_cli import _cmd_trials_merge
+    monkeypatch.setenv("MASTER_TRIAL_EXPORT_DIR", str(tmp_path))
+    fake_mongo["collections"] = {
+        "05_manual_curated_trials": [_curated_trial()],
+        "02_diff_trials": [],
+    }
+    fake_mongo["master"] = []
+    _cmd_trials_merge(_merge_args(allow_empty_master=True))
+    writes = [w for w in fake_mongo["writes"] if w["name"] == "06_master_trials"]
+    assert len(writes) == 2
+    assert writes[0]["docs"] == writes[1]["docs"]
+
+
+def test_trials_filter_also_writes_the_run_database(fake_mongo):
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64)]
+    _cmd_trials_filter(_filter_args())
+    targets = [(w["db"], w["name"]) for w in fake_mongo["writes"]]
+    assert ("<db ctm_master_test>", "07_filtered_trials") in targets
+    assert ("<db 2026-08-17_test>", "07_filtered_trials") in targets
+
+
+def test_trials_filter_skips_the_copy_when_databases_match(fake_mongo, monkeypatch):
+    """Writing twice to one database would drop the collection just written."""
+    monkeypatch.setenv("MONGO_DBNAME", "ctm_master_test")
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64)]
+    _cmd_trials_filter(_filter_args())
+    writes = [w for w in fake_mongo["writes"] if w["name"] == "07_filtered_trials"]
+    assert len(writes) == 1
+
+
+def test_trials_filter_run_db_override(fake_mongo):
+    from ctm.mm_cli import _cmd_trials_filter
+    fake_mongo["master"] = [_master_row("amc", "NCT1", ["A"], "a" * 64)]
+    _cmd_trials_filter(_filter_args(db="my_run_db"))
+    targets = [(w["db"], w["name"]) for w in fake_mongo["writes"]]
+    assert ("<db my_run_db>", "07_filtered_trials") in targets

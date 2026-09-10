@@ -371,6 +371,7 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 
 4. Merge the carried-forward and freshly-curated trials into the new master:
    1. `$ ctm-mm trials-merge --unchanged 2026-07-14-unchanged.json --changed 2026-07-14-changed-curated.json --out 2026-07-14-trials.json`
+   2. `trials-merge` writes `06_master_trials` to the master database first — that write is the one guarded by curation-provenance validation — then copies the same documents into the run database (`MONGO_DBNAME`, or `--db`). The master stays authoritative for every read (`trials-filter`, `match-prep`); the run-database copy is a per-run snapshot, so that run's database is a self-contained record of everything it produced. Skipped with a message when the run and master databases are the same name.
 5. Load `2026-07-14-trials.json` into MatchMiner, same as the "MatchMiner Preparation and Running" step below — a date-named collection is a reasonable choice so you retain a Mongo-side historical record too.
 
 > [!NOTE]
@@ -382,7 +383,7 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 
 `ctm-mm trials-filter` derives `07_filtered_trials`, one document per trial, from the master. It does not merge documents — the winning one is stored as is, plus `entities` and `filtered_reason` — and it is fully regenerable from `06_master_trials` at any time, so it carries no curation of its own.
 
-1. `$ ctm-mm trials-filter --out 2026-07-14-filtered.json` — reads the master from `MONGO_MASTER_DBNAME`.`MONGO_MASTER_COLLECTION`, stores the result to `07_filtered_trials`, and (optionally) writes it to a file.
+1. `$ ctm-mm trials-filter --out 2026-07-14-filtered.json` — reads the master from `MONGO_MASTER_DBNAME`.`MONGO_MASTER_COLLECTION`, stores the result to `07_filtered_trials`, and (optionally) writes it to a file. Like `trials-merge`, the master write happens first and is then copied into the run database (`MONGO_DBNAME`, or `--db`) as a per-run snapshot; the master remains authoritative for reads (`match-prep` reads `07_filtered_trials` from the master only), and the copy is skipped with a message when the run and master databases are the same name.
 2. Rows are grouped by `nct_id` (falling back to `protocol_no` for the rare trial with none), then reduced in two steps:
    - **Entity precedence** — within a group, only the highest-precedence entity's rows survive: `amc > sparrow-api > west`. AMC is the local enrolling site and the freshest source, so where a trial appears at more than one entity, AMC's document represents it regardless of which copy is more detailed.
    - **Eligibility collapse** — among the winning entity's rows, those with identical eligibility are true duplicates and collapse to the one with the lowest `trial_hash`; those with differing eligibility are distinct studies sharing an NCT (e.g. two AMC protocols under one umbrella trial) and are all kept. `treatment_list` and `short_title` are deliberately excluded from that equality test — the former is hand-curated and can differ subtly between copies of one study, the latter is edited by AMC — so including either would wrongly preserve duplicates that eligibility, the field that actually drives matching, says are the same.

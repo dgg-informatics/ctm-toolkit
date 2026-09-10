@@ -222,6 +222,9 @@ def main() -> None:
         help="Derive 07_filtered_trials from 06_master_trials: one document per trial, "
              "chosen by source precedence (amc > sparrow-api > west)",
     )
+    p_trials_filter.add_argument("--db", metavar="NAME",
+                                 help="Override MONGO_DBNAME — this run's database, which "
+                                      "also receives a copy of the filtered trials")
     p_trials_filter.add_argument("--master-db", dest="master_db", metavar="NAME",
                                  help="Override MONGO_MASTER_DBNAME — where the master is read "
                                       "from and the filtered collection is written")
@@ -926,6 +929,18 @@ def _cmd_trials_merge(args) -> None:
                               ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
     print(f"Stored {len(stamped)} doc(s) → {master_db}.{master_collection}", file=sys.stderr)
 
+    # Also snapshot the master into this run's own database, so a run's record is
+    # self-contained: 01 through 05 plus the 06 it produced. The master database
+    # stays authoritative — this copy is history, never a read source.
+    if target_db != master_db:
+        ctm_db.replace_collection(run_database, master_collection, stamped,
+                                  ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
+        print(f"Stored {len(stamped)} doc(s) → {target_db}.{master_collection}",
+              file=sys.stderr)
+    else:
+        print(f"Run database is {target_db}, same as the master — skipping the run copy.",
+              file=sys.stderr)
+
     # Canonical master backup by default; --out overrides the path.
     default_export = master_trial_export_dir() / f"trials_master-{run_date}.json"
     out_path = Path(args.out) if args.out else default_export
@@ -948,6 +963,7 @@ def _cmd_trials_filter(args) -> None:
     master_db = args.master_db or config["master_dbname"]
     master_collection = args.master_collection or config["master_collection"]
     filtered_collection = args.filtered_collection or config["filtered_collection"]
+    run_db = args.db or config["dbname"]
 
     database = ctm_db.get_database(config, master_db)
     rows = ctm_db.read_collection(database, master_collection, keep_metadata=True)
@@ -975,6 +991,18 @@ def _cmd_trials_filter(args) -> None:
     ctm_db.replace_collection(database, filtered_collection, stamped,
                               ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
     print(f"Stored {len(stamped)} doc(s) → {master_db}.{filtered_collection}", file=sys.stderr)
+
+    # Also snapshot the filtered set into this run's own database — a per-run
+    # audit copy. The master database stays authoritative for reads (match-prep
+    # reads 07 from the master, never from this copy).
+    if run_db != master_db:
+        ctm_db.replace_collection(ctm_db.get_database(config, run_db), filtered_collection,
+                                  stamped, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
+        print(f"Stored {len(stamped)} doc(s) → {run_db}.{filtered_collection}",
+              file=sys.stderr)
+    else:
+        print(f"Run database is {run_db}, same as the master — skipping the run copy.",
+              file=sys.stderr)
 
     if args.out:
         Path(args.out).write_text(json.dumps(filtered, indent=2, default=str))
