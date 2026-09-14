@@ -80,6 +80,18 @@ def resolve_trial_collection(config: dict, override: str | None,
     return config["master_collection"]
 
 
+def match_level_query(min_match_level: int) -> dict | None:
+    """The Mongo query for ``--min-match-level``: ``match_level >= N`` (threshold,
+    not exact) — a trial with genomic AND clinical criteria still satisfies a
+    clinical-or-better filter. ``0`` (the default) means no filtering, so today's
+    behaviour is unchanged until someone opts in; returning None rather than
+    ``{}`` lets the caller tell "no filter" apart from "filter matching everything".
+    """
+    if not min_match_level:
+        return None
+    return {"match_level": {"$gte": min_match_level}}
+
+
 def matchengine_command(match_db: str) -> list[str]:
     """The matchengine invocation for the assembled db. Matchengine's defaults cover
     config-path and plugin-dir; only the database differs run to run."""

@@ -303,11 +303,11 @@ def test_nct06580314_shape_amc_wins_over_identical_others():
 # ── passthrough and determinism ─────────────────────────────────────────────
 
 def test_winning_document_passes_through_unchanged():
-    """Only entities and filtered_reason may be added; no field may be rewritten."""
+    """Only entities, filtered_reason, and match_level may be added; no field may be rewritten."""
     from ctm.transformers.filter_trials import filter_trials
     source = _row("amc", nct="NCT1", protocol="2017.130")
     out = filter_trials([source])[0]
-    assert set(out) - set(source) == {"entities", "filtered_reason"}
+    assert set(out) - set(source) == {"entities", "filtered_reason", "match_level"}
     for key, value in source.items():
         assert out[key] == value
 
@@ -329,3 +329,136 @@ def test_shuffled_input_produces_identical_output():
 def test_empty_input_returns_empty():
     from ctm.transformers.filter_trials import filter_trials
     assert filter_trials([]) == []
+
+
+# ── match_level ──────────────────────────────────────────────────────────────
+
+def _with_match(match):
+    return {"entity": "amc", "nct_id": "NCT1", "protocol_no": "2017.130",
+            "trial_hash": "a" * 64,
+            "eligibility": {"inclusion": [{"text": "x", "sub_criteria": []}], "exclusion": []},
+            "treatment_list": {"step": [{"match": match}]},
+            "_summary": {"short_title": "T"}, "_raw": {}}
+
+
+def test_match_level_0_empty_match():
+    from ctm.transformers.filter_trials import match_level
+    assert match_level(_with_match([])) == 0
+
+
+def test_match_level_0_no_treatment_list():
+    from ctm.transformers.filter_trials import match_level
+    assert match_level({"entity": "amc"}) == 0
+
+
+def test_match_level_0_wrappers_only():
+    from ctm.transformers.filter_trials import match_level
+    assert match_level(_with_match([{"and": []}])) == 0
+
+
+def test_match_level_0_leaf_with_no_fields():
+    """A clinical node expressing no criteria is not a criterion."""
+    from ctm.transformers.filter_trials import match_level
+    assert match_level(_with_match([{"clinical": {}}])) == 0
+
+
+def test_match_level_1_age_only():
+    from ctm.transformers.filter_trials import match_level
+    assert match_level(_with_match([{"clinical": {"age_numerical": ">=18"}}])) == 1
+
+
+def test_match_level_1_age_only_across_multiple_leaves():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"and": [{"clinical": {"age_numerical": ">=11"}},
+                      {"clinical": {"age_numerical": "<25"}}]}]
+    assert match_level(_with_match(match)) == 1
+
+
+def test_match_level_2_diagnosis_only():
+    from ctm.transformers.filter_trials import match_level
+    assert match_level(_with_match([{"clinical": {"oncotree_primary_diagnosis": "Melanoma"}}])) == 2
+
+
+def test_match_level_2_age_plus_other_in_one_node():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"clinical": {"age_numerical": ">=18", "ecog_score": "<=2"}}]
+    assert match_level(_with_match(match)) == 2
+
+
+def test_match_level_2_age_leaf_plus_diagnosis_leaf():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"and": [{"clinical": {"age_numerical": ">=18"}},
+                      {"clinical": {"oncotree_primary_diagnosis": "Melanoma"}}]}]
+    assert match_level(_with_match(match)) == 2
+
+
+def test_match_level_2_nested_non_age_clinical():
+    """250 clinical clauses live at depth 1 — a top-level-only check would call this 1."""
+    from ctm.transformers.filter_trials import match_level
+    match = [{"or": [{"clinical": {"oncotree_primary_diagnosis": "Seminoma"}},
+                     {"clinical": {"oncotree_primary_diagnosis": "Immature Teratoma"}}]}]
+    assert match_level(_with_match(match)) == 2
+
+
+def test_match_level_2_unknown_leaf_key():
+    """An unrecognised criterion is still a criterion — must not read as age-only."""
+    from ctm.transformers.filter_trials import match_level
+    assert match_level(_with_match([{"prior_treatment": {"drug": "cisplatin"}}])) == 2
+
+
+def test_match_level_3_genomic():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"genomic": {"hugo_symbol": "EGFR", "variant_category": "MUTATION"}}]
+    assert match_level(_with_match(match)) == 3
+
+
+def test_match_level_3_genomic_nested_in_or():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"or": [{"clinical": {"age_numerical": ">=18"}},
+                     {"genomic": {"hugo_symbol": "BRAF"}}]}]
+    assert match_level(_with_match(match)) == 3
+
+
+def test_match_level_3_genomic_at_depth_two():
+    """Measured: one genomic clause sits two levels deep on the real master."""
+    from ctm.transformers.filter_trials import match_level
+    match = [{"and": [{"or": [{"genomic": {"hugo_symbol": "APC"}}]}]}]
+    assert match_level(_with_match(match)) == 3
+
+
+def test_match_level_3_beats_clinical_regardless_of_order():
+    from ctm.transformers.filter_trials import match_level
+    a = [{"clinical": {"oncotree_primary_diagnosis": "Melanoma"}}, {"genomic": {"hugo_symbol": "BRAF"}}]
+    b = [{"genomic": {"hugo_symbol": "BRAF"}}, {"clinical": {"oncotree_primary_diagnosis": "Melanoma"}}]
+    assert match_level(_with_match(a)) == 3
+    assert match_level(_with_match(b)) == 3
+
+
+def test_match_level_only_reads_step_zero():
+    from ctm.transformers.filter_trials import match_level
+    trial = _with_match([{"clinical": {"age_numerical": ">=18"}}])
+    trial["treatment_list"]["step"].append({"match": [{"genomic": {"hugo_symbol": "EGFR"}}]})
+    assert match_level(trial) == 1
+
+
+def test_filter_trials_stamps_match_level():
+    from ctm.transformers.filter_trials import filter_trials
+    trial = _with_match([{"genomic": {"hugo_symbol": "EGFR"}}])
+    assert filter_trials([trial])[0]["match_level"] == 3
+
+
+def test_match_level_2_genomic_hidden_under_unrecognised_wrapper():
+    """The allowlist-safety argument (see AGE_ONLY_FIELDS) only protects 1-vs-2:
+    a genomic leaf beneath a wrapper key other than and/or caps at 2, not 3 —
+    matchengine would not parse "not" either, so the trial is inert regardless."""
+    from ctm.transformers.filter_trials import match_level
+    match = [{"not": [{"genomic": {"hugo_symbol": "EGFR"}}]}]
+    assert match_level(_with_match(match)) == 2
+
+
+def test_match_level_1_empty_genomic_node_does_not_lift_level():
+    """A genomic node with no fields is not a criterion, so it cannot outrank
+    the real age-only criterion alongside it."""
+    from ctm.transformers.filter_trials import match_level
+    match = [{"genomic": {}}, {"clinical": {"age_numerical": ">=18"}}]
+    assert match_level(_with_match(match)) == 1

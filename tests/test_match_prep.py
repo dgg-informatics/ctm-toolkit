@@ -47,12 +47,31 @@ def test_matchengine_command():
 
 # ── _cmd_match_prep against an in-memory fake client ──────────────────────────
 
+def _matches(doc, query):
+    """Minimal filter matcher — just enough of Mongo's query language for these
+    fakes: exact equality, $exists, and $gte."""
+    for field, cond in (query or {}).items():
+        value = doc.get(field)
+        if isinstance(cond, dict):
+            if "$exists" in cond and cond["$exists"] != (field in doc):
+                return False
+            if "$gte" in cond and (value is None or value < cond["$gte"]):
+                return False
+        elif value != cond:
+            return False
+    return True
+
+
 class _FakeCollection:
     def __init__(self, docs=None):
         self.docs = list(docs or [])
 
-    def find(self, *_):
-        return list(self.docs)
+    def find(self, query=None):
+        return [d for d in self.docs if _matches(d, query)]
+
+    def count_documents(self, query=None, limit=0):
+        matched = [d for d in self.docs if _matches(d, query)]
+        return len(matched[:limit]) if limit else len(matched)
 
     def drop(self):
         self.docs = []
@@ -84,7 +103,7 @@ def _match_args(**over):
     d = {"match_db": None, "run_date": "2026-09-04", "trial_db": None,
          "trial_collection": None, "trials_file": None, "clinical_db": None,
          "clinical_collection": None, "genomic_db": None, "genomic_collection": None,
-         "pt_data": None, "run": False}
+         "pt_data": None, "run": False, "min_match_level": 0}
     return argparse.Namespace(**{**d, **over})
 
 
@@ -215,3 +234,172 @@ def test_match_prep_override_wins_over_both():
     assert resolve_trial_collection(config, override="my_trials",
                                     existing={"06_master_trials", "07_filtered_trials"}) \
         == "my_trials"
+
+
+# ── match_level_query ───────────────────────────────────────────────────────
+
+def test_match_level_query_zero_means_no_filter():
+    from ctm.match_prep import match_level_query
+    assert match_level_query(0) is None
+
+
+def test_match_level_query_builds_gte():
+    from ctm.match_prep import match_level_query
+    assert match_level_query(1) == {"match_level": {"$gte": 1}}
+    assert match_level_query(2) == {"match_level": {"$gte": 2}}
+    assert match_level_query(3) == {"match_level": {"$gte": 3}}
+
+
+# ── --min-match-level in _cmd_match_prep ───────────────────────────────────
+
+def test_match_prep_min_match_level_filters_trials(monkeypatch):
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    client = _FakeClient({
+        "latest_trials": {"06_master_trials": [
+            {"_id": 1, "protocol_no": "A", "match_level": 1},
+            {"_id": 2, "protocol_no": "B", "match_level": 2},
+        ]},
+        "patients_dev": {"latest_clinical": [], "latest_genomic": []},
+    })
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    mm_cli._cmd_match_prep(_match_args(min_match_level=2))
+
+    match_db = client["2026-09-04_match"]
+    assert [d["protocol_no"] for d in match_db["trial"].docs] == ["B"]
+
+
+def test_match_prep_min_match_level_zero_copies_everything(monkeypatch):
+    """Default 0 must reproduce today's unfiltered behaviour exactly."""
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    client = _FakeClient({
+        "latest_trials": {"06_master_trials": [
+            {"_id": 1, "protocol_no": "A", "match_level": 1},
+            {"_id": 2, "protocol_no": "B", "match_level": 2},
+        ]},
+        "patients_dev": {"latest_clinical": [], "latest_genomic": []},
+    })
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    mm_cli._cmd_match_prep(_match_args())
+
+    match_db = client["2026-09-04_match"]
+    assert [d["protocol_no"] for d in match_db["trial"].docs] == ["A", "B"]
+
+
+def test_match_prep_min_match_level_errors_when_field_absent(monkeypatch):
+    """Without the guard, this would silently copy zero trials and produce an
+    empty match run with no explanation."""
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    client = _FakeClient({
+        "latest_trials": {"06_master_trials": [{"_id": 1, "protocol_no": "A"}]},
+        "patients_dev": {"latest_clinical": [], "latest_genomic": []},
+    })
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    with pytest.raises(SystemExit) as exc:
+        mm_cli._cmd_match_prep(_match_args(min_match_level=2))
+
+    assert exc.value.code == 1
+
+
+def test_match_prep_min_match_level_errors_when_collection_empty(monkeypatch):
+    """An empty source collection is a different problem from a partially-stamped
+    one and must say so, not claim it "does not carry match_level"."""
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    client = _FakeClient({
+        "latest_trials": {"06_master_trials": []},
+        "patients_dev": {"latest_clinical": [], "latest_genomic": []},
+    })
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    with pytest.raises(SystemExit) as exc:
+        mm_cli._cmd_match_prep(_match_args(min_match_level=2))
+
+    assert exc.value.code == 1
+
+
+def test_match_prep_min_match_level_errors_on_partial_stamp(monkeypatch):
+    """An existence probe would pass this (some docs carry match_level) and then
+    silently drop the unstamped ones from the $gte filter — must refuse instead."""
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    client = _FakeClient({
+        "latest_trials": {"06_master_trials": [
+            {"_id": 1, "protocol_no": "A", "match_level": 3},
+            {"_id": 2, "protocol_no": "B"},
+        ]},
+        "patients_dev": {"latest_clinical": [], "latest_genomic": []},
+    })
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    with pytest.raises(SystemExit) as exc:
+        mm_cli._cmd_match_prep(_match_args(min_match_level=2))
+
+    assert exc.value.code == 1
+    # nothing was copied — the guard fires before any Mongo write
+    assert client["2026-09-04_match"]["trial"].docs == []
+
+
+# ── --min-match-level with --trials-file ────────────────────────────────────
+
+def test_match_prep_trials_file_ignores_min_match_level_at_zero(monkeypatch, tmp_path):
+    """At the default 0, the --trials-file path behaves exactly as before."""
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    trials_file = tmp_path / "trials.json"
+    trials_file.write_text(json.dumps([{"protocol_no": "A"}, {"protocol_no": "B"}]))
+    client = _FakeClient()
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    mm_cli._cmd_match_prep(_match_args(trials_file=str(trials_file)))
+
+    match_db = client["2026-09-04_match"]
+    assert [d["protocol_no"] for d in match_db["trial"].docs] == ["A", "B"]
+
+
+def test_match_prep_trials_file_errors_when_no_match_level(monkeypatch, tmp_path):
+    """The flag must not be silently ignored on the file path: if no trial in the
+    file carries match_level, refuse rather than copy everything unfiltered."""
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    trials_file = tmp_path / "trials.json"
+    trials_file.write_text(json.dumps([{"protocol_no": "A"}, {"protocol_no": "B"}]))
+    client = _FakeClient()
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    with pytest.raises(SystemExit) as exc:
+        mm_cli._cmd_match_prep(_match_args(trials_file=str(trials_file), min_match_level=2))
+
+    assert exc.value.code == 1
+    assert client["2026-09-04_match"]["trial"].docs == []
+
+
+def test_match_prep_trials_file_filters_by_match_level(monkeypatch, tmp_path):
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    trials_file = tmp_path / "trials.json"
+    trials_file.write_text(json.dumps([
+        {"protocol_no": "A", "match_level": 1},
+        {"protocol_no": "B", "match_level": 2},
+        {"protocol_no": "C", "match_level": 3},
+    ]))
+    client = _FakeClient()
+    monkeypatch.setattr("ctm.db.get_client", lambda config: client)
+
+    mm_cli._cmd_match_prep(_match_args(trials_file=str(trials_file), min_match_level=2))
+
+    match_db = client["2026-09-04_match"]
+    assert [d["protocol_no"] for d in match_db["trial"].docs] == ["B", "C"]

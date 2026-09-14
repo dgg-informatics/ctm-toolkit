@@ -376,3 +376,39 @@ def test_mongo_config_honours_filtered_collection_override(monkeypatch):
     monkeypatch.setenv("MONGO_FILTERED_COLLECTION", "07_custom")
     from ctm.db import mongo_config
     assert mongo_config()["filtered_collection"] == "07_custom"
+
+
+# ── copy_collection ─────────────────────────────────────────────────────────
+
+def test_copy_collection_without_query_copies_everything():
+    from ctm.db import copy_collection
+
+    class _Src:
+        def __init__(self): self.seen = None
+        def find(self, q): self.seen = q; return [{"_id": 1}, {"_id": 2}]
+
+    class _Dest:
+        def __init__(self): self.docs = None
+        def drop(self): pass
+        def insert_many(self, docs): self.docs = docs
+
+    src, dest = _Src(), _Dest()
+    assert copy_collection(src, dest) == 2
+    assert src.seen == {}
+    assert dest.docs == [{"_id": 1}, {"_id": 2}]
+
+
+def test_copy_collection_passes_the_query_through():
+    from ctm.db import copy_collection
+
+    class _Src:
+        def __init__(self): self.seen = None
+        def find(self, q): self.seen = q; return [{"_id": 1}]
+
+    class _Dest:
+        def drop(self): pass
+        def insert_many(self, docs): pass
+
+    src = _Src()
+    assert copy_collection(src, _Dest(), {"match_level": {"$gte": 2}}) == 1
+    assert src.seen == {"match_level": {"$gte": 2}}

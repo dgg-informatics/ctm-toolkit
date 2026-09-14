@@ -308,6 +308,7 @@ Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
    1. `$ ctm-mm match-prep` — copies trials (`MONGO_MASTER_DBNAME`) and the latest patient `clinical`/`genomic` (`MONGO_PATIENT_DBNAME`) into a frozen `<date>_match` database, under matchengine's default collection names (`trial`/`clinical`/`genomic`). `_id`s are preserved so the `CLINICAL_ID` links survive — vanilla matchengine matches against it with no fork changes. Trials are read from `07_filtered_trials` when it exists, falling back to `06_master_trials` (`MONGO_MASTER_COLLECTION`) for a deployment that hasn't run `trials-filter` yet — see "Deduplicating trials" below. `--trial-collection` overrides either.
    2. `$ ctm-mm match-prep --run` — also runs `matchengine match --db <date>_match`, passing a `SECRETS_JSON` synthesized from your `.env`, so both tools share one connection config. matchengine writes `trial_match` results back into the same dated db, giving a fully reproducible snapshot of that run.
    3. For a one-off, source from disk instead of Mongo: `--trials-file <json>` (a trials array) and/or `--pt-data <json>` (a `ctm-mm patients` bundle, linked on the fly). Every source db/collection is overridable (`--trial-db/-collection`, `--clinical-db/-collection`, `--genomic-db/-collection`, `--match-db`).
+   4. `--min-match-level N` (`0`-`3`, default `0`) restricts the trial copy to `match_level >= N` — see "Filtering trials by match specificity" below. Requires a trial collection that carries `match_level` (`07_filtered_trials`); against one that doesn't (e.g. `06_master_trials`), it errors rather than silently copying zero trials.
 
 ### Clinical Trial Data Preparation
 
@@ -381,18 +382,37 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 
 `sparrow-api` and `west` resolve against ClinicalTrials.gov; `amc` comes from OnCore CTMS with its own protocol numbers and its own (often edited) titles. The same NCT therefore appears in `06_master_trials` two to four times, and matchengine emits one match per document — so without deduplication a patient's report lists the same trial repeatedly with different match reasons.
 
-`ctm-mm trials-filter` derives `07_filtered_trials`, one document per trial, from the master. It does not merge documents — the winning one is stored as is, plus `entities` and `filtered_reason` — and it is fully regenerable from `06_master_trials` at any time, so it carries no curation of its own.
+`ctm-mm trials-filter` derives `07_filtered_trials`, one document per trial, from the master. It does not merge documents — the winning one is stored as is, plus `entities`, `filtered_reason`, and `match_level` — and it is fully regenerable from `06_master_trials` at any time, so it carries no curation of its own.
 
 1. `$ ctm-mm trials-filter --out 2026-07-14-filtered.json` — reads the master from `MONGO_MASTER_DBNAME`.`MONGO_MASTER_COLLECTION`, stores the result to `07_filtered_trials`, and (optionally) writes it to a file. Like `trials-merge`, the master write happens first and is then copied into the run database (`MONGO_DBNAME`, or `--db`) as a per-run snapshot; the master remains authoritative for reads (`match-prep` reads `07_filtered_trials` from the master only), and the copy is skipped with a message when the run and master databases are the same name.
 2. Rows are grouped by `nct_id` (falling back to `protocol_no` for the rare trial with none), then reduced in two steps:
    - **Entity precedence** — within a group, only the highest-precedence entity's rows survive: `amc > sparrow-api > west`. AMC is the local enrolling site and the freshest source, so where a trial appears at more than one entity, AMC's document represents it regardless of which copy is more detailed.
    - **Eligibility collapse** — among the winning entity's rows, those with identical eligibility are true duplicates and collapse to the one with the lowest `trial_hash`; those with differing eligibility are distinct studies sharing an NCT (e.g. two AMC protocols under one umbrella trial) and are all kept. `treatment_list` and `short_title` are deliberately excluded from that equality test — the former is hand-curated and can differ subtly between copies of one study, the latter is edited by AMC — so including either would wrongly preserve duplicates that eligibility, the field that actually drives matching, says are the same.
-3. Each stored document carries two added keys: `entities` — the sorted multiset of every contributing row's entity (duplicates retained, so `["amc", "sparrow-api", "sparrow-api", "west"]` shows two `sparrow-api` copies existed) — and `filtered_reason`, one of:
+3. Each stored document carries three added keys: `entities` — the sorted multiset of every contributing row's entity (duplicates retained, so `["amc", "sparrow-api", "sparrow-api", "west"]` shows two `sparrow-api` copies existed) — `filtered_reason`, one of:
    - `unique-nct` — the trial had exactly one row in the master to begin with (no other entity carried it).
    - `entity-precedence` — more than one entity had the trial, and a lower-precedence entity's copy was dropped.
    - `same-nct-unique-eligibility` — more than one row from the winning entity survived because their eligibility differs.
    - `same-nct-duplicate-eligibility` — more than one row from the winning entity collapsed into this one because their eligibility was identical.
+
+   and `match_level` — see "Filtering trials by match specificity" below.
 4. `ctm-mm match-prep` reads `07_filtered_trials` when it exists, falling back to `06_master_trials` for a deployment that hasn't run `trials-filter` yet — see "Assemble a match database and run matchengine" above.
+
+### Filtering trials by match specificity
+
+Not every trial in `07_filtered_trials` is equally useful to match against: some carry no match clause at all (inert — matchengine emits nothing for them), and a number match on age alone (`age_numerical: ">=18"`), which matches nearly every adult patient and floods results with uninformative matches. `match_level`, stamped on each document by `trials-filter`, says how specific a trial's match clause is, computed from the leaves of `treatment_list.step[0].match` **at any depth** (the tree nests — recursion is not optional):
+
+| level | meaning | rule |
+|---|---|---|
+| **3** | genomic | any `genomic` leaf anywhere in the tree, sufficient on its own regardless of what else the clause carries |
+| **2** | clinical beyond age | no genomic, and at least one leaf carries a field outside the age allowlist (`age_numerical`), or any leaf whose key isn't `clinical` at all |
+| **1** | age only | no genomic, and every leaf is `clinical` with fields entirely inside the age allowlist |
+| **0** | uncurated | no leaves carrying any field — empty `match`, or only `and`/`or` wrappers |
+
+`ctm-mm match-prep --min-match-level N` (`0`-`3`, default `0`) restricts the trial copy to `match_level >= N` (threshold, not exact — a trial with genomic *and* clinical criteria still satisfies `--min-match-level 2`). `0` is today's unfiltered behaviour; `1` drops uncurated trials; `2` drops age-only noise; `3` keeps genomic trials only.
+
+**`--min-match-level 3` deliberately hides legitimate matches.** A diagnosis-specific trial with no genomic criteria is a real enrolment option — level 3 answers "what did this patient's genomics open up," not "what can this patient enrol in." Level 2 is the better default for a clinical report; level 3 is a research lens.
+
+Adopting `match_level` on an existing deployment needs one re-run of `ctm-mm trials-filter` to stamp the field onto `07_filtered_trials`.
 
 ### MatchMiner Preparation and Running
 

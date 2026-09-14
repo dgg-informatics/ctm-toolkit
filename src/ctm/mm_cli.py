@@ -289,6 +289,12 @@ def main() -> None:
     p_match.add_argument("--run", action="store_true",
                          help="Also run matchengine against the assembled db (uses .env-"
                               "derived SECRETS_JSON)")
+    p_match.add_argument("--min-match-level", dest="min_match_level", type=int,
+                         choices=[0, 1, 2, 3], default=0, metavar="N",
+                         help="Only match trials whose match clause is at least this "
+                              "specific: 0 all, 1 any criteria, 2 clinical beyond age, "
+                              "3 genomic. Requires a collection carrying match_level "
+                              "(07_filtered_trials)")
 
     args = parser.parse_args()
 
@@ -1064,6 +1070,7 @@ def _cmd_match_prep(args) -> None:
     from ctm.match_prep import (
         DEFAULT_CLINICAL_COLLECTION,
         DEFAULT_GENOMIC_COLLECTION,
+        match_level_query,
         matchengine_command,
         resolve_trial_collection,
         synthesize_secrets,
@@ -1080,8 +1087,20 @@ def _cmd_match_prep(args) -> None:
     # ── trials → match_db.trial (Mongo master, or a one-off file) ──────────────
     if args.trials_file:
         trials = json.loads(Path(args.trials_file).read_text())
-        n_trial = ctm_db.overwrite_collection(match_db, "trial", trials)
-        trial_src = args.trials_file
+        if args.min_match_level == 0:
+            n_trial = ctm_db.overwrite_collection(match_db, "trial", trials)
+            trial_src = args.trials_file
+        else:
+            # A doc with no match_level key is unclassified, not uncurated — -1
+            # keeps it below every real threshold instead of passing as level 0.
+            if not any("match_level" in t for t in trials):
+                print(f"Error: --min-match-level {args.min_match_level} needs match_level, "
+                      f"which {args.trials_file} does not carry. "
+                      "Run ctm-mm trials-filter, or drop the flag.", file=sys.stderr)
+                sys.exit(1)
+            filtered = [t for t in trials if t.get("match_level", -1) >= args.min_match_level]
+            n_trial = ctm_db.overwrite_collection(match_db, "trial", filtered)
+            trial_src = f"{args.trials_file} (match_level >= {args.min_match_level})"
     else:
         trial_db = args.trial_db or config["master_dbname"]
         if not trial_db:
@@ -1092,8 +1111,29 @@ def _cmd_match_prep(args) -> None:
             config, args.trial_collection,
             set(client[trial_db].list_collection_names()),
         )
-        n_trial = ctm_db.copy_collection(client[trial_db][trial_coll], match_db["trial"])
+        source = client[trial_db][trial_coll]
+        trial_query = match_level_query(args.min_match_level)
+        if trial_query is not None:
+            # An existence probe would pass a partially-stamped collection and
+            # then silently drop every trial missing match_level from the $gte
+            # filter — count what's missing instead, and refuse if anything is.
+            unstamped = source.count_documents({"match_level": {"$exists": False}})
+            total = source.count_documents({})
+            if total == 0:
+                print(f"Error: --min-match-level {args.min_match_level} needs match_level, "
+                      f"but {trial_db}.{trial_coll} is empty. "
+                      "Run ctm-mm trials-filter to populate it.", file=sys.stderr)
+                sys.exit(1)
+            elif unstamped:
+                print(f"Error: --min-match-level {args.min_match_level} needs every trial to "
+                      f"carry match_level, but {unstamped} of {total} in "
+                      f"{trial_db}.{trial_coll} do not. "
+                      "Run ctm-mm trials-filter to regenerate it.", file=sys.stderr)
+                sys.exit(1)
+        n_trial = ctm_db.copy_collection(source, match_db["trial"], trial_query)
         trial_src = f"{trial_db}.{trial_coll}"
+        if trial_query is not None:
+            trial_src += f" (match_level >= {args.min_match_level})"
     print(f"trial:    {n_trial} from {trial_src}", file=sys.stderr)
 
     # ── clinical + genomic → match_db (Mongo patient db, or a one-off bundle) ──
