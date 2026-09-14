@@ -17,6 +17,7 @@ Two different databases are in play, and the distinction is the whole design:
   re-running full LLM curation over the entire trial list.
 """
 import os
+from datetime import date
 from importlib.metadata import version
 
 # The pipeline's collections, frozen. Ordinal prefixes encode stage position, so
@@ -125,13 +126,29 @@ def mongo_config(require_master: bool = False, require_dbname: bool = True) -> d
     it only when they actually intend to read the master from Mongo, so a run
     that passes ``--master <file>`` never fails on a variable it does not use.
 
-    ``require_dbname`` is on for the per-run trial stages; ``ctm-mm load`` sets it
-    off — it is a patient-only command that touches ``MONGO_PATIENT_DBNAME``, never
-    the per-run ``MONGO_DBNAME``.
+    ``require_dbname`` controls the per-run database name: when True, a missing
+    ``MONGO_DBNAME`` derives ``YYYY-MM-DD_dev`` from today (so an unattended run
+    gets a fresh database instead of failing). When False, the name stays ``None``.
+    ``ctm-mm load`` and ``ctm-mm match-prep`` set it off — they are patient-only
+    commands that touch ``MONGO_PATIENT_DBNAME``, never the per-run database.
+
+    The environment variable is an override, not the source of truth: automation
+    must still pin ``MONGO_DBNAME`` explicitly for every stage to ensure all stages
+    of one run use the same database (a run spanning midnight would otherwise split
+    across dates).
     """
     dbname = os.environ.get("MONGO_DBNAME")
-    if require_dbname and not dbname:
-        raise ValueError("MONGO_DBNAME not set in environment")
+    if not dbname and require_dbname:
+        # An override, not the source of truth: a per-run database is named for the
+        # day it was created, so an unattended run gets a fresh one instead of
+        # failing on a missing variable — or, worse, silently reusing whatever
+        # stale value was left in a service account's environment.
+        #
+        # Automation must still pin this explicitly (ctm-auto exports MONGO_DBNAME
+        # for every stage it runs): a run that spans midnight, or a curator picking
+        # up a later stage the next day, would otherwise derive a different name and
+        # read an empty database.
+        dbname = f"{date.today().isoformat()}_dev"
 
     # Two ways to point at a server. MONGO_URI wins and is the only form that
     # carries credentials — a bare host/port cannot authenticate. The auth
