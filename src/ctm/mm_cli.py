@@ -22,10 +22,10 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
-from ctm.paths import cache_dir, cache_path, load_env, master_trial_export_dir
+from ctm.paths import cache_dir, cache_path, load_env, master_trial_export_dir, west_trials_path
 
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
@@ -35,6 +35,12 @@ _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
 # forgotten flag never triggers a live pull.
 _DDOTS_FETCH = "<fetch>"
 _AMC_FETCH = "<fetch>"
+
+# Sentinel for a bare `--west` (no path): read the default location
+# (west_trials_path(), overridable with WEST_TRIALS_PATH) rather than requiring an
+# explicit path every run. Omitting the flag entirely still means "no West trials
+# this run", same as the fetch sentinels above.
+_WEST_DEFAULT = "<default>"
 
 
 def main() -> None:
@@ -87,9 +93,10 @@ def main() -> None:
                           default="O",
                           help="DDOTS status_short filter for a bare --ddots fetch (default: O = open). "
                                "Pass an empty string for every status")
-    p_trials.add_argument("--west", metavar="XLSX",
+    p_trials.add_argument("--west", metavar="XLSX", nargs="?", const=_WEST_DEFAULT,
                           help="Path to the UMH-West trials Excel template (NCT numbers are "
-                               "resolved against ClinicalTrials.gov)")
+                               "resolved against ClinicalTrials.gov). Pass the flag bare to "
+                               "read the default location (override with WEST_TRIALS_PATH)")
     p_trials.add_argument("--out", metavar="PATH",
                           help="Write the MatchMiner CTML JSON output to this path")
     # v2: MongoDB only by default; pass --out (or --disk with --out) to also write a file.
@@ -549,10 +556,21 @@ def _cmd_trials(args) -> None:
     if args.west:
         from ctm.transformers.raw_west_to_ctml import to_ctml_dict as west_to_ctml
         from ctm.transformers.west_xlsx_to_raw import load as load_west
-        west_path = Path(args.west)
-        if not west_path.exists():
-            print(f"Error: file not found: {west_path}", file=sys.stderr)
-            sys.exit(1)
+
+        if args.west == _WEST_DEFAULT:
+            west_path = west_trials_path()
+            if not west_path.exists():
+                print(f"Error: no UMH-West workbook at {west_path}. Place one there, "
+                      "pass --west PATH, or set WEST_TRIALS_PATH.", file=sys.stderr)
+                sys.exit(1)
+        else:
+            west_path = Path(args.west)
+            if not west_path.exists():
+                print(f"Error: file not found: {west_path}", file=sys.stderr)
+                sys.exit(1)
+
+        source_modified_at = datetime.fromtimestamp(west_path.stat().st_mtime, tz=UTC).isoformat()
+        print(f"West:     {west_path} (modified {source_modified_at})", file=sys.stderr)
         print(f"Reading West XLSX {west_path} ...", file=sys.stderr)
         raw_west = load_west(west_path)
         print(f"  {len(raw_west)} West trial(s) with NCT numbers — fetching from ClinicalTrials.gov ...", file=sys.stderr)

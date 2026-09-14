@@ -30,6 +30,26 @@ def test_west_xlsx_parses_both_rows():
     assert trials[1].model_dump()["ID"] == "18007"
 
 
+def test_west_xlsx_stamps_source_modified_at_from_the_file_mtime(tmp_path):
+    """The workbook keeps a stable filename and is replaced in place, so its mtime
+    is the only record of which version fed a run — captured on every row."""
+    import os
+    import shutil
+    from datetime import UTC, datetime
+
+    from ctm.transformers.west_xlsx_to_raw import load
+
+    copy = tmp_path / "west.xlsx"
+    shutil.copy(WEST, copy)
+    os.utime(copy, (1700000000, 1700000000))
+
+    trials = load(copy)
+    expected = datetime.fromtimestamp(1700000000, tz=UTC).isoformat()
+
+    assert len(trials) == 2
+    assert all(t.model_dump()["source_modified_at"] == expected for t in trials)
+
+
 def test_sparrow_xlsx_parses_both_rows():
     from ctm.transformers.sparrow_xlsx_to_raw import load
 
@@ -79,6 +99,29 @@ def test_source_normalizes_to_ctml(stub_ctgov, source, path, entity, raw_key):
         assert "nct_id" not in d["_raw"][raw_key]
         # content actually came from the canned CTGov response
         assert d["_summary"]["short_title"] or d["_summary"]["long_title"]
+
+
+def test_ctml_dict_carries_source_modified_at_as_iso8601_utc(stub_ctgov, tmp_path):
+    """`_raw._west.source_modified_at` must survive into the CTML dict and parse
+    as an ISO-8601 UTC timestamp — it's the provenance compute_trial_hash relies
+    on being present (and volatile) for a stable-filename workbook."""
+    import os
+    import shutil
+    from datetime import UTC, datetime
+
+    from ctm.transformers.raw_west_to_ctml import to_ctml_dict
+    from ctm.transformers.west_xlsx_to_raw import load
+
+    copy = tmp_path / "west.xlsx"
+    shutil.copy(WEST, copy)
+    os.utime(copy, (1700000000, 1700000000))
+
+    raw = load(copy)[0]
+    d = to_ctml_dict(raw)
+
+    source_modified_at = d["_raw"]["_west"]["source_modified_at"]
+    assert isinstance(source_modified_at, str)
+    assert datetime.fromisoformat(source_modified_at) == datetime.fromtimestamp(1700000000, tz=UTC)
 
 
 def test_ctgov_content_reaches_the_ctml_dict(stub_ctgov):

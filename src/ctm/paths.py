@@ -81,6 +81,19 @@ def master_trial_export_dir() -> Path:
     ).expanduser()
 
 
+def west_trials_path() -> Path:
+    """Default UMH-West trials workbook, read when ``--west`` is passed bare.
+
+    Override with ``WEST_TRIALS_PATH`` (an empty value is treated as unset, not as
+    ``Path("")``). A stable filename is deliberate — the file is replaced in place
+    rather than versioned, and which version fed a run is recorded from its mtime.
+    """
+    return Path(
+        os.environ.get("WEST_TRIALS_PATH")
+        or "/var/lib/ctm/sources/trials-west-latest.xlsx"
+    ).expanduser()
+
+
 def cache_path(name: str) -> Path:
     """Absolute path for cache file ``name``, ensuring its parent exists."""
     path = cache_dir() / name
