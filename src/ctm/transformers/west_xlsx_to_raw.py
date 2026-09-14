@@ -7,7 +7,15 @@ header name — unmodeled. Only ``nct_id`` is used downstream (to fetch the tria
 from ClinicalTrials.gov); the rest rides along as provenance in ``_raw._west``.
 
 Rows without an nct_id are skipped — nothing to fetch.
+
+The workbook keeps a stable filename and is replaced in place rather than
+versioned, so its mtime is the only record of which version fed a run. Every
+row is stamped with it as ``source_modified_at`` (ISO-8601 UTC), which ends up
+in ``_raw._west.source_modified_at`` — deliberately excluded from
+``compute_trial_hash`` (see ``_VOLATILE_RAW_KEYS`` in trials_lifecycle.py), or
+just touching the file would make every West trial look changed.
 """
+from datetime import UTC, datetime
 from pathlib import Path
 
 import openpyxl
@@ -16,6 +24,9 @@ from ..schemas.raw.models import RawWestTrial
 
 
 def load(path: str | Path) -> list[RawWestTrial]:
+    path = Path(path)
+    source_modified_at = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).isoformat()
+
     wb = openpyxl.load_workbook(path, read_only=True)
     ws = wb.active
     rows = ws.iter_rows(values_only=True)
@@ -48,6 +59,9 @@ def load(path: str | Path) -> list[RawWestTrial]:
             name = headers[i]
             if name is not None and value is not None:
                 data[name] = value
+        # Provenance, not sheet content — set after the column loop so it always
+        # wins over a coincidentally-named column.
+        data["source_modified_at"] = source_modified_at
         trials.append(RawWestTrial.model_validate(data))
 
     return trials

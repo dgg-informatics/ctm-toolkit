@@ -66,6 +66,58 @@ def _trials_args(*argv):
     return captured["args"]
 
 
+def test_bare_west_resolves_to_the_default_sentinel():
+    """Mirrors --amc/--ddots: a bare flag means "read the default location",
+    resolved later by the handler — not a literal path here."""
+    from ctm.mm_cli import _WEST_DEFAULT
+
+    assert _trials_args("--out", "o.json", "--west").west == _WEST_DEFAULT
+
+
+def test_explicit_west_path_still_wins_over_the_default():
+    assert _trials_args("--out", "o.json", "--west", "some-west.xlsx").west == "some-west.xlsx"
+
+
+def test_omitting_west_does_not_read_the_default():
+    """Omission means "no West trials this run" — same contract as --amc/--ddots,
+    so a forgotten flag never silently pulls in the default workbook."""
+    assert _trials_args("--out", "o.json", "--amc").west is None
+
+
+def test_cmd_trials_bare_west_missing_default_exits_1_naming_path_and_env_var(
+    tmp_path, monkeypatch, fake_mongo, capsys,
+):
+    from ctm.mm_cli import _cmd_trials
+
+    missing = tmp_path / "sources" / "trials-west-latest.xlsx"
+    monkeypatch.setenv("WEST_TRIALS_PATH", str(missing))
+
+    args = _trials_args("--west")
+    with pytest.raises(SystemExit) as excinfo:
+        _cmd_trials(args)
+
+    assert excinfo.value.code == 1
+    err = capsys.readouterr().err
+    assert str(missing) in err
+    assert "WEST_TRIALS_PATH" in err
+
+
+def test_cmd_trials_explicit_west_path_missing_exits_1_naming_the_path(
+    tmp_path, fake_mongo, capsys,
+):
+    """An explicitly-passed path fails the same readable way, not with an
+    openpyxl traceback — this must keep working exactly as before."""
+    from ctm.mm_cli import _cmd_trials
+
+    missing = tmp_path / "not-here.xlsx"
+    args = _trials_args("--west", str(missing))
+    with pytest.raises(SystemExit) as excinfo:
+        _cmd_trials(args)
+
+    assert excinfo.value.code == 1
+    assert str(missing) in capsys.readouterr().err
+
+
 def test_cmd_trials_stamps_trial_hash(tmp_path, monkeypatch, fake_mongo):
     from ctm.mm_cli import _cmd_trials
 

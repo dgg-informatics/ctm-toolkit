@@ -64,16 +64,30 @@ def test_cache_dir_precedence(monkeypatch, tmp_path):
 @pytest.mark.parametrize("env,default", [
     ("LLM_BIOMARKER_EXPORT_DIR", "/var/lib/ctm/to-curate"),
     ("MASTER_TRIAL_EXPORT_DIR", "/var/lib/ctm/trials"),
+    ("WEST_TRIALS_PATH", "/var/lib/ctm/sources/trials-west-latest.xlsx"),
 ])
 def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, default):
     """A blank env var must fall back to the default, not resolve to Path("") = CWD
     (which silently scattered the export into the working directory)."""
-    from ctm.paths import llm_biomarker_export_dir, master_trial_export_dir
+    from ctm.paths import llm_biomarker_export_dir, master_trial_export_dir, west_trials_path
 
     func = {"LLM_BIOMARKER_EXPORT_DIR": llm_biomarker_export_dir,
-            "MASTER_TRIAL_EXPORT_DIR": master_trial_export_dir}[env]
+            "MASTER_TRIAL_EXPORT_DIR": master_trial_export_dir,
+            "WEST_TRIALS_PATH": west_trials_path}[env]
     monkeypatch.setenv(env, "")
     assert str(func()) == default
+
+
+def test_west_trials_path_default_and_override(monkeypatch):
+    """`ctm-mm trials --west` (passed bare) reads this location; overridable so
+    the default doesn't have to be writable off the dev server."""
+    from ctm.paths import west_trials_path
+
+    monkeypatch.delenv("WEST_TRIALS_PATH", raising=False)
+    assert str(west_trials_path()) == "/var/lib/ctm/sources/trials-west-latest.xlsx"
+
+    monkeypatch.setenv("WEST_TRIALS_PATH", "/tmp/some/other/west.xlsx")
+    assert str(west_trials_path()) == "/tmp/some/other/west.xlsx"
 
 
 def test_caches_never_land_in_the_repo(monkeypatch, tmp_path):

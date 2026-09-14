@@ -27,6 +27,40 @@ def test_compute_trial_hash_different_raw_different_hash():
     assert compute_trial_hash(trial_a) != compute_trial_hash(trial_b)
 
 
+def test_compute_trial_hash_ignores_west_source_modified_at():
+    """Regression guard for the whole point of stamping source_modified_at as
+    volatile: the West workbook has a stable filename and is replaced in place,
+    so merely touching it (mtime changes, content doesn't) must not change
+    trial_hash — otherwise every unchanged West trial would look "changed" and
+    get dumped into the manual curation queue for nothing. This must keep
+    failing if `source_modified_at` were ever removed from _VOLATILE_RAW_KEYS."""
+    from ctm.trials_lifecycle import compute_trial_hash
+
+    trial_a = {"_raw": {"nct_id": "NCT04314401",
+                         "_west": {"sponsor": "NCI",
+                                   "source_modified_at": "2026-01-01T00:00:00+00:00"}}}
+    trial_b = {"_raw": {"nct_id": "NCT04314401",
+                         "_west": {"sponsor": "NCI",
+                                   "source_modified_at": "2026-09-14T12:34:56+00:00"}}}
+
+    assert compute_trial_hash(trial_a) == compute_trial_hash(trial_b)
+
+
+def test_compute_trial_hash_still_differs_when_west_content_differs():
+    """The volatile-key guard must not become a blanket "ignore _west" — real
+    content changes still have to change the hash."""
+    from ctm.trials_lifecycle import compute_trial_hash
+
+    trial_a = {"_raw": {"nct_id": "NCT04314401",
+                         "_west": {"sponsor": "NCI",
+                                   "source_modified_at": "2026-01-01T00:00:00+00:00"}}}
+    trial_b = {"_raw": {"nct_id": "NCT04314401",
+                         "_west": {"sponsor": "Merck",
+                                   "source_modified_at": "2026-01-01T00:00:00+00:00"}}}
+
+    assert compute_trial_hash(trial_a) != compute_trial_hash(trial_b)
+
+
 def test_compute_trial_hash_ignores_treatment_list():
     from ctm.trials_lifecycle import compute_trial_hash
     trial_a = {"_raw": {"status": "open"}, "treatment_list": {"step": []}}

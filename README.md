@@ -137,6 +137,25 @@ trial's provenance is unambiguous.
 > returns other hospitals' protocols, which this pipeline would then label
 > `entity="sparrow-api"`. Override with `DDOTS_HOSPITAL_ID` or `--ddots-hospital-id`.
 
+#### UMH-West (CRCWM trial sheet)
+
+`ctm-mm trials --west` reads the West Excel template. Passed bare (no path), it
+reads a fixed location instead of requiring one on every invocation — matching
+`--amc` and `--ddots`:
+
+```bash
+ctm-mm trials --west --out normalized.json                    # read the default location
+ctm-mm trials --west west-trials.xlsx --out normalized.json   # read an explicit path
+```
+
+Default location: `/var/lib/ctm/sources/trials-west-latest.xlsx` — override with
+`WEST_TRIALS_PATH`. The workbook keeps a stable name and is replaced in place
+rather than versioned, so its mtime is the only record of which version fed a
+run: every West trial's `_raw._west.source_modified_at` (ISO-8601 UTC) records
+it. That field is deliberately **excluded** from `trial_hash` — including it
+would make merely touching the file (without any row actually changing) look
+like every West trial had changed, dumping all of them into manual curation.
+
 #### MongoDB configuration
 
 `ctm-mm trials-diff` stores its output in MongoDB by default. Install with

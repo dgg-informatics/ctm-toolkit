@@ -22,11 +22,16 @@ def trial_key(trial: dict) -> str:
 
 
 # Provenance recorded alongside the source data, not part of it. Excluded from the
-# hash because they change on every pull: leaving `fetched_at` in made trial_hash
-# differ run to run for identical source data, defeating the audit purpose the
-# README describes ("notice a trial's metadata quietly changed under an
-# `unchanged` routing") and making the hash useless as a cross-run join key.
-_VOLATILE_RAW_KEYS = frozenset({"fetched_at"})
+# hash because they change without the source data changing: leaving `fetched_at`
+# in made trial_hash differ run to run for identical source data, defeating the
+# audit purpose the README describes ("notice a trial's metadata quietly changed
+# under an `unchanged` routing") and making the hash useless as a cross-run join
+# key. `source_modified_at` (the West workbook's mtime, stamped on every West
+# trial's `_raw._west`) is volatile for the same reason: the file is replaced in
+# place under a stable filename, so merely touching it — without any row actually
+# changing — must not change every West trial's hash and dump all of them into
+# manual curation.
+_VOLATILE_RAW_KEYS = frozenset({"fetched_at", "source_modified_at"})
 
 
 def _without_volatile(value):
