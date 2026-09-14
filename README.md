@@ -146,7 +146,7 @@ trial's provenance is unambiguous.
 |---|---|---|
 | `MONGO_HOST` | yes | e.g. `localhost` |
 | `MONGO_PORT` | yes | e.g. `27018` (the `docker-compose` mongo service maps `27018:27017`) |
-| `MONGO_DBNAME` | yes | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated; `--db NAME` overrides it without editing `.env` |
+| `MONGO_DBNAME` | no | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated. When unset, defaults to `YYYY-MM-DD_dev` (today's date) — so an unattended run gets a fresh database. However, automation must pin this explicitly to ensure all stages of one run share the same database (a run spanning midnight would otherwise split across dates). Override per-run with `--db NAME` |
 | `MONGO_MASTER_DBNAME` | only without `--master` | The master trial list's database. Deliberately **not** per-run — the master is rolling current state, so it has a fixed address. No default: a default here would silently resolve to an empty database and route every trial to `changed` |
 | `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
 | `MONGO_FILTERED_COLLECTION` | no | Defaults to `07_filtered_trials` — what `ctm-mm match-prep` reads, falling back to `MONGO_MASTER_COLLECTION` if `ctm-mm trials-filter` hasn't run yet |

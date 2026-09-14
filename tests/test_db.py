@@ -21,7 +21,7 @@ def _set_required(monkeypatch):
     monkeypatch.setenv("MONGO_DBNAME", "2026-08-17_dev")
 
 
-@pytest.mark.parametrize("missing", ["MONGO_HOST", "MONGO_PORT", "MONGO_DBNAME"])
+@pytest.mark.parametrize("missing", ["MONGO_HOST", "MONGO_PORT"])
 def test_mongo_config_names_the_missing_variable(monkeypatch, missing):
     """Fails fast by name, matching build_client()'s UMGPT_API_KEY style."""
     from ctm.db import mongo_config
@@ -412,3 +412,68 @@ def test_copy_collection_passes_the_query_through():
     src = _Src()
     assert copy_collection(src, _Dest(), {"match_level": {"$gte": 2}}) == 1
     assert src.seen == {"match_level": {"$gte": 2}}
+
+
+# ── MONGO_DBNAME derivation ────────────────────────────────────────────────────
+
+def test_mongo_config_derives_dbname_when_unset_and_require_dbname_true(monkeypatch):
+    """When MONGO_DBNAME is unset and require_dbname=True (the default), derive
+    YYYY-MM-DD_dev from today's date. This allows an unattended cron job to get
+    a fresh database per run rather than failing on a missing env var."""
+    from ctm.db import mongo_config
+    from datetime import date
+
+    _set_required(monkeypatch)
+    monkeypatch.delenv("MONGO_DBNAME")
+
+    config = mongo_config()
+    expected = f"{date.today().isoformat()}_dev"
+    assert config["dbname"] == expected
+
+
+def test_mongo_config_uses_explicit_dbname_override(monkeypatch):
+    """When MONGO_DBNAME is set, use that value even if require_dbname=True."""
+    from ctm.db import mongo_config
+
+    _set_required(monkeypatch)
+    monkeypatch.setenv("MONGO_DBNAME", "custom_db_name")
+
+    config = mongo_config()
+    assert config["dbname"] == "custom_db_name"
+
+
+def test_mongo_config_derives_dbname_when_set_to_empty_string(monkeypatch):
+    """An empty string is treated as unset, so it derives the default."""
+    from ctm.db import mongo_config
+    from datetime import date
+
+    _set_required(monkeypatch)
+    monkeypatch.setenv("MONGO_DBNAME", "")
+
+    config = mongo_config()
+    expected = f"{date.today().isoformat()}_dev"
+    assert config["dbname"] == expected
+
+
+def test_mongo_config_require_dbname_false_returns_none_when_unset(monkeypatch):
+    """When require_dbname=False and MONGO_DBNAME is unset, return None.
+    Commands like ctm-mm load that never touch the per-run database must
+    not have one invented for them."""
+    from ctm.db import mongo_config
+
+    _set_required(monkeypatch)
+    monkeypatch.delenv("MONGO_DBNAME")
+
+    config = mongo_config(require_dbname=False)
+    assert config["dbname"] is None
+
+
+def test_mongo_config_require_dbname_false_uses_explicit_value(monkeypatch):
+    """When require_dbname=False and MONGO_DBNAME is set, use that value."""
+    from ctm.db import mongo_config
+
+    _set_required(monkeypatch)
+    monkeypatch.setenv("MONGO_DBNAME", "explicit_db")
+
+    config = mongo_config(require_dbname=False)
+    assert config["dbname"] == "explicit_db"
