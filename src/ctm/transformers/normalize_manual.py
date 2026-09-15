@@ -96,6 +96,7 @@ def normalize_finding(row: RawFinding, source: str) -> Finding:
 FINDING_SHEETS = (
     "tempus_findings", "caris_findings", "ambry_findings", "amc_ngs_findings",
     "boston_gene_findings", "mayo_findings", "henry_ford_findings",
-    "guardant360_findings", "foundation_findings",
+    "guardant360_findings", "foundation_findings", "abbott_findings",
+    "neo_findings",
 )
 SHEET_NORMALIZERS = dict.fromkeys(FINDING_SHEETS, (RawFinding, normalize_finding))
