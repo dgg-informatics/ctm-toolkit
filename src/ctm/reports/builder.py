@@ -76,42 +76,52 @@ def _match_priority(m: dict) -> tuple:
     return (level, reason, sort)
 
 
-def _select_primary_match(trial_matches: list[dict]) -> dict | None:
-    if not trial_matches:
-        return None
-    return min(trial_matches, key=_match_priority)
-
-
-def _build_other_matches(
-    trial_matches: list[dict], primary: dict | None, trials_by_protocol: dict[str, dict] | None = None
+def _build_trial_blocks(
+    matches: list[dict],
+    trials_by_protocol: dict[str, dict] | None = None,
+    known_biomarker_count: int | None = None,
 ) -> list[dict]:
+    """One block per NCT, listing every distinct reason that trial matched on.
+
+    Keyed on ``nct_id`` (falling back to ``protocol_no``) because one NCT can
+    carry several ``protocol_no`` values — trials-filter keeps same-nct rows
+    with unique eligibility — and because matchengine emits docs with no
+    ``protocol_no`` at all, which keying on protocol alone drops silently.
+
+    AND and OR criteria are deliberately not distinguished. matchengine emits
+    one doc per satisfied reason either way (``task_utils.py:128-131``); the
+    two cases differ only in ``query_hash``, and the report shows what matched
+    regardless of how the curation grouped it.
+    """
     trials_by_protocol = trials_by_protocol or {}
-    primary_protocol = primary.get("protocol_no") if primary else None
 
-    # keep the single best (most meaningful) match doc per trial — a trial that
-    # matched on both age and a gene should surface the gene, not the age.
-    best_by_protocol: dict[str, dict] = {}
-    for m in trial_matches:
-        protocol = m.get("protocol_no")
-        if not protocol or protocol == primary_protocol:
+    grouped: dict[str, dict] = {}
+    for m in matches:
+        key = m.get("nct_id") or m.get("protocol_no")
+        if key is None:
             continue
-        cur = best_by_protocol.get(protocol)
-        if cur is None or _match_priority(m) < _match_priority(cur):
-            best_by_protocol[protocol] = m
+        block = grouped.setdefault(key, {"docs": [], "reasons": {}})
+        block["docs"].append(m)
+        # first doc wins per distinct reason — it carries the detail fields
+        block["reasons"].setdefault(_match_reason(m), m)
 
-    others = []
-    for protocol, m in best_by_protocol.items():
-        summary = (trials_by_protocol.get(protocol) or {}).get("_summary") or {}
-        others.append({
-            "protocol_no": protocol,
-            "nct_id": m.get("nct_id"),
-            "trial_name": summary.get("long_title") or summary.get("short_title"),
-            "match_level": m.get("match_level"),
-            "match_reason": _match_reason(m),
-            "genomic_alteration": m.get("genomic_alteration", ""),
-            "source": "matchminer",
-        })
-    return others
+    ordered = sorted(grouped.values(), key=lambda b: min(_match_priority(d) for d in b["docs"]))
+
+    blocks = []
+    for rank, block in enumerate(ordered, start=1):
+        best = min(block["docs"], key=_match_priority)
+        reasons = [
+            reason for reason, _ in
+            sorted(block["reasons"].items(), key=lambda kv: _match_priority(kv[1]))
+        ]
+        ctx = _build_trial_block_context(
+            best, trials_by_protocol.get(best.get("protocol_no")),
+            known_biomarker_count, reasons,
+        )
+        ctx["rank"] = rank
+        ctx["match_reasons"] = reasons
+        blocks.append(ctx)
+    return blocks
 
 
 _GENOMIC_MATCH_FIELDS = {
@@ -123,8 +133,9 @@ _GENOMIC_MATCH_FIELDS = {
 }
 
 
-def _build_primary_match_context(
-    match: dict, trial: dict | None = None, known_biomarker_count: int | None = None
+def _build_trial_block_context(
+    match: dict, trial: dict | None = None, known_biomarker_count: int | None = None,
+    reasons: list[str] | None = None,
 ) -> dict:
     summary = (trial or {}).get("_summary") or {}
     raw = (trial or {}).get("_raw") or {}
@@ -137,11 +148,11 @@ def _build_primary_match_context(
         _row("Disease Site", raw.get("disease_site")),
         _row("Trial Status", (match.get("trial_summary_status") or "").capitalize()),
     ]
+    # Match Level is omitted: every trial is curated under step.match, so it is
+    # constant. Reason Type likewise — a block can hold several reason types.
     match_detail_rows = [
         _row("Cancer Type Match", match.get("oncotree_primary_diagnosis_name")),
-        _row("Reason Type", match.get("reason_type")),
-        _row("Match Reason", _match_reason(match)),
-        _row("Match Level", match.get("match_level")),
+        _row("Match Reason", ", ".join(reasons) if reasons else _match_reason(match)),
         _row("Match Engine", "MatchMiner-v2"),
     ]
     if match.get("code"):
@@ -203,15 +214,8 @@ def load_context_from_flat_matches(
         m for m in matches
         if m.get("sample_id") == sample_id and m.get("show_in_ui")
     ]
-    primary = _select_primary_match(visible)
-    primary_trial = trials_by_protocol.get(primary.get("protocol_no")) if primary else None
-
     return {
-        "primary_match": (
-            _build_primary_match_context(primary, primary_trial, known_biomarker_count)
-            if primary else None
-        ),
-        "other_matches": _build_other_matches(visible, primary, trials_by_protocol),
+        "trial_blocks": _build_trial_blocks(visible, trials_by_protocol, known_biomarker_count),
         "sample_id": sample_id,
     }
 

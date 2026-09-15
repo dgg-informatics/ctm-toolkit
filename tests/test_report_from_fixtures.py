@@ -2,10 +2,10 @@
 fixtures, scoped to sample_id "8" (Maria Emo, pancreatic adenocarcinoma).
 
 Ground truth: test-matches-v0.0.1.json has 6 match docs for sample_id "8"
-across 4 trials. Trial 2099.015/NCT90000014 has 3 of them — two identical
-"clinical" docs and one "genomic" (BRCA2) doc. Every doc ties on
-match_level="step", so the genomic doc wins outright on reason_type. This is
-manually-validated data, not a guess.
+across 4 trials, which is 4 unique NCT ids. Trial 2099.015/NCT90000014 has 3
+of them — two identical "clinical" docs and one "genomic" (BRCA2) doc. Every
+doc ties on match_level="step", so the genomic reason wins ordering and that
+trial ranks first. This is manually-validated data, not a guess.
 """
 import json
 from pathlib import Path
@@ -37,29 +37,44 @@ def trials_by_protocol(trials, patient_matches):
     return {t["protocol_no"]: t for t in trials if t["protocol_no"] in referenced}
 
 
-def test_primary_match_is_genomic_over_tied_clinical(patient_matches):
+
+def test_genomic_trial_ranks_first(patient_matches):
     from ctm.reports.builder import load_context_from_flat_matches
     ctx = load_context_from_flat_matches(patient_matches, SAMPLE_ID)
 
-    assert ctx["primary_match"]["nct_id"] == "NCT90000014"
-    match_detail = {r["label"]: r["value"] for r in ctx["primary_match"]["match_detail"]}
-    assert match_detail["Reason Type"] == "genomic"
+    first = ctx["trial_blocks"][0]
+    assert first["rank"] == 1
+    assert first["nct_id"] == "NCT90000014"
 
 
-def test_other_matches_excludes_primary_protocol_and_dedupes(patient_matches):
+
+def test_one_block_per_unique_nct(patient_matches):
+    """6 match docs across 4 NCTs collapse to 4 blocks, ranked 1..4."""
     from ctm.reports.builder import load_context_from_flat_matches
     ctx = load_context_from_flat_matches(patient_matches, SAMPLE_ID)
 
-    other_protocols = {m["protocol_no"] for m in ctx["other_matches"]}
-    assert other_protocols == {"2099.002", "2099.012", "2099.014"}
-    assert len(ctx["other_matches"]) == 3
+    blocks = ctx["trial_blocks"]
+    assert len(patient_matches) == 6
+    assert [b["nct_id"] for b in blocks] == [
+        "NCT90000014", "NCT90000002", "NCT90000010", "NCT90000012"]
+    assert [b["rank"] for b in blocks] == [1, 2, 3, 4]
 
 
-def test_primary_match_trial_data_from_trials_fixture(patient_matches, trials_by_protocol):
+def test_duplicate_clinical_docs_collapse_into_one_reason(patient_matches):
+    """NCT90000014's two identical clinical docs and one BRCA2 genomic doc
+    become two reasons, genomic first — not three rows."""
+    from ctm.reports.builder import load_context_from_flat_matches
+    ctx = load_context_from_flat_matches(patient_matches, SAMPLE_ID)
+
+    assert ctx["trial_blocks"][0]["match_reasons"] == ["BRCA2", "Pancreatic Adenocarcinoma"]
+
+
+
+def test_block_trial_data_from_trials_fixture(patient_matches, trials_by_protocol):
     from ctm.reports.builder import load_context_from_flat_matches
     ctx = load_context_from_flat_matches(patient_matches, SAMPLE_ID, trials_by_protocol)
 
-    trial_rows = {r["label"]: r["value"] for r in ctx["primary_match"]["trial"]}
+    trial_rows = {r["label"]: r["value"] for r in ctx["trial_blocks"][0]["trial"]}
     expected = trials_by_protocol["2099.015"]["_summary"]
     assert trial_rows["Trial Name"] == expected["long_title"]
     assert trial_rows["Phase"] == expected["phase"]
