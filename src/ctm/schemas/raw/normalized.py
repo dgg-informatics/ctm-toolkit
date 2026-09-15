@@ -5,6 +5,7 @@ Three collections:
   report_metadata — one document per lab report / test ordered
   findings        — one document per finding, cross-source queryable
 """
+import re
 from datetime import date
 from typing import Any
 
@@ -21,6 +22,42 @@ def _normalize_wildtype(v: object) -> str | None:
         return "true" if v else "false"
     s = str(v).strip().lower()
     return s or None
+
+
+# What a stored protein change looks like: "p." + a one-letter amino acid, a
+# codon number, and the substituted residue ("R") or a stop ("*") — "p.L858R",
+# "p.Q192*". Values reaching this pattern have already been through
+# _normalize_protein_change, so the prefix is a lowercase "p." and the payload is
+# uppercase; no IGNORECASE is needed.
+_PROTEIN_CHANGE_RE = re.compile(r"^p\.[A-Z]\d+[A-Z*]$")
+
+
+def _normalize_protein_change(v: object) -> str | None:
+    """Store every protein change as 'p.' + UPPERCASE; blank becomes None.
+
+    matchengine compares TRUE_PROTEIN_CHANGE as an exact string, so both the
+    prefix and the casing are fixed here regardless of what the curator typed —
+    'l858r', 'L858R' and 'P.L858R' all land on 'p.L858R'.
+
+    Whatever the curator typed is prefixed and uppercased — free text becomes
+    'p.EXON 19 DELETION', a frameshift becomes 'p.V600FS'. Nothing is dropped
+    here; anything that doesn't match the substitution shape is reported at
+    transform time instead — see _is_malformed_protein_change.
+    """
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    if s[:2].upper() == "P.":
+        s = s[2:]
+    return f"p.{s.upper()}"
+
+
+def _is_malformed_protein_change(v: str | None) -> bool:
+    """True for a stored protein change whose payload isn't shaped like one —
+    it will never match, so the curator needs to hear about it."""
+    return bool(v) and not _PROTEIN_CHANGE_RE.match(v)
 
 
 class Patient(BaseModel):
@@ -71,3 +108,8 @@ class Finding(BaseModel):
     @classmethod
     def _wildtype(cls, v: object) -> str | None:
         return _normalize_wildtype(v)
+
+    @field_validator("protein_change", mode="before")
+    @classmethod
+    def _protein_change(cls, v: object) -> str | None:
+        return _normalize_protein_change(v)
