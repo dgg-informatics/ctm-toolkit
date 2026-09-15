@@ -24,6 +24,14 @@ def _normalize_wildtype(v: object) -> str | None:
     return s or None
 
 
+# What a stored protein change looks like: "p." + a one-letter amino acid, a
+# codon number, and the substituted residue ("R") or a stop ("*") — "p.L858R",
+# "p.Q192*". Values reaching this pattern have already been through
+# _normalize_protein_change, so the prefix is a lowercase "p." and the payload is
+# uppercase; no IGNORECASE is needed.
+_PROTEIN_CHANGE_RE = re.compile(r"^p\.[A-Z]\d+[A-Z*]$")
+
+
 def _normalize_protein_change(v: object) -> str | None:
     """Store every protein change as 'p.' + UPPERCASE; blank becomes None.
 
@@ -31,9 +39,10 @@ def _normalize_protein_change(v: object) -> str | None:
     prefix and the casing are fixed here regardless of what the curator typed —
     'l858r', 'L858R' and 'P.L858R' all land on 'p.L858R'.
 
-    A value that isn't shaped like a protein change is prefixed all the same
-    (free text becomes 'p.EXON 19 DELETION'); it can never match, so it is
-    reported at transform time instead — see _is_malformed_protein_change.
+    Whatever the curator typed is prefixed and uppercased — free text becomes
+    'p.EXON 19 DELETION', a frameshift becomes 'p.V600FS'. Nothing is dropped
+    here; anything that doesn't match the substitution shape is reported at
+    transform time instead — see _is_malformed_protein_change.
     """
     if v is None:
         return None
@@ -48,7 +57,7 @@ def _normalize_protein_change(v: object) -> str | None:
 def _is_malformed_protein_change(v: str | None) -> bool:
     """True for a stored protein change whose payload isn't shaped like one —
     it will never match, so the curator needs to hear about it."""
-    return bool(v) and not _PROTEIN_CHANGE_RE.match(v.removeprefix("p."))
+    return bool(v) and not _PROTEIN_CHANGE_RE.match(v)
 
 
 class Patient(BaseModel):

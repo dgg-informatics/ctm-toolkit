@@ -299,3 +299,24 @@ def test_well_formed_protein_change_is_not_reported(capsys):
         _finding(biomarker="EGFR", variant_category="MUTATION", protein_change="L858R"),
     ])
     assert "protein_change" not in capsys.readouterr().err
+
+
+# Only the substitution shape — one-letter amino acid, codon, new residue or a
+# stop — is recognized. Everything else is reported: frameshifts, indels,
+# three-letter codes and free text alike. They are still stored and still ride
+# into patient_data (see the test above); the curator is just told that the
+# protein change itself will not match.
+@pytest.mark.parametrize("value,reported", [
+    ("L858R", False),
+    ("T790M", False),
+    ("Q192*", False),
+    ("E746_A750del", True),
+    ("V600fs", True),
+    ("Leu858Arg", True),
+    ("Exon 19 deletion", True),
+])
+def test_only_substitutions_escape_the_malformed_report(capsys, value, reported):
+    to_genomic_docs(_patient(), [
+        _finding(biomarker="EGFR", variant_category="MUTATION", protein_change=value),
+    ])
+    assert ("protein_change" in capsys.readouterr().err) is reported
