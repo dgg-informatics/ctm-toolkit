@@ -45,8 +45,10 @@ def load_patient(match_db, patient_db, sample_id: str) -> dict:
     ``clinical`` but absent from ``patient_data`` yields empty values rather than
     failing — the trial matches are still worth rendering.
     """
-    entry = next(iter(patient_db[PATIENT_DATA_COLLECTION].find({"SAMPLE_ID": sample_id})), None) \
-        if PATIENT_DATA_COLLECTION in patient_db else None
+    # No "collection in db" guard: pymongo's Database is deliberately not
+    # iterable, so membership raises TypeError. A missing collection already
+    # yields an empty cursor, which is exactly the behaviour wanted here.
+    entry = next(iter(patient_db[PATIENT_DATA_COLLECTION].find({"SAMPLE_ID": sample_id})), None)
     return {
         "matches": list(match_db[TRIAL_MATCH_COLLECTION].find({"sample_id": sample_id})),
         "genomic_docs": list(match_db[GENOMIC_COLLECTION].find({"SAMPLE_ID": sample_id})),

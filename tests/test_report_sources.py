@@ -15,15 +15,33 @@ class _FakeCollection:
                      if all(d.get(k) == v for k, v in query.items())])
 
 
+class _FakeDatabase:
+    """Mirrors pymongo's Database closely enough to catch real misuse.
+
+    Indexable by collection name, and an unknown name yields an empty collection
+    rather than raising — same as Mongo, where a missing collection simply has no
+    documents. Crucially ``__iter__`` is None, as pymongo sets it (PYTHON-3084),
+    so ``"name" in db`` raises TypeError here exactly as it does in production.
+    A plain dict double hid that and let a broken membership test ship.
+    """
+    __iter__ = None
+
+    def __init__(self, collections):
+        self._collections = collections
+
+    def __getitem__(self, name):
+        return self._collections.get(name, _FakeCollection([]))
+
+
 def _match_db(clinical=(), genomic=(), trial=(), trial_match=()):
-    return {"clinical": _FakeCollection(list(clinical)),
-            "genomic": _FakeCollection(list(genomic)),
-            "trial": _FakeCollection(list(trial)),
-            "trial_match": _FakeCollection(list(trial_match))}
+    return _FakeDatabase({"clinical": _FakeCollection(list(clinical)),
+                          "genomic": _FakeCollection(list(genomic)),
+                          "trial": _FakeCollection(list(trial)),
+                          "trial_match": _FakeCollection(list(trial_match))})
 
 
 def _patient_db(patient_data=()):
-    return {"latest_patient_data": _FakeCollection(list(patient_data))}
+    return _FakeDatabase({"latest_patient_data": _FakeCollection(list(patient_data))})
 
 
 # ---------------------------------------------------------------------------
