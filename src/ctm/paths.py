@@ -81,6 +81,15 @@ def master_trial_export_dir() -> Path:
     ).expanduser()
 
 
+def report_export_dir() -> Path:
+    """Directory `ctm-report` writes per-patient PDFs into by default.
+    Override with ``REPORT_EXPORT_DIR`` (an empty value is treated as unset, not
+    as the current directory)."""
+    return Path(
+        os.environ.get("REPORT_EXPORT_DIR") or "/var/lib/ctm/reports"
+    ).expanduser()
+
+
 def west_trials_path() -> Path:
     """Default UMH-West trials workbook, read when ``--west`` is passed bare.
 

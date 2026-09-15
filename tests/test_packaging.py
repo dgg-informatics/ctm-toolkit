@@ -65,15 +65,18 @@ def test_cache_dir_precedence(monkeypatch, tmp_path):
     ("LLM_BIOMARKER_EXPORT_DIR", "/var/lib/ctm/to-curate"),
     ("MASTER_TRIAL_EXPORT_DIR", "/var/lib/ctm/trials"),
     ("WEST_TRIALS_PATH", "/var/lib/ctm/sources/trials-west-latest.xlsx"),
+    ("REPORT_EXPORT_DIR", "/var/lib/ctm/reports"),
 ])
 def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, default):
     """A blank env var must fall back to the default, not resolve to Path("") = CWD
     (which silently scattered the export into the working directory)."""
-    from ctm.paths import llm_biomarker_export_dir, master_trial_export_dir, west_trials_path
+    from ctm.paths import (llm_biomarker_export_dir, master_trial_export_dir,
+                           report_export_dir, west_trials_path)
 
     func = {"LLM_BIOMARKER_EXPORT_DIR": llm_biomarker_export_dir,
             "MASTER_TRIAL_EXPORT_DIR": master_trial_export_dir,
-            "WEST_TRIALS_PATH": west_trials_path}[env]
+            "WEST_TRIALS_PATH": west_trials_path,
+            "REPORT_EXPORT_DIR": report_export_dir}[env]
     monkeypatch.setenv(env, "")
     assert str(func()) == default
 

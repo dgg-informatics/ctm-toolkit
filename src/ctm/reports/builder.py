@@ -239,7 +239,15 @@ def load_context_from_normalized_json(pt_path: str, sample_id: str | None = None
     if entry is None:
         return _empty
 
-    patient = dict(entry.get("patient", {}))
+    return patient_context_from_entry(entry)
+
+
+def patient_context_from_entry(entry: dict) -> dict:
+    """Patient header/detail/reports from one ``{patient, reports}`` entry.
+
+    Pure — the file loader above reads it out of a pts file, the Mongo source
+    reads the same shape out of ``latest_patient_data``."""
+    patient = dict((entry or {}).get("patient") or {})
     metastasis = patient.get("metastasis_sites")
     if isinstance(metastasis, list):
         patient["metastasis_sites"] = ", ".join(metastasis or [])
@@ -251,7 +259,7 @@ def load_context_from_normalized_json(pt_path: str, sample_id: str | None = None
     return {
         "patient_header": _extract(patient, PATIENT_HEADER_FIELDS),
         "patient_detail": patient_detail,
-        "reports": entry.get("reports", []),
+        "reports": (entry or {}).get("reports") or [],
     }
 
 
@@ -325,14 +333,34 @@ def render_html_from_pt_trials_matches(
             if m.get("protocol_no") in meaningful_keys or m.get("nct_id") in meaningful_keys
         ]
 
+    return render_html_from_docs(
+        sample_id, patient_matches, trials, genomic_docs,
+        patient_context=load_context_from_normalized_json(pts_path, sample_id=sample_id),
+    )
+
+
+def render_html_from_docs(
+    sample_id: str,
+    matches: list[dict],
+    trials: list[dict],
+    genomic_docs: list[dict],
+    patient_context: dict,
+) -> str:
+    """Render one patient's report from already-loaded documents.
+
+    The single render path: the file loader above and the Mongo source in
+    ``ctm.reports.sources`` both funnel through here, so a report built from the
+    database and one built from exported JSON are identical.
+    """
+    patient_matches = [m for m in matches if m.get("sample_id") == sample_id]
     referenced_protocols = {m.get("protocol_no") for m in patient_matches}
     trials_by_protocol = {
         t.get("protocol_no"): t for t in trials if t.get("protocol_no") in referenced_protocols
     }
 
-    pt_ctx = load_context_from_normalized_json(pts_path, sample_id=sample_id)
     mm_ctx = load_context_from_flat_matches(
         patient_matches, sample_id, trials_by_protocol, known_biomarker_count=len(genomic_docs)
     )
     genetic_profile = _build_genetic_profile(genomic_docs)
-    return _render_report({**pt_ctx, **mm_ctx, "genetic_profile": genetic_profile}, sample_id)
+    return _render_report(
+        {**patient_context, **mm_ctx, "genetic_profile": genetic_profile}, sample_id)
