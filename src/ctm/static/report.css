@@ -318,3 +318,79 @@ body {
   margin-left: 6px;
   vertical-align: middle;
 }
+
+/* ---- uniform trial blocks ------------------------------------------------ */
+
+.trial-block {
+  border: 1px solid #d8dce1;
+  border-left: 3px solid #00274C;
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.trial-block-heading {
+  font-size: 10pt;
+  color: #00274C;
+  margin: 0 0 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.trial-block-rank {
+  display: inline-block;
+  min-width: 17px;
+  height: 17px;
+  line-height: 17px;
+  text-align: center;
+  background: #00274C;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 7.5pt;
+  font-weight: 700;
+}
+
+.trial-block-nct {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.trial-block-reasons {
+  margin: 0 0 6px 0;
+  line-height: 1.7;
+}
+
+.reasons-label {
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #555;
+  margin-right: 5px;
+}
+
+.reason-chip {
+  display: inline-block;
+  background: #eef2f7;
+  border: 1px solid #ccd6e0;
+  color: #00274C;
+  font-size: 8pt;
+  padding: 0 6px;
+  border-radius: 9px;
+  margin-right: 4px;
+}
+
+.trial-block .primary-col h4 {
+  font-size: 8pt;
+  color: #555;
+  margin: 0 0 3px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.no-matches {
+  color: #555;
+  font-style: italic;
+}

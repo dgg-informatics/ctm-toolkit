@@ -9,14 +9,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 # Task 2: load_context_from_flat_matches
 # ---------------------------------------------------------------------------
 
-def test_flat_matches_empty_returns_none_primary():
-    from ctm.reports.builder import load_context_from_flat_matches
-    ctx = load_context_from_flat_matches([], "1")
-    assert ctx["primary_match"] is None
-    assert ctx["other_matches"] == []
 
-
-def test_flat_matches_no_arm_match_falls_back_to_step():
+def test_flat_matches_step_level_doc_produces_a_block():
     from ctm.reports.builder import load_context_from_flat_matches
     matches = [{
         "sample_id": "1", "match_level": "step", "reason_type": "clinical",
@@ -26,10 +20,10 @@ def test_flat_matches_no_arm_match_falls_back_to_step():
         "sort_order": [1, 99, 99, 99, 99, 99], "hash": "aaa"
     }]
     ctx = load_context_from_flat_matches(matches, "1")
-    assert ctx["primary_match"]["nct_id"] == "NCT00000001"
+    assert ctx["trial_blocks"][0]["nct_id"] == "NCT00000001"
 
 
-def test_flat_matches_primary_match_has_required_keys():
+def test_flat_matches_block_has_required_keys():
     from ctm.reports.builder import load_context_from_flat_matches
     matches = [{
         "sample_id": "1", "match_level": "arm", "reason_type": "genomic",
@@ -39,41 +33,13 @@ def test_flat_matches_primary_match_has_required_keys():
         "sort_order": [1, 99, 1, 99, 99, 99], "hash": "aaa"
     }]
     ctx = load_context_from_flat_matches(matches, "1")
-    pm = ctx["primary_match"]
+    pm = ctx["trial_blocks"][0]
     assert "nct_id" in pm
     assert "trial_status" in pm
     assert isinstance(pm["trial"], list)
     assert isinstance(pm["match_detail"], list)
     assert isinstance(pm["genomic"], list)
 
-
-def test_flat_matches_other_matches_excludes_primary_protocol():
-    from ctm.reports.builder import load_context_from_flat_matches
-    matches = [
-        {
-            "sample_id": "1", "match_level": "arm", "reason_type": "genomic",
-            "show_in_ui": True, "protocol_no": "NCT90000002", "nct_id": "NCT90000002",
-            "cancer_type_match": "specific", "match_type": "gene",
-            "genomic_alteration": "EGFR", "trial_summary_status": "open",
-            "sort_order": [1, 99, 1, 99, 99, 99], "hash": "aaa",
-        },
-        {
-            "sample_id": "1", "match_level": "arm", "reason_type": "clinical",
-            "show_in_ui": True, "protocol_no": "NCT99999999", "nct_id": "NCT99999999",
-            "cancer_type_match": "broader", "match_type": "generic_clinical",
-            "genomic_alteration": "", "trial_summary_status": "open",
-            "sort_order": [2, 99, 99, 99, 99, 99], "hash": "bbb",
-        },
-    ]
-    ctx = load_context_from_flat_matches(matches, "1")
-    other_protocols = [m["protocol_no"] for m in ctx["other_matches"]]
-    assert "NCT90000002" not in other_protocols
-    assert "NCT99999999" in other_protocols
-    m = ctx["other_matches"][0]
-    assert "protocol_no" in m
-    assert "nct_id" in m
-    assert "source" in m
-    assert m["source"] == "matchminer"
 
 
 def test_match_reason_labels():
@@ -86,56 +52,52 @@ def test_match_reason_labels():
     assert _match_reason({"reason_type": "clinical", "match_type": "generic_clinical"}) == "Clinical criteria"
 
 
-def test_other_matches_prefers_genomic_reason_when_trial_matched_on_both():
-    # NCT90000003 case: a trial matches on BOTH age (clinical) and a gene
-    # (genomic). The row should surface the gene, not generic_clinical — even
-    # though the clinical doc appears first in the list.
+
+def test_block_detail_uses_genomic_doc_when_trial_matched_on_both():
+    """A trial matching on age (clinical) AND a gene lists both reasons, and
+    takes its detail fields from the genomic doc even though the clinical doc
+    appears first in the list."""
     from ctm.reports.builder import load_context_from_flat_matches
     matches = [
         {"sample_id": "1", "match_level": "step", "reason_type": "clinical",
          "show_in_ui": True, "protocol_no": "2024.010", "nct_id": "NCT90000003",
          "match_type": "generic_clinical", "genomic_alteration": "",
+         "oncotree_primary_diagnosis_name": "Lymphoid",
          "trial_summary_status": "open", "sort_order": [1, 99, 99, 99, 99, 99], "hash": "a"},
         {"sample_id": "1", "match_level": "step", "reason_type": "genomic",
          "show_in_ui": True, "protocol_no": "2024.010", "nct_id": "NCT90000003",
          "match_type": "gene", "genomic_alteration": "HER2", "true_hugo_symbol": "HER2",
          "trial_summary_status": "open", "sort_order": [1, 99, 1, 99, 99, 99], "hash": "b"},
-        # a second, unrelated trial so 2024.010 lands in other_matches, not primary
-        {"sample_id": "1", "match_level": "arm", "reason_type": "genomic",
-         "show_in_ui": True, "protocol_no": "2024.999", "nct_id": "NCT99999999",
-         "match_type": "gene", "genomic_alteration": "BRAF", "trial_summary_status": "open",
-         "sort_order": [0, 99, 1, 99, 99, 99], "hash": "c"},
     ]
     ctx = load_context_from_flat_matches(matches, "1")
-    other = {m["protocol_no"]: m for m in ctx["other_matches"]}
-    assert other["2024.010"]["match_reason"] == "HER2"   # gene surfaced, not generic_clinical
-    assert other["2024.010"]["genomic_alteration"] == "HER2"
+    block = ctx["trial_blocks"][0]
+    assert block["match_reasons"] == ["HER2", "Lymphoid"]
+    genomic = {r["label"]: r["value"] for r in block["genomic"]}
+    assert genomic["Alteration"] == "HER2"
 
 
-def test_other_matches_includes_trial_name_from_trials_by_protocol():
+
+def test_block_includes_trial_name_from_trials_by_protocol():
     from ctm.reports.builder import load_context_from_flat_matches
     matches = [
-        {
-            "sample_id": "1", "match_level": "arm", "reason_type": "genomic",
-            "show_in_ui": True, "protocol_no": "2025.001", "nct_id": "NCT00000001",
-            "match_type": "gene", "genomic_alteration": "EGFR", "trial_summary_status": "open",
-            "sort_order": [1, 99, 1, 99, 99, 99], "hash": "aaa",
-        },
-        {
-            "sample_id": "1", "match_level": "arm", "reason_type": "clinical",
-            "show_in_ui": True, "protocol_no": "2025.002", "nct_id": "NCT00000002",
-            "match_type": "generic_clinical", "genomic_alteration": "", "trial_summary_status": "open",
-            "sort_order": [2, 99, 99, 99, 99, 99], "hash": "bbb",
-        },
+        {"sample_id": "1", "match_level": "step", "reason_type": "genomic",
+         "show_in_ui": True, "protocol_no": "2025.001", "nct_id": "NCT00000001",
+         "match_type": "gene", "genomic_alteration": "EGFR", "trial_summary_status": "open",
+         "sort_order": [1, 99, 1, 99, 99, 99], "hash": "aaa"},
+        {"sample_id": "1", "match_level": "step", "reason_type": "clinical",
+         "show_in_ui": True, "protocol_no": "2025.002", "nct_id": "NCT00000002",
+         "match_type": "generic_clinical", "genomic_alteration": "",
+         "trial_summary_status": "open", "sort_order": [2, 99, 99, 99, 99, 99], "hash": "bbb"},
     ]
     trials_by_protocol = {
-        "2025.001": {"_summary": {"long_title": "Primary Trial Long Title"}},
-        "2025.002": {"_summary": {"short_title": "Other Trial Short Title"}},
+        "2025.001": {"_summary": {"long_title": "Genomic Trial Long Title"}},
+        "2025.002": {"_summary": {"short_title": "Clinical Trial Short Title"}},
     }
     ctx = load_context_from_flat_matches(matches, "1", trials_by_protocol)
-    other = ctx["other_matches"][0]
-    assert other["protocol_no"] == "2025.002"
-    assert other["trial_name"] == "Other Trial Short Title"
+    names = {b["nct_id"]: {r["label"]: r["value"] for r in b["trial"]}["Trial Name"]
+             for b in ctx["trial_blocks"]}
+    assert names["NCT00000001"] == "Genomic Trial Long Title"
+    assert names["NCT00000002"] == "Clinical Trial Short Title"
 
 
 # ---------------------------------------------------------------------------
@@ -281,41 +243,42 @@ def test_genetic_profile_empty_input_returns_empty():
     assert _build_genetic_profile([]) == []
 
 
-def test_primary_match_context_disease_site_in_trial_column():
-    from ctm.reports.builder import _build_primary_match_context
+def test_trial_block_context_disease_site_in_trial_column():
+    from ctm.reports.builder import _build_trial_block_context
     match = {"nct_id": "NCT1", "protocol_no": "2025.001", "trial_summary_status": "open"}
     trial = {"_raw": {"disease_site": "Breast; Lung"}}
-    ctx = _build_primary_match_context(match, trial)
+    ctx = _build_trial_block_context(match, trial)
     labels = {r["label"]: r["value"] for r in ctx["trial"]}
     assert labels["Disease Site"] == "Breast; Lung"
 
 
-def test_primary_match_context_match_level_and_engine_moved_to_match_detail():
-    from ctm.reports.builder import _build_primary_match_context
+def test_trial_block_context_omits_constant_match_level():
+    from ctm.reports.builder import _build_trial_block_context
     match = {"nct_id": "NCT1", "protocol_no": "2025.001", "trial_summary_status": "open",
              "match_level": "arm", "reason_type": "clinical", "match_type": "generic_clinical"}
-    ctx = _build_primary_match_context(match, trial=None)
+    ctx = _build_trial_block_context(match, trial=None)
     trial_labels = [r["label"] for r in ctx["trial"]]
     detail_labels = {r["label"]: r["value"] for r in ctx["match_detail"]}
     assert "Match Level" not in trial_labels
     assert "Match Engine" not in trial_labels
-    assert detail_labels["Match Level"] == "arm"
+    # every trial is curated under step.match, so match_level carries no signal
+    assert "Match Level" not in detail_labels
     assert detail_labels["Match Engine"] == "MatchMiner-v2"
 
 
-def test_primary_match_context_known_biomarker_count_in_genomic_column():
-    from ctm.reports.builder import _build_primary_match_context
+def test_trial_block_context_known_biomarker_count_in_genomic_column():
+    from ctm.reports.builder import _build_trial_block_context
     match = {"nct_id": "NCT1", "protocol_no": "2025.001", "trial_summary_status": "open",
              "reason_type": "clinical"}
-    ctx = _build_primary_match_context(match, trial=None, known_biomarker_count=90)
+    ctx = _build_trial_block_context(match, trial=None, known_biomarker_count=90)
     genomic_labels = {r["label"]: r["value"] for r in ctx["genomic"]}
     assert genomic_labels["Known Biomarkers"] == "90 on file"
 
 
-def test_primary_match_context_no_known_biomarker_row_when_count_not_given():
-    from ctm.reports.builder import _build_primary_match_context
+def test_trial_block_context_no_known_biomarker_row_when_count_not_given():
+    from ctm.reports.builder import _build_trial_block_context
     match = {"nct_id": "NCT1", "protocol_no": "2025.001", "trial_summary_status": "open"}
-    ctx = _build_primary_match_context(match, trial=None)
+    ctx = _build_trial_block_context(match, trial=None)
     genomic_labels = [r["label"] for r in ctx["genomic"]]
     assert "Known Biomarkers" not in genomic_labels
 
@@ -441,3 +404,80 @@ def test_render_meaningful_only_drops_age_only_trial_matches(tmp_path):
         str(pts_path), str(trials_path), str(matches_path), "000000", meaningful_only=True)
     assert "NCT2" in filtered                          # meaningful (diagnosis) kept
     assert "NCT1" not in filtered                      # age-only dropped
+
+
+# ---------------------------------------------------------------------------
+# Uniform nct-keyed trial blocks
+# ---------------------------------------------------------------------------
+
+def _match(nct, *, protocol="P1", reason_type="clinical", dx="Colorectal Cancer",
+           alteration="", sort_order=None, **extra):
+    """A trial_match doc of the shape matchengine writes (engine.py:856-888)."""
+    doc = {
+        "sample_id": "1", "nct_id": nct, "protocol_no": protocol,
+        "match_level": "step", "reason_type": reason_type, "show_in_ui": True,
+        "oncotree_primary_diagnosis_name": dx, "genomic_alteration": alteration,
+        "trial_summary_status": "open", "cancer_type_match": "specific",
+        "sort_order": sort_order or [1, 99, 99, 99, 99, 99],
+    }
+    doc.update(extra)
+    return doc
+
+
+def test_trial_blocks_one_block_per_unique_nct():
+    """Two protocol_no values under one NCT collapse to a single block."""
+    from ctm.reports.builder import load_context_from_flat_matches
+    matches = [_match("NCT01", protocol="P1"), _match("NCT01", protocol="P2")]
+    ctx = load_context_from_flat_matches(matches, "1")
+    assert len(ctx["trial_blocks"]) == 1
+    assert ctx["trial_blocks"][0]["nct_id"] == "NCT01"
+
+
+def test_trial_blocks_list_every_distinct_reason():
+    """A trial matched on diagnosis AND a gene reports both, not just one."""
+    from ctm.reports.builder import load_context_from_flat_matches
+    matches = [
+        _match("NCT01", reason_type="clinical"),
+        _match("NCT01", reason_type="genomic", alteration="BRCA1 p.V600E"),
+    ]
+    ctx = load_context_from_flat_matches(matches, "1")
+    assert ctx["trial_blocks"][0]["match_reasons"] == ["BRCA1 p.V600E", "Colorectal Cancer"]
+
+
+def test_trial_blocks_dedupe_repeated_reason():
+    """The same reason arriving on several docs is listed once."""
+    from ctm.reports.builder import load_context_from_flat_matches
+    matches = [_match("NCT01"), _match("NCT01", protocol="P2"), _match("NCT01", protocol="P3")]
+    ctx = load_context_from_flat_matches(matches, "1")
+    assert ctx["trial_blocks"][0]["match_reasons"] == ["Colorectal Cancer"]
+
+
+def test_trial_blocks_keep_docs_with_no_protocol_no():
+    """protocol_no: null docs are keyed on nct_id, not dropped (builder.py:93)."""
+    from ctm.reports.builder import load_context_from_flat_matches
+    matches = [_match("NCT01", protocol=None)]
+    ctx = load_context_from_flat_matches(matches, "1")
+    assert len(ctx["trial_blocks"]) == 1
+    assert ctx["trial_blocks"][0]["nct_id"] == "NCT01"
+
+
+def test_trial_blocks_order_genomic_trials_first():
+    from ctm.reports.builder import load_context_from_flat_matches
+    matches = [
+        _match("NCT_CLINICAL", protocol="P1", reason_type="clinical"),
+        _match("NCT_GENOMIC", protocol="P2", reason_type="genomic", alteration="EGFR"),
+    ]
+    ctx = load_context_from_flat_matches(matches, "1")
+    assert [b["nct_id"] for b in ctx["trial_blocks"]] == ["NCT_GENOMIC", "NCT_CLINICAL"]
+
+
+def test_trial_blocks_are_ranked_from_one():
+    from ctm.reports.builder import load_context_from_flat_matches
+    matches = [_match(f"NCT{i:02d}", protocol=f"P{i}") for i in range(3)]
+    ctx = load_context_from_flat_matches(matches, "1")
+    assert [b["rank"] for b in ctx["trial_blocks"]] == [1, 2, 3]
+
+
+def test_trial_blocks_empty_for_patient_with_no_matches():
+    from ctm.reports.builder import load_context_from_flat_matches
+    assert load_context_from_flat_matches([], "1")["trial_blocks"] == []

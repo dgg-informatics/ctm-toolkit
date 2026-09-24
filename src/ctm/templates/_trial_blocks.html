@@ -1,0 +1,53 @@
+<section class="section section-matches">
+  <h2>Trial Matches{% if trial_blocks %} &mdash; {{ trial_blocks|length }}{% endif %}</h2>
+
+  {% if not trial_blocks %}
+  <p class="no-matches">No trial matches were found for this patient.</p>
+  {% endif %}
+
+  {% for block in trial_blocks %}
+  <div class="trial-block">
+    <h3 class="trial-block-heading">
+      <span class="trial-block-rank">{{ block.rank }}</span>
+      <span class="trial-block-nct">{{ block.nct_id }}</span>
+      <span class="status-badge status-{{ block.trial_status|lower }}">{{ block.trial_status }}</span>
+    </h3>
+
+    {% if block.match_reasons %}
+    <p class="trial-block-reasons">
+      <span class="reasons-label">Matched on</span>
+      {% for reason in block.match_reasons %}<span class="reason-chip">{{ reason }}</span>{% endfor %}
+    </p>
+    {% endif %}
+
+    <div class="primary-columns">
+      <div class="primary-col">
+        <h4>Trial</h4>
+        <table class="kv-table">
+          {% for row in block.trial %}
+          <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+
+      <div class="primary-col">
+        <h4>Match Detail</h4>
+        <table class="kv-table">
+          {% for row in block.match_detail %}
+          <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+
+      <div class="primary-col">
+        <h4>Genomic Match Detail</h4>
+        <table class="kv-table">
+          {% for row in block.genomic %}
+          <tr><th>{{ row.label }}</th><td>{% if row.bold %}<strong>{{ row.value }}</strong>{% else %}{{ row.value }}{% endif %}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</section>

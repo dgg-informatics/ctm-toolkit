@@ -11,7 +11,7 @@
   <header class="report-header">
     <div class="report-header-title">
       <h1>Michigan Medicine Trial Match</h1>
-      <div class="report-meta">NCT ID: {{ primary_match.nct_id }}</div>
+      <div class="report-meta">{{ trial_blocks|length }} trial match{{ "" if trial_blocks|length == 1 else "es" }}</div>
     </div>
     <div class="patient-header-box">
       <div class="patient-header-label">Patient</div>
@@ -23,8 +23,7 @@
     </div>
   </header>
 
-  {% include "_primary_match.html" %}
-  {% include "_other_matches.html" %}
+  {% include "_trial_blocks.html" %}
   {% include "_genetic_profile.html" %}
   {% include "_patient_detail.html" %}
   {% include "_methods.html" %}
