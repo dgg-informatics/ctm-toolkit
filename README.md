@@ -213,10 +213,33 @@ SECRETS_JSON=SECRETS_JSON.json python export_matches.py --patient 8 --output exp
 
 #### Build a Report
 
+Reads MongoDB by default — the `<date>_match` database `ctm-mm match-prep`
+assembled, plus the patient database `ctm-mm load` wrote. Pass the three JSON
+files instead to read from disk.
+
 ```bash
-# Step 10: Build report from patient, trial, and match collections
-ctm-report --pts pt_1234.json --trials trials.json --matches export/matchminer_export.json --sample-id 8 --out output.pdf
+# Step 10: one PDF per patient in the match db, into /var/lib/ctm/reports
+ctm-report --all --run-date 2026-09-15
+
+# a single patient, still from Mongo
+ctm-report --sample-id pt_0000016
+
+# a specific run, and somewhere else
+ctm-report --match-db 2026-09-15_match --patient-db patients_dev --all --out-dir ./reports
+
+# file mode — all three flags, or none of them
+ctm-report --pts pt_1234.json --trials trials.json \
+           --matches export/matchminer_export.json --sample-id 8 --out output.pdf
 ```
+
+`--all` writes `<run-date>_<SAMPLE_ID>-report.pdf` for **every** patient in the
+match db's `clinical` collection, including those with no matches (they get a
+"no trial matches" report). Two databases are needed because `match-prep` copies
+only `clinical` and `genomic` into the match db — the patient header and detail
+block come from `latest_patient_data`, which stays in `MONGO_PATIENT_DBNAME`.
+
+Trial filtering is deliberately *not* done here: `07_filtered_trials` and
+`match-prep --min-match-level` already decide which trials are worth matching.
 
 ---
 
