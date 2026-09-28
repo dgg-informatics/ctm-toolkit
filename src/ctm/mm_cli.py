@@ -20,12 +20,23 @@ Options:
 """
 import argparse
 import json
+import logging
 import sys
 from collections import defaultdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from ctm.logging_config import (
+    add_logging_arguments,
+    command_context,
+    configure_logging,
+    fail,
+    log_event,
+    verbosity_from_args,
+)
 from ctm.paths import cache_dir, cache_path, load_env, master_trial_export_dir, west_trials_path
+
+log = logging.getLogger(__name__)
 
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
@@ -44,13 +55,15 @@ _WEST_DEFAULT = "<default>"
 
 
 def main() -> None:
-    # trials-curate and trials-confidence-split reach UMGPT via build_client()
+    # trials-curate and trials-confidence-split reach UMGPT via build_client();
+    # load_env() first so .env can also carry the CTM_LOG_* settings.
     load_env()
 
     parser = argparse.ArgumentParser(
         prog="ctm-mm",
         description="CTM → MatchMiner import tooling",
     )
+    add_logging_arguments(parser)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_patients = sub.add_parser(
@@ -304,27 +317,22 @@ def main() -> None:
                               "(07_filtered_trials)")
 
     args = parser.parse_args()
+    configure_logging(verbosity=verbosity_from_args(args))
 
-    if args.command == "patients":
-        _cmd_raw_to_mm(args)
-    elif args.command == "trials":
-        _cmd_trials(args)
-    elif args.command == "trials-diff":
-        _cmd_trials_diff(args)
-    elif args.command == "trials-curate":
-        _cmd_trials_curate(args)
-    elif args.command == "trials-confidence-split":
-        _cmd_trials_confidence_split(args)
-    elif args.command == "add-manual":
-        _cmd_add_manual(args)
-    elif args.command == "trials-merge":
-        _cmd_trials_merge(args)
-    elif args.command == "trials-filter":
-        _cmd_trials_filter(args)
-    elif args.command == "load":
-        _cmd_load(args)
-    elif args.command == "match-prep":
-        _cmd_match_prep(args)
+    dispatch = {
+        "patients": _cmd_raw_to_mm,
+        "trials": _cmd_trials,
+        "trials-diff": _cmd_trials_diff,
+        "trials-curate": _cmd_trials_curate,
+        "trials-confidence-split": _cmd_trials_confidence_split,
+        "add-manual": _cmd_add_manual,
+        "trials-merge": _cmd_trials_merge,
+        "trials-filter": _cmd_trials_filter,
+        "load": _cmd_load,
+        "match-prep": _cmd_match_prep,
+    }
+    with command_context(log, f"ctm-mm {args.command}"):
+        dispatch[args.command](args)
 
 
 def _resolve_out(args, default_path: Path | None) -> Path | None:

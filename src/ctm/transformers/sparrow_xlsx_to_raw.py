@@ -8,6 +8,7 @@ NCT IDs are cleaned (strip whitespace, remove internal spaces) and validated
 against the pattern NCT followed by exactly 8 digits. Rows with missing or
 malformed NCT IDs are skipped with a warning printed to stderr.
 """
+import logging
 import re
 import sys
 from pathlib import Path
@@ -15,6 +16,8 @@ from pathlib import Path
 import openpyxl
 
 from ..schemas.raw.models import RawSparrowTrial
+
+log = logging.getLogger(__name__)
 
 _NCT_RE = re.compile(r"^NCT\d{8}$", re.IGNORECASE)
 
@@ -38,7 +41,9 @@ def load(path: str | Path) -> list[RawSparrowTrial]:
         nct_id = _clean_nct(nct_raw)
         if not nct_id:
             if nct_raw and str(nct_raw).strip():
-                print(f"  Warning: skipping malformed NCT ID: {nct_raw!r}", file=sys.stderr)
+                log.warning("  skipping malformed NCT ID: %r", nct_raw,
+                            extra={"event": "trials.row_skipped",
+                                   "source": "sparrow", "reason": "malformed_nct"})
             continue
 
         trials.append(RawSparrowTrial(

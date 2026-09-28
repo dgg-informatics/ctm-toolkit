@@ -13,9 +13,12 @@ silently never matches.
 
 This module is pure (no I/O). Callers handle MongoDB writes.
 """
+import logging
 from datetime import UTC, datetime
 
 from ..schemas.raw.normalized import Finding, Patient, _is_malformed_protein_change
+
+log = logging.getLogger(__name__)
 
 # ── Value remaps — mirror matchengine/plugins/DFCIQueryTransformers.py ─────────
 # Keys are the curator label lowercased (input casing does not matter); values
@@ -194,26 +197,28 @@ def to_genomic_docs(
 
         docs.append(doc)
 
-    if unknown or invalid_wildtype or malformed_protein:
-        import sys
-        if unknown:
-            print(
-                f"  Warning: skipped findings with unrecognized variant_category: "
-                f"{sorted(unknown)}",
-                file=sys.stderr,
-            )
-        if invalid_wildtype:
-            print(
-                f"  Warning: skipped findings with invalid wildtype (must be "
-                f"TRUE/FALSE/INDETERMINATE): {sorted(invalid_wildtype)}",
-                file=sys.stderr,
-            )
-        if malformed_protein:
-            print(
-                f"  Error: protein_change values that are not protein changes "
-                f"(stored with the p. prefix anyway, and will not match): "
-                f"{sorted(malformed_protein)}",
-                file=sys.stderr,
-            )
+    if unknown:
+        log.warning(
+            "  skipped findings with unrecognized variant_category: %s",
+            sorted(unknown),
+            extra={"event": "genomic.finding_skipped", "reason": "unknown_category",
+                   "values": sorted(unknown), "sample_id": sample_id},
+        )
+    if invalid_wildtype:
+        log.warning(
+            "  skipped findings with invalid wildtype (must be "
+            "TRUE/FALSE/INDETERMINATE): %s",
+            sorted(invalid_wildtype),
+            extra={"event": "genomic.finding_skipped", "reason": "invalid_wildtype",
+                   "values": sorted(invalid_wildtype), "sample_id": sample_id},
+        )
+    if malformed_protein:
+        log.error(
+            "  protein_change values that are not protein changes (stored with "
+            "the p. prefix anyway, and will not match): %s",
+            sorted(malformed_protein),
+            extra={"event": "genomic.malformed_protein_change",
+                   "values": sorted(malformed_protein), "sample_id": sample_id},
+        )
 
     return docs

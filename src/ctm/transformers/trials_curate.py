@@ -15,12 +15,15 @@ BIOMARKER_SYSTEM_PROMPT and _parse_json_array below are moved verbatim from
 scripts/scan_biomarker_mentions.py (validated against real trial data before
 being absorbed here — see docs/superpowers/specs/2026-07-20-trials-curate-design.md).
 """
+import logging
 import hashlib
 import json
 import os
 from pathlib import Path
 
 from .eligibility_to_ctml import _criterion_full_text
+
+log = logging.getLogger(__name__)
 
 BIOMARKER_SYSTEM_PROMPT = """You are scanning clinical trial text for genetic and molecular biomarker requirements.
 
@@ -187,8 +190,9 @@ def scan_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> 
                 raise
             # Filtered: no biomarker scan for this trial. A curator reviews it
             # anyway. Cached so a re-run does not re-trigger the same error.
-            print(f"  Warning: content filter — no biomarker scan for {trial_id}",
-                  file=sys.stderr)
+            log.warning("  content filter — no biomarker scan for %s", trial_id,
+                        extra={"event": "llm.content_filter",
+                               "trial_id": trial_id, "stage": "biomarkers"})
             cache[key] = []
             return []
         hits = _parse_json_array(response.choices[0].message.content)

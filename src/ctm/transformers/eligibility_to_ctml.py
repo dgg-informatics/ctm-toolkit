@@ -6,6 +6,7 @@ so unchanged criteria never re-hit the API.
 
 Cache file: ~/.cache/ctm/.ctml_cache.json (override with --cache or CTM_CACHE_DIR)
 """
+import logging
 import hashlib
 import json
 import os
@@ -13,6 +14,8 @@ import urllib.request
 from pathlib import Path
 
 from ..paths import cache_path
+
+log = logging.getLogger(__name__)
 
 DEFAULT_CACHE_NAME = ".ctml_cache.json"
 
@@ -192,8 +195,10 @@ def suggest_node(text: str, source: str, cache: dict, client, valid_oncotree: se
         # Filtered: no suggestion for this criterion, which is exactly the
         # suggested_node=None a curator resolves by hand. Cache it so an identical
         # criterion elsewhere does not re-trigger the same paid-for error.
-        print(f"  Warning: content filter — no suggestion for {source} criterion: "
-              f"{text[:80]!r}", file=sys.stderr)
+        log.warning("  content filter — no suggestion for %s criterion: %r",
+                    source, text[:80],
+                    extra={"event": "llm.content_filter", "criterion_source": source,
+                           "stage": "general"})
         cache[key] = None
         return None
 
@@ -251,7 +256,9 @@ def criterion_suggestions(trial: dict, cache: dict, client, valid_oncotree: set[
         if i in milestones:
             pct = int(i / total * 100)
             cached = sum(1 for s, t in items[:i] if _cache_key(f"{s}:{t}") in cache)
-            print(f"  {pct}% ({i}/{total}, {cached} cached)", file=__import__("sys").stderr, flush=True)
+            log.info("  %d%% (%d/%d, %d cached)", pct, i, total, cached,
+                     extra={"event": "llm.progress", "percent": pct, "done": i,
+                            "total": total, "cached": cached, "stage": "general"})
 
     return suggestions
 
