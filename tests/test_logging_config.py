@@ -386,3 +386,23 @@ def test_command_lifecycle_lines_stay_off_the_console(tmp_path, monkeypatch, cap
     # …but the log file still has the bracket, which is what a dashboard groups on.
     events = [r.get("event") for r in _read_json_lines(tmp_path / "run-10.log")]
     assert "command.end" in events
+
+
+def test_a_crash_puts_its_traceback_in_the_run_log(tmp_path, monkeypatch):
+    """`FAILED` with no reason is the problem this whole change exists to fix.
+
+    Python prints the traceback to stderr on the way out, but stderr is cron mail
+    now, not a file — so the run log has to carry it too.
+    """
+    monkeypatch.setenv("CTM_LOG_DIR", str(tmp_path))
+    monkeypatch.setenv("CTM_RUN_ID", "run-11")
+    lc.configure_logging(env="prod")
+    log = logging.getLogger("ctm.test")
+    with pytest.raises(ValueError), lc.command_context(log, "ctm-fetch"):
+        raise ValueError("no route to host")
+    for handler in _ctm_handlers():
+        handler.flush()
+    end = next(r for r in _read_json_lines(tmp_path / "run-11.log")
+               if r.get("event") == "command.end")
+    assert "ValueError: no route to host" in end["exception"]
+    assert "Traceback" in end["exception"]

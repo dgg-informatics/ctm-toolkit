@@ -513,9 +513,13 @@ def command_context(log: logging.Logger, description: str | None = None) -> Iter
                   exit_code=code, duration_s=round(time.monotonic() - started, 3))
         raise
     except BaseException:
-        log_event(log, "command.end", "FAILED %s (%.1fs)", label,
-                  time.monotonic() - started, level=logging.ERROR,
-                  exit_code=1, duration_s=round(time.monotonic() - started, 3))
+        # exc_info, so the traceback reaches the run log. Python will also print
+        # it to stderr on the way out, but stderr is now cron mail rather than a
+        # file — without this the log would say FAILED and not why.
+        elapsed = time.monotonic() - started
+        log.error("FAILED %s (%.1fs)", label, elapsed, exc_info=True,
+                  extra=_extra("command.end",
+                               {"exit_code": 1, "duration_s": round(elapsed, 3)}))
         raise
     else:
         log_event(log, "command.end", "OK %s (%.1fs)", label,
