@@ -6,9 +6,9 @@ so unchanged criteria never re-hit the API.
 
 Cache file: ~/.cache/ctm/.ctml_cache.json (override with --cache or CTM_CACHE_DIR)
 """
-import logging
 import hashlib
 import json
+import logging
 import os
 import urllib.request
 from pathlib import Path
@@ -172,7 +172,6 @@ def is_content_filter(exc: Exception) -> bool:
 
 
 def suggest_node(text: str, source: str, cache: dict, client, valid_oncotree: set[str]) -> dict | None:
-    import sys
 
     key = _cache_key(f"{source}:{text}")
     if key in cache:
@@ -226,6 +225,11 @@ def build_client():
     if not base_url:
         raise ValueError("UMGPT_BASE_URL not set in environment")
 
+    # Which model answered is part of a run's provenance: a drafted match node is
+    # only reproducible against the model that produced it.
+    log.info("LLM: %s via %s", os.environ.get("UMGPT_MODEL") or "gpt-4o", base_url,
+             extra={"event": "llm.client", "model": os.environ.get("UMGPT_MODEL") or "gpt-4o",
+                    "base_url": base_url})
     return OpenAI(api_key=api_key, base_url=base_url, timeout=30.0)
 
 

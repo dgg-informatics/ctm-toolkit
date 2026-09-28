@@ -10,7 +10,6 @@ malformed NCT IDs are skipped with a warning printed to stderr.
 """
 import logging
 import re
-import sys
 from pathlib import Path
 
 import openpyxl

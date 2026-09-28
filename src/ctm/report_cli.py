@@ -9,9 +9,22 @@ Usage:
   ctm-report --pts p.json --trials t.json --matches m.json --sample-id ID
 """
 import argparse
+import logging
 import os
 import platform
 from pathlib import Path
+
+from ctm.logging_config import (
+    add_logging_arguments,
+    command_context,
+    configure_logging,
+    fail,
+    log_event,
+    verbosity_from_args,
+)
+from ctm.paths import load_env
+
+log = logging.getLogger(__name__)
 
 
 def _fix_macos_weasyprint_path() -> None:
@@ -75,16 +88,16 @@ def _run_from_mongo(args, parser) -> None:
 
     targets = sample_ids(match_db) if args.all else [args.sample_id]
     if not targets:
-        print(f"Error: no patients in {match_db_name}.clinical", file=sys.stderr)
-        sys.exit(1)
+        fail(f"no patients in {match_db_name}.clinical")
 
     out_dir = Path(args.out_dir) if args.out_dir else report_export_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Loaded once: the trial collection is the same for every patient.
     trials = load_trials(match_db)
-    print(f"{len(targets)} patient(s), {len(trials)} trial(s) from {match_db_name}",
-          file=sys.stderr)
+    log_event(log, "report.input", "%d patient(s), %d trial(s) from %s",
+              len(targets), len(trials), match_db_name,
+              patients=len(targets), trials=len(trials), match_db=match_db_name)
 
     # The renderer is imported here, so the macOS library shim has to be applied
     # here too — _run_from_mongo is reachable without going through main().
@@ -104,19 +117,27 @@ def _run_from_mongo(args, parser) -> None:
                         else out_dir / report_filename(run_date, sample_id))
             out_path.parent.mkdir(parents=True, exist_ok=True)
             HTML(string=html).write_pdf(str(out_path))
-            print(f"  {sample_id}: {len(docs['matches'])} match doc(s) → {out_path}",
-                  file=sys.stderr)
+            log_event(log, "report.written",
+                      "  %s: %d match doc(s) → %s", sample_id, len(docs["matches"]), out_path,
+                      sample_id=sample_id, matches=len(docs["matches"]), path=str(out_path))
         except Exception as exc:
             failures.append((sample_id, exc))
-            print(f"  {sample_id}: FAILED — {exc}", file=sys.stderr)
+            # log.exception, not log.error: one patient's failure must not cost the
+            # others their reports, but swallowing the traceback with it is what
+            # made these failures undiagnosable.
+            log.exception("  %s: FAILED — %s", sample_id, exc,
+                          extra={"event": "report.failed", "sample_id": sample_id})
 
-    print(f"Wrote {len(targets) - len(failures)}/{len(targets)} report(s) → {out_dir}",
-          file=sys.stderr)
+    log_event(log, "report.summary", "Wrote %d/%d report(s) → %s",
+              len(targets) - len(failures), len(targets), out_dir,
+              written=len(targets) - len(failures), total=len(targets),
+              failed=len(failures), out_dir=str(out_dir))
     if failures:
         sys.exit(1)
 
 
 def main() -> None:
+    load_env()
     _fix_macos_weasyprint_path()
 
     from ctm.reports.builder import render_html_from_pt_trials_matches
@@ -153,8 +174,15 @@ def main() -> None:
                              "criterion (drops age/gender-only trials that match everyone)")
     parser.add_argument("--preview", action="store_true",
                         help="Spin up livereload server instead of building PDF")
+    add_logging_arguments(parser)
     args = parser.parse_args()
+    configure_logging(verbosity=verbosity_from_args(args))
 
+    with command_context(log, "ctm-report"):
+        _run(args, parser, render_html_from_pt_trials_matches)
+
+
+def _run(args, parser, render_html_from_pt_trials_matches) -> None:
     file_mode = any((args.pts_path, args.trials_path, args.matches_path))
     if file_mode and not all((args.pts_path, args.trials_path, args.matches_path)):
         parser.error("file mode needs all three of --pts, --trials and --matches")
@@ -176,7 +204,8 @@ def main() -> None:
     output_path = Path(args.out) if args.out else Path.cwd() / "output" / "report.pdf"
     output_path.parent.mkdir(exist_ok=True, parents=True)
     HTML(string=html).write_pdf(str(output_path))
-    print(f"Wrote {output_path}")
+    log_event(log, "report.written", "Wrote %s", output_path,
+              sample_id=args.sample_id, path=str(output_path))
 
 
 if __name__ == "__main__":

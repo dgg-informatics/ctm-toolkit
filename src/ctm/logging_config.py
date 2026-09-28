@@ -41,6 +41,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import ClassVar
 
 DEFAULT_LOG_DIR = "/var/lib/ctm/logs"
 DEFAULT_ENV = "dev"
@@ -164,6 +165,24 @@ class RedactingFilter(logging.Filter):
         return True
 
 
+#: Bookkeeping events that belong in the run log but not in front of a curator.
+#: They replace the wrapper's `stage()` echoes, which were never on the terminal
+#: either — they went to the redirected log file.
+CONSOLE_SUPPRESSED_EVENTS = frozenset({"command.begin", "command.end"})
+
+
+class ConsoleEventFilter(logging.Filter):
+    """Keep command lifecycle records out of the console stream.
+
+    Without this a failing command prints its real error *and* an
+    ``Error: END ctm-mm patients (exit 1, 0.1s)`` line, which is noise the old
+    print-based output never had.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return getattr(record, "event", None) not in CONSOLE_SUPPRESSED_EVENTS
+
+
 # ── Record enrichment ────────────────────────────────────────────────────────
 
 def _command_name() -> str:
@@ -227,7 +246,7 @@ class ConsoleFormatter(logging.Formatter):
     while the stored message stays clean for grouping and search.
     """
 
-    _PREFIXES = {
+    _PREFIXES: ClassVar[dict[int, str]] = {
         logging.WARNING: "Warning: ",
         logging.ERROR: "Error: ",
         logging.CRITICAL: "Error: ",
@@ -391,6 +410,7 @@ def configure_logging(
     console.setLevel(str(settings["console_level"]))
     console.setFormatter(ConsoleFormatter())
     console.addFilter(RedactingFilter())
+    console.addFilter(ConsoleEventFilter())
     handlers: list[logging.Handler] = [console]
 
     if settings["file_enabled"]:

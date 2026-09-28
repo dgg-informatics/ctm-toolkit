@@ -30,11 +30,10 @@ trial's identity (`trial_key` returns ``nct_id`` for Sparrow) and the CTGov
 lookup key, so it is normalized to the prefixed form and validated here rather
 than failing later.
 """
-import logging
 import json
+import logging
 import os
 import re
-import sys
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime

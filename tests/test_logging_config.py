@@ -367,3 +367,22 @@ def test_reconfiguring_updates_the_run_id(tmp_path, monkeypatch):
     for handler in _ctm_handlers():
         handler.flush()
     assert _read_json_lines(tmp_path / "second.log")[0]["run_id"] == "second"
+
+
+def test_command_lifecycle_lines_stay_off_the_console(tmp_path, monkeypatch, capsys):
+    """A failing command should print its error and nothing else — not a second
+    'Error: END ...' line that the print-based output never had."""
+    monkeypatch.setenv("CTM_LOG_DIR", str(tmp_path))
+    monkeypatch.setenv("CTM_RUN_ID", "run-10")
+    lc.configure_logging(env="prod")
+    log = logging.getLogger("ctm.test")
+    with pytest.raises(SystemExit), lc.command_context(log, "ctm-mm patients"):
+        lc.fail("file not found: /nope")
+    for handler in _ctm_handlers():
+        handler.flush()
+
+    console = capsys.readouterr().err
+    assert console.strip() == "Error: file not found: /nope"
+    # …but the log file still has the bracket, which is what a dashboard groups on.
+    events = [r.get("event") for r in _read_json_lines(tmp_path / "run-10.log")]
+    assert "command.end" in events

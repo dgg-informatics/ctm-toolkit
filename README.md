@@ -176,6 +176,79 @@ like every West trial had changed, dumping all of them into manual curation.
 These are CTM's own Mongo settings. MatchMiner's credentials are separate and
 still come from `SECRETS_JSON.json` — see "MatchMiner Preparation and Running".
 
+#### Logging
+
+Every `ctm-*` command logs through `ctm.logging_config`. There are two outputs,
+for two different readers:
+
+* **console** (stderr) — the message alone, exactly as the commands have always
+  printed. `Warning:`/`Error:` prefixes come from the level, not the text.
+* **run log** (a file) — JSON lines carrying timestamp, level, logger, the CLI,
+  the run id, and the structured fields behind each message (`source: "amc"`,
+  `count: 279`). This is what a dashboard ingests.
+
+One variable picks a preset; everything else is an override:
+
+```bash
+CTM_LOG_ENV=dev       # console INFO, no log file            (default)
+CTM_LOG_ENV=staging   # console INFO,    run log at DEBUG
+CTM_LOG_ENV=prod      # console WARNING, run log at INFO
+```
+
+`prod` is the server shape: a clean run says nothing on the console (so cron
+mail becomes an exception channel) while the run log holds the full story.
+
+| variable | meaning |
+| --- | --- |
+| `CTM_LOG_ENV` | `dev` \| `staging` \| `prod`. Defaults to `dev` |
+| `CTM_LOG_LEVEL` | Console level, overriding the preset |
+| `CTM_LOG_DIR` | Where run logs go. Defaults to `/var/lib/ctm/logs`. Setting it enables the file handler on any preset |
+| `CTM_LOG_FILE` | An exact path, overriding `CTM_LOG_DIR` |
+| `CTM_LOG_FILE_LEVEL` | File level, overriding the preset |
+| `CTM_LOG_FORMAT` | `json` (default) or `text` for the file |
+| `CTM_LOG_THIRDPARTY_LEVEL` | Defaults to `WARNING`, which is what keeps `CTM_LOG_LEVEL=DEBUG` readable — pymongo and fontTools are otherwise deafening |
+| `CTM_LOG_CONFIG` | Path to a `logging.config.dictConfig` JSON. Wins over everything above |
+| `CTM_RUN_ID` | Correlation id. Defaults to `MONGO_DBNAME`, else today's date |
+
+Every command also takes `-v` (console DEBUG) and `-q` (errors only), which win
+over the preset and the variables.
+
+**One log file per run, not per command.** The file is `<CTM_LOG_DIR>/<run
+id>.log`, and `CTM_RUN_ID` defaults to `MONGO_DBNAME` — so all four stages of one
+morning already share a name and append to one file, in order, with no wrapper
+configuration:
+
+```bash
+export MONGO_DBNAME=2026-09-28_dev      # stages already share this
+export CTM_LOG_ENV=prod
+ctm-mm trials --amc --ddots --west      # → /var/lib/ctm/logs/2026-09-28_dev.log
+ctm-mm trials-diff                      # → the same file
+ctm-llm general                         # → the same file
+```
+
+Read one back with `jq`:
+
+```bash
+# the narrative
+jq -r '"\(.time[11:19])  \(.level)  \(.message)"' /var/lib/ctm/logs/2026-09-28_dev.log
+
+# just the numbers: where did trials come from this run?
+jq -r 'select(.event=="trials.source") | "\(.source)\t\(.count)"' \
+   /var/lib/ctm/logs/2026-09-28_dev.log
+```
+
+> **No PHI in logs.** Log `pt_uuid`, never an MRN or a name — `pt_uuid` is the
+> PHI-free join key the clinical/genomic documents already use. A redaction
+> filter scrubs Mongo URI credentials, secret-shaped `key=value` pairs, the
+> values of the known secret env vars, and PHI field shapes from every record,
+> but it is a backstop for mistakes, not permission to log identifiers.
+> `tests/test_logging_no_phi.py` runs a real ingest and asserts the fixture's
+> names, MRNs and DOBs appear nowhere in the output.
+
+If the log file cannot be opened (permissions, missing directory), the command
+warns once on stderr and carries on with console output — logging never takes
+down a pipeline stage.
+
 > **v2 note:** the trial stages now store to MongoDB **only** by default — pass
 > `--out` (or `--out-prefix` for `trials-diff`) to also write a file. Two stages
 > still write a dated file automatically: `ctm-llm biomarkers` and

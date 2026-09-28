@@ -10,8 +10,20 @@ and trials with conflicting status across sources.
 import argparse
 import csv
 import json
-import sys
+import logging
 from collections import Counter, defaultdict
+
+from ctm.logging_config import (
+    add_logging_arguments,
+    command_context,
+    configure_logging,
+    fail,
+    log_event,
+    verbosity_from_args,
+)
+from ctm.paths import load_env
+
+log = logging.getLogger(__name__)
 
 
 def _load(path: str) -> list[dict]:
@@ -74,7 +86,16 @@ def main() -> None:
     parser.add_argument("--sparrow", metavar="JSON")
     parser.add_argument("--west",   metavar="JSON")
     parser.add_argument("--out",    metavar="CSV", required=True)
+    add_logging_arguments(parser)
     args = parser.parse_args()
+    load_env()
+    configure_logging(verbosity=verbosity_from_args(args))
+
+    with command_context(log, "ctm-meta"):
+        _run(args)
+
+
+def _run(args) -> None:
 
     sources: dict[str, list[dict]] = {}
     for flag, path in [("amc", args.amc), ("sparrow", args.sparrow), ("west", args.west)]:
@@ -82,8 +103,7 @@ def main() -> None:
             sources[flag] = _load(path)
 
     if not sources:
-        print("Error: provide at least one source (--amc, --sparrow, --west)", file=sys.stderr)
-        sys.exit(1)
+        fail("provide at least one source (--amc, --sparrow, --west)")
 
     source_names = list(sources.keys())
 
@@ -207,7 +227,7 @@ def main() -> None:
             rows.append(["No conflicts found"])
         _write_section(writer, "Conflicting Status Across Sources", rows)
 
-    print(f"Saved → {args.out}", file=sys.stderr)
+    log_event(log, "meta.written", "Saved → %s", args.out, path=str(args.out))
 
 
 if __name__ == "__main__":

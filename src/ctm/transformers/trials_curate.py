@@ -15,9 +15,9 @@ BIOMARKER_SYSTEM_PROMPT and _parse_json_array below are moved verbatim from
 scripts/scan_biomarker_mentions.py (validated against real trial data before
 being absorbed here — see docs/superpowers/specs/2026-07-20-trials-curate-design.md).
 """
-import logging
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -170,7 +170,6 @@ def scan_biomarkers(trial: dict, client, cache: dict, known_genes: set[str]) -> 
     if key in cache:
         hits = cache[key]
     else:
-        import sys
 
         from .eligibility_to_ctml import is_content_filter
 

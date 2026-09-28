@@ -10,16 +10,18 @@ This shim forwards every argument to `ctm-llm general` so existing scripts and
 runbooks keep working. It will be removed in 2.0.0 along with the disk-output
 default flip, so the CLI breaks exactly once.
 """
+import logging
 import sys
+
+log = logging.getLogger(__name__)
 
 
 def main() -> None:
     from ctm.llm_cli import main as llm_main
 
-    print(
+    log.info(
         "DEPRECATED: ctm-ctml is now `ctm-llm general` and will be removed in 2.0.0. "
-        "Forwarding...",
-        file=sys.stderr,
+        "Forwarding..."
     )
     llm_main(["general", *sys.argv[1:]])
 
