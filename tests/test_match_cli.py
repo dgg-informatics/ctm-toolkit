@@ -226,3 +226,16 @@ def test_a_second_run_after_success_is_a_no_op(wired, monkeypatch):
     assert len(wired["match_prep"]) == 1
     _run(client, _args(), monkeypatch, wired)
     assert len(wired["match_prep"]) == 1, "second run should have been a no-op"
+
+
+def test_a_missing_config_var_is_an_error_line_not_a_traceback(monkeypatch, caplog):
+    """These run unattended: a traceback in cron mail buries the one line that
+    says which variable to set."""
+    import ctm.db as ctm_db
+
+    monkeypatch.setattr(ctm_db, "mongo_config", lambda **kw: (_ for _ in ()).throw(
+        ValueError("MONGO_MASTER_DBNAME not set in environment")))
+    with pytest.raises(SystemExit) as excinfo:
+        match_cli._run(_args())
+    assert excinfo.value.code == 1
+    assert "MONGO_MASTER_DBNAME" in caplog.text

@@ -101,6 +101,19 @@ def _render(status, extras: dict) -> str:
     return "\n".join(lines)
 
 
+def _mongo_config(ctm_db, **kwargs) -> dict:
+    """``mongo_config`` with its ValueErrors turned into a clean error line.
+
+    A missing ``MONGO_MASTER_DBNAME`` is a configuration mistake, not a bug, and
+    these commands run unattended — a traceback in cron mail buries the one line
+    that says which variable to set.
+    """
+    try:
+        return ctm_db.mongo_config(**kwargs)
+    except ValueError as exc:
+        fail(str(exc))
+
+
 def main() -> None:
     load_env()
     parser = argparse.ArgumentParser(
@@ -119,7 +132,7 @@ def main() -> None:
     from ctm import db as ctm_db
     from ctm.pipeline_state import read_status
 
-    config = ctm_db.mongo_config(require_dbname=False, require_master=True)
+    config = _mongo_config(ctm_db, require_dbname=False, require_master=True)
     patient_db = args.patient_db or config["patient_dbname"]
     if not patient_db:
         fail("set MONGO_PATIENT_DBNAME, or pass --patient-db")
