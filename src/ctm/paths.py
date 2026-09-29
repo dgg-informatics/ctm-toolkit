@@ -90,6 +90,51 @@ def report_export_dir() -> Path:
     ).expanduser()
 
 
+def patient_raw_dir() -> Path:
+    """Directory patient workbooks are dropped into, and where a bare
+    ``ctm-mm patients`` looks for the newest one.
+
+    Override with ``PATIENT_RAW_DIR`` (an empty value is treated as unset, not as
+    the current directory). Inputs live here; the normalized JSON the pipeline
+    derives from them goes to :func:`patient_export_dir` — separating the two
+    keeps "what has been ingested?" answerable by comparing the newest file in
+    each, and keeps Excel's ``~$``-prefixed lock files out of the output set.
+    """
+    return Path(
+        os.environ.get("PATIENT_RAW_DIR") or "/var/lib/ctm/patients"
+    ).expanduser()
+
+
+def patient_export_dir() -> Path:
+    """Directory `ctm-mm patients` writes its normalized bundle into by default.
+
+    Override with ``PATIENT_EXPORT_DIR`` (an empty value is treated as unset).
+    The default sits under :func:`patient_raw_dir` so everything patient-shaped
+    stays in one tree with one set of permissions — this content is PHI, unlike
+    the trial exports.
+
+    A disk copy is the point: the bundle is the lossless record of a workbook,
+    so a database that is dropped or re-loaded can always be rebuilt from it.
+    """
+    return Path(
+        os.environ.get("PATIENT_EXPORT_DIR") or "/var/lib/ctm/patients/normalized"
+    ).expanduser()
+
+
+def match_export_dir() -> Path:
+    """Directory `ctm-match` writes the dated ``trial_match`` export into.
+
+    Override with ``MATCH_EXPORT_DIR`` (an empty value is treated as unset).
+
+    This is what makes the ``<date>_match`` databases disposable: the matches
+    themselves are kept on disk indefinitely, so Mongo only has to hold however
+    many recent runs are convenient.
+    """
+    return Path(
+        os.environ.get("MATCH_EXPORT_DIR") or "/var/lib/ctm/matches"
+    ).expanduser()
+
+
 def west_trials_path() -> Path:
     """Default UMH-West trials workbook, read when ``--west`` is passed bare.
 

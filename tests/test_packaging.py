@@ -66,19 +66,36 @@ def test_cache_dir_precedence(monkeypatch, tmp_path):
     ("MASTER_TRIAL_EXPORT_DIR", "/var/lib/ctm/trials"),
     ("WEST_TRIALS_PATH", "/var/lib/ctm/sources/trials-west-latest.xlsx"),
     ("REPORT_EXPORT_DIR", "/var/lib/ctm/reports"),
+    ("PATIENT_RAW_DIR", "/var/lib/ctm/patients"),
+    ("PATIENT_EXPORT_DIR", "/var/lib/ctm/patients/normalized"),
+    ("MATCH_EXPORT_DIR", "/var/lib/ctm/matches"),
 ])
 def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, default):
     """A blank env var must fall back to the default, not resolve to Path("") = CWD
     (which silently scattered the export into the working directory)."""
-    from ctm.paths import (llm_biomarker_export_dir, master_trial_export_dir,
-                           report_export_dir, west_trials_path)
+    from ctm import paths
 
-    func = {"LLM_BIOMARKER_EXPORT_DIR": llm_biomarker_export_dir,
-            "MASTER_TRIAL_EXPORT_DIR": master_trial_export_dir,
-            "WEST_TRIALS_PATH": west_trials_path,
-            "REPORT_EXPORT_DIR": report_export_dir}[env]
+    func = {"LLM_BIOMARKER_EXPORT_DIR": paths.llm_biomarker_export_dir,
+            "MASTER_TRIAL_EXPORT_DIR": paths.master_trial_export_dir,
+            "WEST_TRIALS_PATH": paths.west_trials_path,
+            "REPORT_EXPORT_DIR": paths.report_export_dir,
+            "PATIENT_RAW_DIR": paths.patient_raw_dir,
+            "PATIENT_EXPORT_DIR": paths.patient_export_dir,
+            "MATCH_EXPORT_DIR": paths.match_export_dir}[env]
     monkeypatch.setenv(env, "")
     assert str(func()) == default
+
+
+@pytest.mark.parametrize("env,func_name", [
+    ("PATIENT_RAW_DIR", "patient_raw_dir"),
+    ("PATIENT_EXPORT_DIR", "patient_export_dir"),
+    ("MATCH_EXPORT_DIR", "match_export_dir"),
+])
+def test_new_export_dirs_are_overridable(monkeypatch, tmp_path, env, func_name):
+    from ctm import paths
+
+    monkeypatch.setenv(env, str(tmp_path / "elsewhere"))
+    assert getattr(paths, func_name)() == tmp_path / "elsewhere"
 
 
 def test_west_trials_path_default_and_override(monkeypatch):
