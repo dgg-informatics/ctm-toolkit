@@ -81,13 +81,14 @@ class Patient(BaseModel):
 class ReportMetadata(BaseModel):
     report_uuid: str                      # join key, e.g. "rp_0000001"
     pt_uuid: str
-    source: str                           # tempus | caris | ambry | amc_ngs | ogm | pml_rara
+    source: str                           # tempus | caris | ambry | amc_ngs | foundation | guardant360 | henry_ford | mayo | boston_gene | abbott | neo
     test_name: str | None = None
     # Normalized handle on the paper report; _source says which id it came from
     # (accession_no | case_no | order_number), so it can be traced to the PDF.
     unique_test_id: str | None = None
     unique_test_id_source: str | None = None
     ordering_physician: str | None = None
+    report_date: date                     # most recent report wins a biomarker conflict
     raw: dict[str, Any] = {}            # every other report column, keyed by column name
 
 
@@ -95,6 +96,7 @@ class Finding(BaseModel):
     pt_uuid: str
     report_uuid: str
     source: str                           # propagated from ReportMetadata
+    report_date: date | None = None       # propagated from ReportMetadata
     biomarker: str | None = None         # HGNC symbol or marker name → TRUE_HUGO_SYMBOL
     variant_category: str | None = None  # MUTATION | CNV | SIGNATURE | SV | Other
     protein_change: str | None = None    # → TRUE_PROTEIN_CHANGE (exact match)
@@ -102,6 +104,9 @@ class Finding(BaseModel):
     signature_level: str | None = None   # SIGNATURE only: Deficient | Proficient | Stable
     wildtype: str | None = None          # MUTATION/CNV/SV: true | false | indeterminate
     nucleotide_change: str | None = None # → TRUE_CDNA_CHANGE (stored, not matchable)
+    # report_uuid(s) of the newer report that covers this biomarker; set by
+    # select_latest_findings. A superseded finding is recorded but never matched.
+    superseded_by: str | None = None
     raw: dict[str, Any] = {}            # every other finding column, keyed by column name
 
     @field_validator("wildtype", mode="before")

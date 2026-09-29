@@ -15,10 +15,10 @@ from .normalized import _normalize_wildtype
 def _to_date(v: object) -> date | None:
     if v is None:
         return None
+    if isinstance(v, datetime):   # before date: datetime is a date subclass
+        return v.date()
     if isinstance(v, date):
         return v
-    if isinstance(v, datetime):
-        return v.date()
     if isinstance(v, str):
         for fmt in ("%Y-%m-%d", "%d-%b-%y", "%m/%d/%Y"):
             try:
@@ -73,11 +73,19 @@ class RawReportMetadata(BaseModel):
     unique_test_id: str | None = None
     unique_test_id_source: str | None = None
     ordering_physician: str | None = None
+    # Required: the tie-breaker when two reports disagree on a biomarker — the
+    # most recent report is the source of truth. Blank or unparseable fails.
+    report_date: date
 
     @field_validator("report_uuid", "pt_uuid", "unique_test_id", mode="before")
     @classmethod
     def _ids(cls, v: object) -> object:
         return _str_id(v)
+
+    @field_validator("report_date", mode="before")
+    @classmethod
+    def _report_date(cls, v: object) -> date | None:
+        return _to_date(v)
 
 
 class RawFinding(BaseModel):

@@ -375,8 +375,12 @@ def _build_extras(patients: list, metadata: list, findings: list) -> dict:
 
 
 def _cmd_raw_to_mm(args) -> None:
-    from ctm.transformers.excel_reader import read_and_normalize
-    from ctm.transformers.to_matchminer import to_clinical, to_genomic_docs
+    from ctm.transformers.excel_reader import MissingReportDateError, read_and_normalize
+    from ctm.transformers.to_matchminer import (
+        select_latest_findings,
+        to_clinical,
+        to_genomic_docs,
+    )
 
     excel_path = Path(args.excel)
     if not excel_path.exists():
@@ -388,7 +392,10 @@ def _cmd_raw_to_mm(args) -> None:
     )
 
     log.info(f"Reading {excel_path} ...")
-    patients, metadata, findings = read_and_normalize(excel_path, pt_uuid_filter=pt_uuid_filter)
+    try:
+        patients, metadata, findings = read_and_normalize(excel_path, pt_uuid_filter=pt_uuid_filter)
+    except MissingReportDateError as exc:
+        fail(str(exc))
 
     if not patients:
         fail("no patients found (check --pt-uuid or pt_general sheet)")
@@ -397,6 +404,10 @@ def _cmd_raw_to_mm(args) -> None:
               "  %d patient(s)  %d report(s)  %d finding(s)",
               len(patients), len(metadata), len(findings),
               patients=len(patients), reports=len(metadata), findings=len(findings))
+
+    # Where reports overlap on a biomarker the newest wins; older rows stay in
+    # patient_data marked superseded_by, and produce no genomic doc.
+    findings = select_latest_findings(findings)
 
     findings_by_pt: dict[str, list] = defaultdict(list)
     for f in findings:
@@ -413,13 +424,8 @@ def _cmd_raw_to_mm(args) -> None:
         pt_findings = findings_by_pt[patient.pt_uuid]
         pt_meta = metadata_by_pt[patient.pt_uuid]
 
-        # Report date now lives in the unmodeled report columns (raw); pull
-        # test_report_date when it parsed as a date, else leave it unset.
-        dates = [
-            d for m in pt_meta
-            if isinstance((d := m.raw.get("test_report_date")), (date, datetime))
-        ]
-        report_date = max(dates).isoformat() if dates else None
+        # The patient's most recent report.
+        report_date = max(m.report_date for m in pt_meta).isoformat() if pt_meta else None
 
         clinical = to_clinical(patient, report_date=report_date)
         genomic = to_genomic_docs(patient, pt_findings, clinical_id=None)
