@@ -15,7 +15,7 @@ import pytest
 from ctm import logging_config as lc
 from ctm.mm_cli import _cmd_raw_to_mm
 
-FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.2.0.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.3.0.xlsx"
 
 
 def _identifying_values() -> set[str]:
