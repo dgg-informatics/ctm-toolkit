@@ -20,6 +20,10 @@ PRINT_ALLOWLIST = {
     ("mm_cli.py", "json_str"),
     # Logging cannot report its own failure through logging.
     ("logging_config.py", "disabled"),
+    # ctm-status's inventory is the command's output, in both forms. Output goes
+    # to stdout; only diagnostics about it go through logging.
+    ("status_cli.py", "_render"),
+    ("status_cli.py", "json.dumps"),
 }
 
 
