@@ -345,7 +345,11 @@ def main() -> None:
         "match-prep": _cmd_match_prep,
     }
     with command_context(log, f"ctm-mm {args.command}"):
-        dispatch[args.command](args)
+        # A subcommand may return an exit code rather than raise — match-prep
+        # forwards matchengine's. Returning None means success, as most do.
+        code = dispatch[args.command](args)
+        if code:
+            sys.exit(code)
 
 
 def _resolve_out(args, default_path: Path | None) -> Path | None:
@@ -1142,7 +1146,7 @@ def _cmd_load(args) -> None:
             log.info(f"Wrote {counts[base]} file(s) → {out_dir / base}/")
 
 
-def _cmd_match_prep(args) -> None:
+def _cmd_match_prep(args) -> int | None:
     import os
 
     from ctm import db as ctm_db
@@ -1257,7 +1261,9 @@ def _cmd_match_prep(args) -> None:
         except FileNotFoundError:
             fail("'matchengine' not found on PATH. Run it yourself against "
                   f"{match_db_name}, or install matchengine in this environment.")
-        sys.exit(result.returncode)
+        # Returned rather than exited, so `ctm-match` can run reports afterwards
+        # instead of the process ending here. main() turns non-zero into exit.
+        return result.returncode
     else:
         log.info(f"Run it with:  ctm-mm match-prep --run --match-db {match_db_name}")
         log.info(f"        (or:  matchengine match --db {match_db_name})")

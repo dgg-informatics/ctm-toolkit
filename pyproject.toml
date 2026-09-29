@@ -59,6 +59,7 @@ dev = [
 ctm-mm = "ctm.mm_cli:main"
 ctm-report = "ctm.report_cli:main"
 ctm-status = "ctm.status_cli:main"
+ctm-match = "ctm.match_cli:main"
 ctm-fetch = "ctm.fetch_cli:main"
 ctm-meta = "ctm.meta_cli:main"
 ctm-llm = "ctm.llm_cli:main"
@@ -70,6 +71,11 @@ packages = ["src/ctm"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# src first so the suite always tests the working tree, never a stale copy in
+# site-packages — the toolkit is installed non-editable on servers, and without
+# this `pytest` can pass against code that is not the code being edited.
+# tests/ so modules there can share helpers (mongo_doubles) by import.
+pythonpath = ["src", "tests"]
 
 [tool.ruff]
 line-length = 110          # the CLI help strings and column tables read better wide

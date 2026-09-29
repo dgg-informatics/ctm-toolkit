@@ -60,7 +60,10 @@ def _trials_args(*argv):
     from ctm import mm_cli
 
     captured = {}
-    with patch.object(mm_cli, "_cmd_trials", lambda a: captured.setdefault("args", a)), \
+    # `dict.update` returns None on purpose: a subcommand returns either None or
+    # an exit code, and `setdefault` here handed back the Namespace itself, which
+    # main() then read as a non-zero status.
+    with patch.object(mm_cli, "_cmd_trials", lambda a: captured.update(args=a)), \
          patch.object(_sys, "argv", ["ctm-mm", "trials", *argv]):
         mm_cli.main()
     return captured["args"]

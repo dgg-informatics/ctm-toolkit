@@ -174,7 +174,7 @@ def _trials_args(*argv):
     from ctm import mm_cli
 
     captured = {}
-    with patch.object(mm_cli, "_cmd_trials", lambda a: captured.setdefault("args", a)), \
+    with patch.object(mm_cli, "_cmd_trials", lambda a: captured.update(args=a)), \
          patch.object(_sys, "argv", ["ctm-mm", "trials", *argv]):
         mm_cli.main()
     return captured["args"]

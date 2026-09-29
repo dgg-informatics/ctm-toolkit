@@ -4,10 +4,11 @@ No server: the doubles below mirror what pymongo actually exposes, including
 the things it *forbids* — a Database is deliberately not iterable, so a double
 built from a plain dict would accept `in` where the real object raises.
 """
+import operator
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bson import ObjectId
+from mongo_doubles import FakeClient, FakeCollection, FakeDatabase, docs_written_at
 
 from ctm.pipeline_state import (
     MATCH_STATE_ID,
@@ -19,71 +20,6 @@ from ctm.pipeline_state import (
     write_match_state,
 )
 
-
-class FakeCursor:
-    def __init__(self, docs):
-        self._docs = docs
-
-    def sort(self, key, direction):
-        self._docs = sorted(self._docs, key=lambda d: d[key], reverse=direction < 0)
-        return self
-
-    def limit(self, n):
-        return iter(self._docs[:n])
-
-    def __iter__(self):
-        return iter(self._docs)
-
-
-class FakeCollection:
-    def __init__(self, docs=None):
-        self.docs = list(docs or [])
-        self.replaced = []
-
-    def find(self, query=None, projection=None):
-        return FakeCursor(self.docs)
-
-    def find_one(self, query):
-        return next((d for d in self.docs if d["_id"] == query["_id"]), None)
-
-    def count_documents(self, query):
-        return len(self.docs)
-
-    def replace_one(self, query, doc, upsert=False):
-        self.replaced.append(doc)
-        self.docs = [d for d in self.docs if d["_id"] != query["_id"]] + [doc]
-
-
-class FakeDatabase:
-    """Mirrors pymongo.Database: subscriptable, and NOT iterable — `x in db`
-    raises there, so it must raise here too or a double hides a real bug."""
-
-    def __init__(self, collections=None):
-        self._collections = collections or {}
-
-    def __getitem__(self, name):
-        return self._collections.setdefault(name, FakeCollection())
-
-    def __iter__(self):
-        raise TypeError("'Database' object is not iterable")
-
-
-class FakeClient:
-    def __init__(self, databases=None):
-        self._databases = databases or {}
-
-    def __getitem__(self, name):
-        return self._databases.setdefault(name, FakeDatabase())
-
-
-def _oid_at(when: datetime) -> ObjectId:
-    return ObjectId.from_datetime(when)
-
-
-def _docs_written_at(when: datetime, n: int = 3):
-    return [{"_id": _oid_at(when)} for _ in range(n)]
-
-
 NOW = datetime(2026, 9, 29, 12, 0, tzinfo=UTC)
 YESTERDAY = NOW - timedelta(days=1)
 LAST_WEEK = NOW - timedelta(days=7)
@@ -94,7 +30,7 @@ LAST_WEEK = NOW - timedelta(days=7)
 def test_watermark_reads_the_newest_object_id():
     client = FakeClient({"master": FakeDatabase({
         "07_filtered_trials": FakeCollection(
-            _docs_written_at(LAST_WEEK, 2) + _docs_written_at(NOW, 1)),
+            docs_written_at(LAST_WEEK, 2) + docs_written_at(NOW, 1)),
     })})
     wm = read_watermark(client, "master", "07_filtered_trials")
     assert wm.count == 3
@@ -177,12 +113,12 @@ def test_missing_patients_is_not_ready_rather_than_stale():
 def test_read_status_prefers_filtered_trials(monkeypatch):
     client = FakeClient({
         "master": FakeDatabase({
-            "07_filtered_trials": FakeCollection(_docs_written_at(NOW)),
-            "06_master_trials": FakeCollection(_docs_written_at(LAST_WEEK)),
+            "07_filtered_trials": FakeCollection(docs_written_at(NOW)),
+            "06_master_trials": FakeCollection(docs_written_at(LAST_WEEK)),
         }),
         "patients": FakeDatabase({
-            "latest_clinical": FakeCollection(_docs_written_at(NOW)),
-            "latest_genomic": FakeCollection(_docs_written_at(NOW)),
+            "latest_clinical": FakeCollection(docs_written_at(NOW)),
+            "latest_genomic": FakeCollection(docs_written_at(NOW)),
         }),
     })
     config = {"master_dbname": "master", "master_collection": "06_master_trials",
@@ -195,10 +131,10 @@ def test_read_status_falls_back_to_the_master(monkeypatch):
     """match-prep falls back this way when trials-filter has not run; the
     staleness check has to watch whatever match-prep will actually read."""
     client = FakeClient({
-        "master": FakeDatabase({"06_master_trials": FakeCollection(_docs_written_at(NOW))}),
+        "master": FakeDatabase({"06_master_trials": FakeCollection(docs_written_at(NOW))}),
         "patients": FakeDatabase({
-            "latest_clinical": FakeCollection(_docs_written_at(NOW)),
-            "latest_genomic": FakeCollection(_docs_written_at(NOW)),
+            "latest_clinical": FakeCollection(docs_written_at(NOW)),
+            "latest_genomic": FakeCollection(docs_written_at(NOW)),
         }),
     })
     config = {"master_dbname": "master", "master_collection": "06_master_trials",
@@ -224,8 +160,10 @@ def test_write_then_read_round_trips_to_not_stale():
 def test_a_database_double_must_reject_membership_tests():
     """Guards the doubles themselves: pymongo's Database raises on `in`, so a
     test that passes against a dict would hide a real crash."""
+    # operator.contains goes through the same protocol as `in`, which falls back
+    # to __iter__ — writing `"trial" in db` here would just read as dead code.
     with pytest.raises(TypeError):
-        "trial" in FakeDatabase()
+        operator.contains(FakeDatabase(), "trial")
 
 
 # ── ctm-status rendering ─────────────────────────────────────────────────────
