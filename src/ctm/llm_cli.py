@@ -31,10 +31,18 @@ Requires in .env:
 """
 import argparse
 import json
+import logging
 import sys
 from datetime import date
 from pathlib import Path
 
+from ctm.logging_config import (
+    command_context,
+    configure_logging,
+    fail,
+    log_event,
+    verbosity_from_args,
+)
 from ctm.paths import (
     DEFAULT_KB_PATH,
     cache_dir,
@@ -42,6 +50,8 @@ from ctm.paths import (
     llm_biomarker_export_dir,
     load_env,
 )
+
+log = logging.getLogger(__name__)
 
 _GENERAL_CACHE = ".ctml_cache.json"
 _BIOMARKER_CACHE = ".trials_curate_cache.json"
@@ -54,14 +64,13 @@ def _confirm_cold_cache(cache: dict, cache_file: Path, assume_yes: bool) -> None
     """
     if cache or assume_yes:
         return
-    print(f"Warning: no cached LLM responses at {cache_file} — this run will make "
-          "live LLM calls (UMGPT quota / API cost).", file=sys.stderr)
+    log.warning("no cached LLM responses at %s — this run will make live LLM calls "
+                "(UMGPT quota / API cost).", cache_file,
+                extra={"event": "llm.cold_cache", "cache_file": str(cache_file)})
     if not sys.stdin.isatty():
-        print("Non-interactive shell: pass --yes to run without a cache. Aborting.",
-              file=sys.stderr)
-        sys.exit(1)
+        fail("non-interactive shell: pass --yes to run without a cache. Aborting.")
     if input("Continue? [y/N] ").strip().lower() not in ("y", "yes"):
-        print("Aborted.", file=sys.stderr)
+        log.info("Aborted.")
         sys.exit(1)
 
 
@@ -136,8 +145,7 @@ def _load_trials(args, ctm_db, config, target_db, collection: str, query: dict |
     if query:
         described += f" ({', '.join(f'{k}={v}' for k, v in query.items())})"
     if not trials:
-        print(f"No trials in {described}. {hint}", file=sys.stderr)
-        sys.exit(1)
+        fail("no trials in %s. %s", described, hint)
     return trials, described
 
 
@@ -173,7 +181,8 @@ def _cmd_general(args) -> None:
         args, ctm_db, config, target_db, ctm_db.DIFF_COLLECTION,
         {"diff_status": "changed"}, "Run ctm-mm trials-diff first, or pass --trials.",
     )
-    print(f"Read {len(trials)} trial(s) from {source}", file=sys.stderr)
+    log_event(log, "llm.input", "Read %d trial(s) from %s", len(trials), source,
+              stage="general", count=len(trials), source_description=source)
 
     run_date = _resolve_run_date(args, ctm_db, trials)
     # Upstream provenance has done its job now that run_date is known; it must not
@@ -184,8 +193,7 @@ def _cmd_general(args) -> None:
         ids = set(args.nct)
         trials = [t for t in trials if t.get("nct_id") in ids or t.get("protocol_no") in ids]
         if not trials:
-            print(f"No trials found matching: {', '.join(ids)}", file=sys.stderr)
-            sys.exit(1)
+            fail("no trials found matching: %s", ", ".join(ids))
     elif args.limit:
         trials = trials[:args.limit]
 
@@ -193,20 +201,21 @@ def _cmd_general(args) -> None:
     cache = load_cache(cache_file)
     _confirm_cold_cache(cache, cache_file, args.yes)
 
-    print("Fetching OncoTree names...", file=sys.stderr)
+    log.info("Fetching OncoTree names...")
     valid_oncotree = fetch_oncotree_names()
-    print(f"  {len(valid_oncotree)} valid tumor types loaded", file=sys.stderr)
+    log.info(f"  {len(valid_oncotree)} valid tumor types loaded")
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
         ctm_db.LLM_GENERAL_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Target: {target_db}.{ctm_db.LLM_GENERAL_COLLECTION} (run_date {run_date})", file=sys.stderr)
+    log.info(f"Target: {target_db}.{ctm_db.LLM_GENERAL_COLLECTION} (run_date {run_date})")
 
     results = []
     for i, trial in enumerate(trials):
         label = trial.get("protocol_no") or trial.get("nct_id") or f"trial-{i}"
-        print(f"[{i + 1}/{len(trials)}] {label}", file=sys.stderr)
+        log_event(log, "llm.trial", "[%d/%d] %s", i + 1, len(trials), label,
+                  trial=label, index=i + 1, total=len(trials), stage="general")
         drafted = draft_trial(trial, cache, client, valid_oncotree)
         results.append(drafted)
         save_cache(cache, cache_file)  # after each trial so progress survives interruption
@@ -215,13 +224,16 @@ def _cmd_general(args) -> None:
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm general", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)
 
-    print(f"Stored {len(results)} doc(s) → {target_db}.{ctm_db.LLM_GENERAL_COLLECTION}", file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(results), target_db, ctm_db.LLM_GENERAL_COLLECTION,
+              count=len(results), database=target_db,
+              collection=ctm_db.LLM_GENERAL_COLLECTION, stage="llm.general")
     out = _resolve_out(args, None)   # general has no canonical export
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(results, indent=2, default=str))
-        print(f"Saved → {out}", file=sys.stderr)
-    print(f"Cache entries: {len(cache)}", file=sys.stderr)
+        log.info(f"Saved → {out}")
+    log_event(log, "llm.cache", "Cache entries: %d", len(cache), entries=len(cache))
 
 
 def _cmd_biomarkers(args) -> None:
@@ -242,14 +254,15 @@ def _cmd_biomarkers(args) -> None:
         args, ctm_db, config, target_db, ctm_db.LLM_GENERAL_COLLECTION, None,
         "Run ctm-llm general first, or pass --trials.",
     )
-    print(f"Read {len(trials)} trial(s) from {source}", file=sys.stderr)
+    log_event(log, "llm.input", "Read %d trial(s) from %s", len(trials), source,
+              stage="biomarkers", count=len(trials), source_description=source)
 
     run_date = _resolve_run_date(args, ctm_db, trials)
     trials = [ctm_db.strip_metadata(trial) for trial in trials]
 
     kb_path = Path(args.kb) if args.kb else DEFAULT_KB_PATH
     known_genes = load_known_genes(kb_path)
-    print(f"{len(known_genes)} known genes loaded from {kb_path}", file=sys.stderr)
+    log.info(f"{len(known_genes)} known genes loaded from {kb_path}")
 
     # No OncoTree fetch: this stage produces biomarker references, not match nodes.
     client = build_client()
@@ -260,33 +273,39 @@ def _cmd_biomarkers(args) -> None:
         ctm_db.get_database(config, target_db),
         ctm_db.LLM_BIOMARKER_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Target: {target_db}.{ctm_db.LLM_BIOMARKER_COLLECTION} (run_date {run_date})", file=sys.stderr)
+    log.info(f"Target: {target_db}.{ctm_db.LLM_BIOMARKER_COLLECTION} (run_date {run_date})")
 
     for i, trial in enumerate(trials, 1):
         label = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
-        print(f"[{i}/{len(trials)}] {label}", file=sys.stderr)
+        log_event(log, "llm.trial", "[%d/%d] %s", i, len(trials), label,
+                  trial=label, index=i, total=len(trials), stage="biomarkers")
         annotate_biomarkers(trial, client, cache, known_genes)
         save_cache(cache, cache_file)  # after each trial so progress survives interruption
         ctm_db.upsert_doc(target, ctm_db.stamp(trial, "ctm-llm biomarkers", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)
 
-    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.LLM_BIOMARKER_COLLECTION}", file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(trials), target_db, ctm_db.LLM_BIOMARKER_COLLECTION,
+              count=len(trials), database=target_db,
+              collection=ctm_db.LLM_BIOMARKER_COLLECTION, stage="llm.biomarkers")
     # Canonical export by default: the to-curate handoff file for manual curation.
     default_export = llm_biomarker_export_dir() / f"{run_date}_llm-biomarkers_trials.json"
     out = _resolve_out(args, default_export)
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(trials, indent=2, default=str))
-        print(f"Saved {len(trials)} trial(s) → {out}", file=sys.stderr)
+        log.info(f"Saved {len(trials)} trial(s) → {out}")
 
 
 def main(argv: list[str] | None = None) -> None:
     load_env()
     args = build_parser().parse_args(argv)
-    if args.command == "general":
-        _cmd_general(args)
-    elif args.command == "biomarkers":
-        _cmd_biomarkers(args)
+    configure_logging(verbosity=verbosity_from_args(args))
+    with command_context(log, f"ctm-llm {args.command}"):
+        if args.command == "general":
+            _cmd_general(args)
+        elif args.command == "biomarkers":
+            _cmd_biomarkers(args)
 
 
 if __name__ == "__main__":

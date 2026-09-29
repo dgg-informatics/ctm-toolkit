@@ -31,15 +31,17 @@ lookup key, so it is normalized to the prefixed form and validated here rather
 than failing later.
 """
 import json
+import logging
 import os
 import re
-import sys
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
 from ..schemas.raw.models import RawDdotsTrial
+
+log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.ddotscredit.com/rest/protocol/get"
 
@@ -228,8 +230,10 @@ def to_raw_trials(payload: dict, *, fetched_at: datetime | None = None) -> list[
         nct_id = normalize_nct(row.get("nct_number"))
         if not nct_id:
             label = row.get("protocol") or row.get("protocol_id") or "<unknown>"
-            print(f"  Warning: skipping DDOTS protocol {label} — "
-                  f"no usable NCT number ({row.get('nct_number')!r})", file=sys.stderr)
+            log.warning("  skipping DDOTS protocol %s — no usable NCT number (%r)",
+                        label, row.get("nct_number"),
+                        extra={"event": "trials.row_skipped", "source": "ddots",
+                               "reason": "no_nct"})
             continue
 
         trials.append(RawDdotsTrial(

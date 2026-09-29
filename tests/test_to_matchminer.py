@@ -217,13 +217,13 @@ def test_indeterminate_wildtype_produces_no_doc(category):
 
 
 @pytest.mark.parametrize("category", ["MUTATION", "CNV", "SV"])
-def test_invalid_wildtype_is_skipped_with_a_warning(category, capsys):
+def test_invalid_wildtype_is_skipped_with_a_warning(category, caplog):
     """A wildtype that isn't TRUE/FALSE/INDETERMINATE emits no doc and warns."""
     docs = to_genomic_docs(_patient(), [
         _finding(biomarker="BRAF", variant_category=category, wildtype="maybe"),
     ])
     assert docs == []
-    assert "invalid wildtype" in capsys.readouterr().err
+    assert "invalid wildtype" in caplog.text
 
 
 def test_indeterminate_wildtype_is_ignored_on_signature():
@@ -269,7 +269,7 @@ def test_unprefixed_protein_change_reaches_the_genomic_doc_prefixed():
     assert docs[0]["TRUE_PROTEIN_CHANGE"] == "p.L858R"
 
 
-def test_malformed_protein_change_is_still_prefixed_and_reported(capsys):
+def test_malformed_protein_change_is_still_prefixed_and_reported(caplog):
     """Free text is prefixed like everything else, but it can't match, so the
     curator is told — with the gene, which is their only handle on the row."""
     docs = to_genomic_docs(_patient(), [
@@ -277,10 +277,13 @@ def test_malformed_protein_change_is_still_prefixed_and_reported(capsys):
                  protein_change="Exon 19 deletion"),
     ])
     assert docs[0]["TRUE_PROTEIN_CHANGE"] == "p.EXON 19 DELETION"
-    err = capsys.readouterr().err
-    assert "Error" in err
+    err = caplog.text
+    assert [r.levelname for r in caplog.records] == ["ERROR"]
     assert "protein_change" in err
     assert "EGFR: p.EXON 19 DELETION" in err
+    # The structured field is what a dashboard reads; the message is for a human.
+    assert caplog.records[0].event == "genomic.malformed_protein_change"
+    assert caplog.records[0].values == ["EGFR: p.EXON 19 DELETION"]
 
 
 def test_malformed_protein_change_still_produces_its_genomic_doc():
@@ -294,11 +297,11 @@ def test_malformed_protein_change_still_produces_its_genomic_doc():
     assert docs[0]["TRUE_HUGO_SYMBOL"] == "EGFR"
 
 
-def test_well_formed_protein_change_is_not_reported(capsys):
+def test_well_formed_protein_change_is_not_reported(caplog):
     to_genomic_docs(_patient(), [
         _finding(biomarker="EGFR", variant_category="MUTATION", protein_change="L858R"),
     ])
-    assert "protein_change" not in capsys.readouterr().err
+    assert "protein_change" not in caplog.text
 
 
 # Only the substitution shape — one-letter amino acid, codon, new residue or a
@@ -315,8 +318,8 @@ def test_well_formed_protein_change_is_not_reported(capsys):
     ("Leu858Arg", True),
     ("Exon 19 deletion", True),
 ])
-def test_only_substitutions_escape_the_malformed_report(capsys, value, reported):
+def test_only_substitutions_escape_the_malformed_report(caplog, value, reported):
     to_genomic_docs(_patient(), [
         _finding(biomarker="EGFR", variant_category="MUTATION", protein_change=value),
     ])
-    assert ("protein_change" in capsys.readouterr().err) is reported
+    assert ("protein_change" in caplog.text) is reported

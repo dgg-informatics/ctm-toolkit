@@ -74,7 +74,7 @@ def test_parse_documents_tolerates_junk(raw):
     assert parse_documents(raw) == {}
 
 
-def test_to_raw_trials_skips_rows_without_a_usable_nct(capsys):
+def test_to_raw_trials_skips_rows_without_a_usable_nct(caplog):
     """nct_id is the trial's identity and the CTGov lookup key, so a row without
     one is dropped — with a warning, not silently."""
     from ctm.transformers.ddots_to_raw import to_raw_trials
@@ -82,7 +82,7 @@ def test_to_raw_trials_skips_rows_without_a_usable_nct(capsys):
     trials = to_raw_trials(_payload())
 
     assert [t.nct_id for t in trials] == ["NCT04871542", "NCT05334069"]
-    err = capsys.readouterr().err
+    err = caplog.text
     assert "no usable NCT number" in err
     assert "0999" in err, "the warning should name the skipped protocol"
 

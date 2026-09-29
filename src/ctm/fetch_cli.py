@@ -10,8 +10,20 @@ Output formats:
 """
 import argparse
 import json
-import sys
+import logging
 from pathlib import Path
+
+from ctm.logging_config import (
+    add_logging_arguments,
+    command_context,
+    configure_logging,
+    fail,
+    log_event,
+    verbosity_from_args,
+)
+from ctm.paths import load_env
+
+log = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -31,16 +43,23 @@ def main() -> None:
         "--fmt-mm", action="store_true", dest="fmt_mm",
         help="Output in MatchMiner CTML format instead of raw",
     )
+    add_logging_arguments(parser)
     args = parser.parse_args()
+    load_env()
+    configure_logging(verbosity=verbosity_from_args(args))
 
+    with command_context(log, "ctm-fetch"):
+        _run(args)
+
+
+def _run(args) -> None:
     from ctm.transformers.ctgov_to_raw import fetch
 
-    print(f"Fetching {args.nct} ...", file=sys.stderr)
+    log.info("Fetching %s ...", args.nct)
     try:
         trial = fetch(args.nct)
     except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        fail(str(exc))
 
     if args.fmt_mm:
         from ctm.transformers.raw_ctgov_to_ctml import to_ctml_dict
@@ -52,7 +71,8 @@ def main() -> None:
 
     out_path = Path(args.output)
     out_path.write_text(json.dumps(doc, indent=2, default=str))
-    print(f"Saved {fmt_label} → {out_path}", file=sys.stderr)
+    log_event(log, "trials.fetched", "Saved %s → %s", fmt_label, out_path,
+              nct_id=args.nct, fmt=fmt_label, path=str(out_path))
 
 
 if __name__ == "__main__":

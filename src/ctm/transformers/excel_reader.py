@@ -1,4 +1,5 @@
 """Read the patient-data workbook → normalized Patient, ReportMetadata, Finding instances."""
+import logging
 from pathlib import Path
 
 import openpyxl
@@ -10,6 +11,8 @@ from .normalize_manual import (
     normalize_patient,
     normalize_report_metadata,
 )
+
+log = logging.getLogger(__name__)
 
 
 def _sheet_rows(ws) -> list[dict]:
@@ -47,7 +50,8 @@ def read_and_normalize(
             try:
                 patients.append(normalize_patient(RawPatientGeneral.model_validate(row)))
             except Exception as exc:
-                print(f"  Warning: pt_general row skipped — {exc}")
+                log.warning("  pt_general row skipped — %s", exc,
+                            extra={"event": "patients.row_skipped", "sheet": "pt_general"})
 
     valid_pt_uuids = {p.pt_uuid for p in patients}
 
@@ -64,7 +68,9 @@ def read_and_normalize(
                     normalize_report_metadata(RawReportMetadata.model_validate(row))
                 )
             except Exception as exc:
-                print(f"  Warning: report_metadata row skipped — {exc}")
+                log.warning("  report_metadata row skipped — %s", exc,
+                            extra={"event": "patients.row_skipped",
+                                   "sheet": "report_metadata"})
 
     report_source: dict[str, str] = {m.report_uuid: m.source for m in metadata}
 
@@ -86,6 +92,7 @@ def read_and_normalize(
                 )
                 findings.append(norm_fn(raw, source=source))
             except Exception as exc:
-                print(f"  Warning: {sheet_name} row skipped — {exc}")
+                log.warning("  %s row skipped — %s", sheet_name, exc,
+                            extra={"event": "patients.row_skipped", "sheet": sheet_name})
 
     return patients, metadata, findings

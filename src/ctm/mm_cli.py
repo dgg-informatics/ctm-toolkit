@@ -20,12 +20,23 @@ Options:
 """
 import argparse
 import json
+import logging
 import sys
 from collections import defaultdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from ctm.logging_config import (
+    add_logging_arguments,
+    command_context,
+    configure_logging,
+    fail,
+    log_event,
+    verbosity_from_args,
+)
 from ctm.paths import cache_dir, cache_path, load_env, master_trial_export_dir, west_trials_path
+
+log = logging.getLogger(__name__)
 
 _CURATE_CACHE = ".trials_curate_cache.json"
 _DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
@@ -44,13 +55,15 @@ _WEST_DEFAULT = "<default>"
 
 
 def main() -> None:
-    # trials-curate and trials-confidence-split reach UMGPT via build_client()
+    # trials-curate and trials-confidence-split reach UMGPT via build_client();
+    # load_env() first so .env can also carry the CTM_LOG_* settings.
     load_env()
 
     parser = argparse.ArgumentParser(
         prog="ctm-mm",
         description="CTM → MatchMiner import tooling",
     )
+    add_logging_arguments(parser)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_patients = sub.add_parser(
@@ -304,27 +317,22 @@ def main() -> None:
                               "(07_filtered_trials)")
 
     args = parser.parse_args()
+    configure_logging(verbosity=verbosity_from_args(args))
 
-    if args.command == "patients":
-        _cmd_raw_to_mm(args)
-    elif args.command == "trials":
-        _cmd_trials(args)
-    elif args.command == "trials-diff":
-        _cmd_trials_diff(args)
-    elif args.command == "trials-curate":
-        _cmd_trials_curate(args)
-    elif args.command == "trials-confidence-split":
-        _cmd_trials_confidence_split(args)
-    elif args.command == "add-manual":
-        _cmd_add_manual(args)
-    elif args.command == "trials-merge":
-        _cmd_trials_merge(args)
-    elif args.command == "trials-filter":
-        _cmd_trials_filter(args)
-    elif args.command == "load":
-        _cmd_load(args)
-    elif args.command == "match-prep":
-        _cmd_match_prep(args)
+    dispatch = {
+        "patients": _cmd_raw_to_mm,
+        "trials": _cmd_trials,
+        "trials-diff": _cmd_trials_diff,
+        "trials-curate": _cmd_trials_curate,
+        "trials-confidence-split": _cmd_trials_confidence_split,
+        "add-manual": _cmd_add_manual,
+        "trials-merge": _cmd_trials_merge,
+        "trials-filter": _cmd_trials_filter,
+        "load": _cmd_load,
+        "match-prep": _cmd_match_prep,
+    }
+    with command_context(log, f"ctm-mm {args.command}"):
+        dispatch[args.command](args)
 
 
 def _resolve_out(args, default_path: Path | None) -> Path | None:
@@ -372,23 +380,23 @@ def _cmd_raw_to_mm(args) -> None:
 
     excel_path = Path(args.excel)
     if not excel_path.exists():
-        print(f"Error: file not found: {excel_path}", file=sys.stderr)
-        sys.exit(1)
+        fail(f"file not found: {excel_path}")
 
     pt_uuid_filter = (
         {u.strip() for u in args.pt_uuid.split(",") if u.strip()}
         if args.pt_uuid else None
     )
 
-    print(f"Reading {excel_path} ...", file=sys.stderr)
+    log.info(f"Reading {excel_path} ...")
     patients, metadata, findings = read_and_normalize(excel_path, pt_uuid_filter=pt_uuid_filter)
 
     if not patients:
-        print("No patients found (check --pt-uuid or pt_general sheet).", file=sys.stderr)
-        sys.exit(1)
+        fail("no patients found (check --pt-uuid or pt_general sheet)")
 
-    print(f"  {len(patients)} patient(s)  {len(metadata)} report(s)  {len(findings)} finding(s)",
-          file=sys.stderr)
+    log_event(log, "patients.read",
+              "  %d patient(s)  %d report(s)  %d finding(s)",
+              len(patients), len(metadata), len(findings),
+              patients=len(patients), reports=len(metadata), findings=len(findings))
 
     findings_by_pt: dict[str, list] = defaultdict(list)
     for f in findings:
@@ -419,8 +427,12 @@ def _cmd_raw_to_mm(args) -> None:
         all_clinical.append(clinical)
         all_genomic.extend(genomic)
 
-        print(f"  pt_uuid={patient.pt_uuid}  mrn={patient.mrn}  "
-              f"→ {len(genomic)} genomic doc(s)", file=sys.stderr)
+        # pt_uuid only — never the MRN. This line now lands in a log file that
+        # outlives the terminal, and the clinical/genomic docs are PHI-free for
+        # the same reason.
+        log_event(log, "patients.genomic_built",
+                  "  pt_uuid=%s  → %d genomic doc(s)", patient.pt_uuid, len(genomic),
+                  pt_uuid=patient.pt_uuid, genomic_docs=len(genomic))
 
     output = {
         "clinical": all_clinical,
@@ -431,7 +443,7 @@ def _cmd_raw_to_mm(args) -> None:
 
     if args.out:
         Path(args.out).write_text(json_str)
-        print(f"Saved → {args.out}", file=sys.stderr)
+        log.info(f"Saved → {args.out}")
     else:
         print(json_str)
 
@@ -451,30 +463,28 @@ def _cmd_trials(args) -> None:
         from ctm.transformers import amc_xml_to_raw
 
         if args.amc == _AMC_FETCH:
-            print("Fetching the AMC XML feed ...", file=sys.stderr)
+            log.info("Fetching the AMC XML feed ...")
             try:
                 raw_trials = amc_xml_to_raw.fetch()
             except RuntimeError as exc:
-                print(f"Error: {exc}", file=sys.stderr)
-                sys.exit(1)
+                fail(str(exc))
         else:
             amc_path = Path(args.amc)
             if not amc_path.exists():
-                print(f"Error: file not found: {amc_path}", file=sys.stderr)
-                sys.exit(1)
-            print(f"Reading AMC XML {amc_path} ...", file=sys.stderr)
+                fail(f"file not found: {amc_path}")
+            log.info(f"Reading AMC XML {amc_path} ...")
             raw_trials = load_amc(amc_path)
 
-        print(f"  {len(raw_trials)} AMC trial(s)", file=sys.stderr)
+        log_event(log, "trials.source", "  %d AMC trial(s)", len(raw_trials),
+                  source="amc", count=len(raw_trials))
         trials.extend(amc_to_ctml(t) for t in raw_trials)
 
     if args.ct:
         from ctm.schemas.raw.models import RawCTGovTrial
         ct_path = Path(args.ct)
         if not ct_path.exists():
-            print(f"Error: file not found: {ct_path}", file=sys.stderr)
-            sys.exit(1)
-        print(f"Reading CTGov JSON {ct_path} ...", file=sys.stderr)
+            fail(f"file not found: {ct_path}")
+        log.info(f"Reading CTGov JSON {ct_path} ...")
         data = json.loads(ct_path.read_text())
         # Three accepted formats:
         #   - RawCTGovTrial dump (from ctm-fetch, has flat "nct_id" key)
@@ -486,7 +496,8 @@ def _cmd_trials(args) -> None:
             raw_ct = from_search_response(data)
         else:
             raw_ct = [from_study(data)]
-        print(f"  {len(raw_ct)} CTGov trial(s)", file=sys.stderr)
+        log_event(log, "trials.source", "  %d CTGov trial(s)", len(raw_ct),
+                  source="ctgov", count=len(raw_ct))
         trials.extend(ctgov_to_ctml(t) for t in raw_ct)
 
     if args.sparrow:
@@ -494,26 +505,27 @@ def _cmd_trials(args) -> None:
         from ctm.transformers.sparrow_xlsx_to_raw import load as load_sparrow
         sparrow_path = Path(args.sparrow)
         if not sparrow_path.exists():
-            print(f"Error: file not found: {sparrow_path}", file=sys.stderr)
-            sys.exit(1)
-        print(f"Reading Sparrow XLSX {sparrow_path} ...", file=sys.stderr)
+            fail(f"file not found: {sparrow_path}")
+        log.info(f"Reading Sparrow XLSX {sparrow_path} ...")
         raw_sparrow = load_sparrow(sparrow_path)
-        print(f"  {len(raw_sparrow)} valid Sparrow trial(s) — fetching from ClinicalTrials.gov ...", file=sys.stderr)
+        log_event(log, "trials.source",
+                  "  %d valid Sparrow trial(s) — fetching from ClinicalTrials.gov ...",
+                  len(raw_sparrow), source="sparrow", count=len(raw_sparrow))
         for t in raw_sparrow:
             try:
                 trials.append(sparrow_to_ctml(t))
-                print(f"    fetched {t.nct_id}", file=sys.stderr)
+                log.info(f"    fetched {t.nct_id}")
             except ValueError as exc:
-                print(f"  Warning: {exc} (skipping)", file=sys.stderr)
+                log.warning(f"  {exc} (skipping)")
             except Exception as exc:
-                print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
+                log.warning(f"  failed to fetch {t.nct_id}: {exc} (skipping)")
 
     if args.ddots:
         from ctm.transformers import ddots_to_raw
         from ctm.transformers.raw_ddots_to_ctml import to_ctml_dict as ddots_to_ctml
 
         if args.ddots == _DDOTS_FETCH:
-            print("Querying the DDOTS API ...", file=sys.stderr)
+            log.info("Querying the DDOTS API ...")
             try:
                 payload = ddots_to_raw.fetch(
                     status_short=args.ddots_status_short or None,
@@ -522,36 +534,36 @@ def _cmd_trials(args) -> None:
             except ddots_to_raw.DdotsApiError as exc:
                 # Reported in a 200 body, so say plainly that no trials were read
                 # rather than letting it read as an empty result set.
-                print(f"Error: {exc}", file=sys.stderr)
+                log.error(str(exc), extra={"event": "trials.fetch_failed",
+                                           "source": "ddots",
+                                           "rate_limited": exc.is_rate_limited})
                 if exc.is_rate_limited:
-                    print("  DDOTS rate-limits requests — wait before retrying.",
-                          file=sys.stderr)
+                    log.error("  DDOTS rate-limits requests — wait before retrying.")
                 sys.exit(1)
 
             raw_ddots = ddots_to_raw.to_raw_trials(payload)
         else:
             ddots_path = Path(args.ddots)
             if not ddots_path.exists():
-                print(f"Error: file not found: {ddots_path}", file=sys.stderr)
-                sys.exit(1)
-            print(f"Reading DDOTS JSON {ddots_path} ...", file=sys.stderr)
+                fail(f"file not found: {ddots_path}")
+            log.info(f"Reading DDOTS JSON {ddots_path} ...")
             try:
                 raw_ddots = ddots_to_raw.load(ddots_path)
             except ddots_to_raw.DdotsApiError as exc:
-                print(f"Error: {ddots_path} holds a DDOTS error response, not trial data: {exc}",
-                      file=sys.stderr)
-                sys.exit(1)
+                fail(f"{ddots_path} holds a DDOTS error response, not trial data: {exc}")
 
-        print(f"  {len(raw_ddots)} DDOTS trial(s) with NCT numbers — "
-              "fetching from ClinicalTrials.gov ...", file=sys.stderr)
+        log_event(log, "trials.source",
+                  "  %d DDOTS trial(s) with NCT numbers — fetching from "
+                  "ClinicalTrials.gov ...",
+                  len(raw_ddots), source="ddots", count=len(raw_ddots))
         for t in raw_ddots:
             try:
                 trials.append(ddots_to_ctml(t))
-                print(f"    fetched {t.nct_id}", file=sys.stderr)
+                log.info(f"    fetched {t.nct_id}")
             except ValueError as exc:
-                print(f"  Warning: {exc} (skipping)", file=sys.stderr)
+                log.warning(f"  {exc} (skipping)")
             except Exception as exc:
-                print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
+                log.warning(f"  failed to fetch {t.nct_id}: {exc} (skipping)")
 
     if args.west:
         from ctm.transformers.raw_west_to_ctml import to_ctml_dict as west_to_ctml
@@ -560,33 +572,32 @@ def _cmd_trials(args) -> None:
         if args.west == _WEST_DEFAULT:
             west_path = west_trials_path()
             if not west_path.exists():
-                print(f"Error: no UMH-West workbook at {west_path}. Place one there, "
-                      "pass --west PATH, or set WEST_TRIALS_PATH.", file=sys.stderr)
-                sys.exit(1)
+                fail(f"no UMH-West workbook at {west_path}. Place one there, "
+                      "pass --west PATH, or set WEST_TRIALS_PATH.")
         else:
             west_path = Path(args.west)
             if not west_path.exists():
-                print(f"Error: file not found: {west_path}", file=sys.stderr)
-                sys.exit(1)
+                fail(f"file not found: {west_path}")
 
         source_modified_at = datetime.fromtimestamp(west_path.stat().st_mtime, tz=UTC).isoformat()
-        print(f"West:     {west_path} (modified {source_modified_at})", file=sys.stderr)
-        print(f"Reading West XLSX {west_path} ...", file=sys.stderr)
+        log.info(f"West:     {west_path} (modified {source_modified_at})")
+        log.info(f"Reading West XLSX {west_path} ...")
         raw_west = load_west(west_path)
-        print(f"  {len(raw_west)} West trial(s) with NCT numbers — fetching from ClinicalTrials.gov ...", file=sys.stderr)
+        log_event(log, "trials.source",
+                  "  %d West trial(s) with NCT numbers — fetching from "
+                  "ClinicalTrials.gov ...",
+                  len(raw_west), source="west", count=len(raw_west))
         for t in raw_west:
             try:
                 trials.append(west_to_ctml(t))
-                print(f"    fetched {t.nct_id}", file=sys.stderr)
+                log.info(f"    fetched {t.nct_id}")
             except ValueError as exc:
-                print(f"  Warning: {exc} (skipping)", file=sys.stderr)
+                log.warning(f"  {exc} (skipping)")
             except Exception as exc:
-                print(f"  Warning: failed to fetch {t.nct_id}: {exc} (skipping)", file=sys.stderr)
+                log.warning(f"  failed to fetch {t.nct_id}: {exc} (skipping)")
 
     if not trials:
-        print("Error: no trials normalized (use --amc, --ct, --ddots, --sparrow, or --west)",
-              file=sys.stderr)
-        sys.exit(1)
+        fail("no trials normalized (use --amc, --ct, --ddots, --sparrow, or --west)")
 
     from ctm.trials_lifecycle import compute_trial_hash
     for t in trials:
@@ -597,8 +608,7 @@ def _cmd_trials(args) -> None:
     # from here, which is what keeps one weekly run on a single timeline.
     run_date = args.run_date or date.today().isoformat()
     target_db = args.db or config["dbname"]
-    print(f"Target: {target_db}.{ctm_db.NORMALIZED_COLLECTION} (run_date {run_date})",
-          file=sys.stderr)
+    log.info(f"Target: {target_db}.{ctm_db.NORMALIZED_COLLECTION} (run_date {run_date})")
 
     # Cheap and deterministic, so batch replaces are fine here — unlike the LLM
     # stages, an interrupted run costs nothing but time to redo.
@@ -621,8 +631,10 @@ def _cmd_trials(args) -> None:
         ctm_db.DIFF_UNIQUE_KEY,
         ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.RAW_COLLECTION}",
-          file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(trials), target_db, ctm_db.RAW_COLLECTION,
+              count=len(trials), database=target_db, collection=ctm_db.RAW_COLLECTION,
+              stage="trials")
 
     ctm_db.replace_collection(
         database,
@@ -631,14 +643,16 @@ def _cmd_trials(args) -> None:
         ctm_db.DIFF_UNIQUE_KEY,
         ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.NORMALIZED_COLLECTION}",
-          file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(trials), target_db, ctm_db.NORMALIZED_COLLECTION,
+              count=len(trials), database=target_db, collection=ctm_db.NORMALIZED_COLLECTION,
+              stage="trials")
 
     out_path = _resolve_out(args, None)   # trials has no canonical export
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(trials, indent=2, default=str))
-        print(f"Saved {len(trials)} trial(s) → {out_path}", file=sys.stderr)
+        log.info(f"Saved {len(trials)} trial(s) → {out_path}")
 
 
 def _read_trials_json(path: Path, what: str) -> list[dict]:
@@ -651,8 +665,7 @@ def _read_trials_json(path: Path, what: str) -> list[dict]:
     try:
         return json.loads(path.read_text())
     except json.JSONDecodeError as exc:
-        print(f"Error: {what} file {path} is not valid JSON: {exc}", file=sys.stderr)
-        sys.exit(1)
+        fail(f"{what} file {path} is not valid JSON: {exc}")
 
 
 def _read_new_trials(args, config, target_db) -> tuple[list[dict], str]:
@@ -662,8 +675,7 @@ def _read_new_trials(args, config, target_db) -> tuple[list[dict], str]:
     if args.new:
         new_path = Path(args.new)
         if not new_path.exists():
-            print(f"Error: file not found: {new_path}", file=sys.stderr)
-            sys.exit(1)
+            fail(f"file not found: {new_path}")
         return _read_trials_json(new_path, "--new"), str(new_path)
 
     trials = ctm_db.read_collection(
@@ -672,9 +684,7 @@ def _read_new_trials(args, config, target_db) -> tuple[list[dict], str]:
     )
     described = f"{target_db}.{ctm_db.NORMALIZED_COLLECTION}"
     if not trials:
-        print(f"Error: no trials in {described}. Run ctm-mm trials first, or pass --new.",
-              file=sys.stderr)
-        sys.exit(1)
+        fail(f"no trials in {described}. Run ctm-mm trials first, or pass --new.")
     return trials, described
 
 
@@ -691,8 +701,7 @@ def _read_master(args, config) -> tuple[list[dict], str]:
     if args.master:
         master_path = Path(args.master)
         if not master_path.exists():
-            print(f"Error: master file not found: {master_path}", file=sys.stderr)
-            sys.exit(1)
+            fail(f"master file not found: {master_path}")
         return _read_trials_json(master_path, "--master"), str(master_path)
 
     db_name = args.master_db or config["master_dbname"]
@@ -709,26 +718,29 @@ def _cmd_trials_diff(args) -> None:
     target_db = args.db or config["dbname"]
 
     new_trials, new_source = _read_new_trials(args, config, target_db)
-    print(f"New: {len(new_trials)} trial(s) from {new_source}", file=sys.stderr)
+    log_event(log, "trials.diff_input", "New: %d trial(s) from %s",
+              len(new_trials), new_source,
+              role="new", count=len(new_trials), source_description=new_source)
     master_trials, master_source = _read_master(args, config)
 
     if not master_trials and not args.allow_empty_master:
-        print(
-            f"Error: master is empty ({master_source}). Every trial would route to "
+        fail(
+            f"master is empty ({master_source}). Every trial would route to "
             "'changed', re-running full curation. Pass --allow-empty-master if this "
-            "really is the first-ever run.",
-            file=sys.stderr,
+            "really is the first-ever run."
         )
-        sys.exit(1)
 
-    print(f"Master: {len(master_trials)} trial(s) from {master_source}", file=sys.stderr)
+    log_event(log, "trials.diff_input", "Master: %d trial(s) from %s",
+              len(master_trials), master_source,
+              role="master", count=len(master_trials),
+              source_description=master_source)
 
     # --run-date wins; otherwise inherit from the normalized documents so this stage
     # stays on the run that produced them. A JSON file carries no run to inherit
     # from, so there today is the only honest answer.
     run_date = args.run_date or ctm_db.inherited_run_date(
         new_trials, fallback=date.today().isoformat())
-    print(f"Target: {target_db}.{ctm_db.DIFF_COLLECTION} (run_date {run_date})", file=sys.stderr)
+    log.info(f"Target: {target_db}.{ctm_db.DIFF_COLLECTION} (run_date {run_date})")
 
     # Upstream provenance has done its job now that run_date is known; it must not
     # reach the JSON files, and each stage re-stamps rather than inherits.
@@ -737,7 +749,9 @@ def _cmd_trials_diff(args) -> None:
 
     unchanged, changed, deleted = split_by_eligibility(new_trials, master_trials)
 
-    print(f"{len(unchanged)} unchanged, {len(changed)} changed, {len(deleted)} deleted", file=sys.stderr)
+    log_event(log, "trials.diff", "%d unchanged, %d changed, %d deleted",
+              len(unchanged), len(changed), len(deleted),
+              unchanged=len(unchanged), changed=len(changed), deleted=len(deleted))
 
     # Files before Mongo when asked for: a standalone mongod is not a replica
     # set, so there is no transaction to roll back a partial write, and complete
@@ -748,8 +762,7 @@ def _cmd_trials_diff(args) -> None:
         Path(f"{prefix}-unchanged.json").write_text(json.dumps(unchanged, indent=2, default=str))
         Path(f"{prefix}-changed.json").write_text(json.dumps(changed, indent=2, default=str))
         Path(f"{prefix}-deleted.json").write_text(json.dumps(deleted, indent=2, default=str))
-        print(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json",
-              file=sys.stderr)
+        log.info(f"Saved → {prefix}-unchanged.json, {prefix}-changed.json, {prefix}-deleted.json")
 
     # Stamped copies, so the files above stay byte-identical to pre-Mongo output.
     docs = [
@@ -764,7 +777,10 @@ def _cmd_trials_diff(args) -> None:
         ctm_db.DIFF_UNIQUE_KEY,
         ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Stored {len(docs)} doc(s) → {target_db}.{ctm_db.DIFF_COLLECTION}", file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(docs), target_db, ctm_db.DIFF_COLLECTION,
+              count=len(docs), database=target_db, collection=ctm_db.DIFF_COLLECTION,
+              stage="trials-diff")
 
 
 def _cmd_trials_curate(args) -> None:
@@ -776,10 +792,9 @@ def _cmd_trials_curate(args) -> None:
     """
     from ctm.llm_cli import main as llm_main
 
-    print(
+    log.info(
         "DEPRECATED: `ctm-mm trials-curate` is now `ctm-llm biomarkers` and will be "
-        "removed in 2.0.0. Forwarding...",
-        file=sys.stderr,
+        "removed in 2.0.0. Forwarding..."
     )
 
     argv = ["biomarkers"]
@@ -821,8 +836,8 @@ def _cmd_trials_confidence_split(args) -> None:
 
     Path(args.high_confidence_out).write_text(json.dumps(high_confidence, indent=2, default=str))
     Path(args.needs_curation_out).write_text(json.dumps(needs_curation, indent=2, default=str))
-    print(f"{len(high_confidence)} high-confidence, {len(needs_curation)} needs curation", file=sys.stderr)
-    print(f"Saved → {args.high_confidence_out}, {args.needs_curation_out}", file=sys.stderr)
+    log.info(f"{len(high_confidence)} high-confidence, {len(needs_curation)} needs curation")
+    log.info(f"Saved → {args.high_confidence_out}, {args.needs_curation_out}")
 
 
 def _validate_curation_structure(trial: dict, label: str) -> None:
@@ -842,8 +857,7 @@ def _validate_curation_structure(trial: dict, label: str) -> None:
             try:
                 model.model_validate(trial[field])
             except ValidationError as exc:
-                print(f"Error: {label} has a malformed {field}: {exc}", file=sys.stderr)
-                sys.exit(1)
+                fail(f"{label} has a malformed {field}: {exc}")
 
 
 def _cmd_add_manual(args) -> None:
@@ -855,16 +869,14 @@ def _cmd_add_manual(args) -> None:
 
     trials = _read_trials_json(Path(args.trials), "--trials")
     if not trials:
-        print(f"Error: {args.trials} contains no trials", file=sys.stderr)
-        sys.exit(1)
-    print(f"Read {len(trials)} hand-curated trial(s) from {args.trials}", file=sys.stderr)
+        fail(f"{args.trials} contains no trials")
+    log.info(f"Read {len(trials)} hand-curated trial(s) from {args.trials}")
 
     collection = ctm_db.open_collection(
         ctm_db.get_database(config, target_db), ctm_db.MANUAL_COLLECTION,
         ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    print(f"Target: {target_db}.{ctm_db.MANUAL_COLLECTION} (append, run_date {run_date})",
-          file=sys.stderr)
+    log.info(f"Target: {target_db}.{ctm_db.MANUAL_COLLECTION} (append, run_date {run_date})")
 
     for i, trial in enumerate(trials, 1):
         label = f"trial {i} ({trial.get('nct_id') or trial.get('protocol_no') or '?'})"
@@ -874,7 +886,10 @@ def _cmd_add_manual(args) -> None:
         stamped = ctm_db.stamp_curation(stamped, curated_by_user=args.curated_by_user)
         ctm_db.upsert_doc(collection, stamped, ctm_db.DIFF_UNIQUE_KEY)
 
-    print(f"Stored {len(trials)} doc(s) → {target_db}.{ctm_db.MANUAL_COLLECTION}", file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(trials), target_db, ctm_db.MANUAL_COLLECTION,
+              count=len(trials), database=target_db, collection=ctm_db.MANUAL_COLLECTION,
+              stage="add-manual")
 
 
 def _cmd_trials_merge(args) -> None:
@@ -885,14 +900,12 @@ def _cmd_trials_merge(args) -> None:
     # provenance. Kept for the pre-Mongo pipeline.
     if args.unchanged or args.changed:
         if not (args.unchanged and args.changed and args.out):
-            print("Error: the legacy file flow needs --unchanged, --changed and --out together",
-                  file=sys.stderr)
-            sys.exit(1)
+            fail("the legacy file flow needs --unchanged, --changed and --out together")
         unchanged = _read_trials_json(Path(args.unchanged), "--unchanged")
         changed = _read_trials_json(Path(args.changed), "--changed")
         master = merge_master(unchanged, changed)
         Path(args.out).write_text(json.dumps(master, indent=2, default=str))
-        print(f"Saved {len(master)} trial(s) → {args.out}", file=sys.stderr)
+        log.info(f"Saved {len(master)} trial(s) → {args.out}")
         return
 
     config = ctm_db.mongo_config(require_master=not args.master_db)
@@ -909,25 +922,22 @@ def _cmd_trials_merge(args) -> None:
     new_curated = ctm_db.read_collection(run_database, ctm_db.MANUAL_COLLECTION,
                                          keep_metadata=True)
     if not new_curated:
-        print(f"Error: no trials in {target_db}.{ctm_db.MANUAL_COLLECTION}. "
-              "Run ctm-mm add-manual first.", file=sys.stderr)
-        sys.exit(1)
+        fail(f"no trials in {target_db}.{ctm_db.MANUAL_COLLECTION}. "
+              "Run ctm-mm add-manual first.")
 
     previous_master = ctm_db.read_collection(master_database, master_collection,
                                              keep_metadata=True)
     if not previous_master and not args.allow_empty_master:
-        print(f"Error: previous master {master_db}.{master_collection} is empty. "
-              "Pass --allow-empty-master to build the first master.", file=sys.stderr)
-        sys.exit(1)
+        fail(f"previous master {master_db}.{master_collection} is empty. "
+              "Pass --allow-empty-master to build the first master.")
 
     diff_docs = ctm_db.read_collection(run_database, ctm_db.DIFF_COLLECTION,
                                        {"diff_status": "deleted"})
     deleted_keys = {trial_key(t) for t in diff_docs}
 
-    print(f"Curated: {len(new_curated)} from {target_db}.{ctm_db.MANUAL_COLLECTION}", file=sys.stderr)
-    print(f"Master:  {len(previous_master)} from {master_db}.{master_collection}", file=sys.stderr)
-    print(f"Deleted: {len(deleted_keys)} key(s) from {target_db}.{ctm_db.DIFF_COLLECTION}",
-          file=sys.stderr)
+    log.info(f"Curated: {len(new_curated)} from {target_db}.{ctm_db.MANUAL_COLLECTION}")
+    log.info(f"Master:  {len(previous_master)} from {master_db}.{master_collection}")
+    log.info(f"Deleted: {len(deleted_keys)} key(s) from {target_db}.{ctm_db.DIFF_COLLECTION}")
 
     master = reconcile_master(previous_master, new_curated, deleted_keys)
 
@@ -944,14 +954,15 @@ def _cmd_trials_merge(args) -> None:
             validate_master(t)
         except ValidationError as exc:
             ident = t.get("trial_key") or t.get("nct_id") or t.get("protocol_no") or "?"
-            print(f"Error: trial {ident} is not fit for {master_db}.{master_collection} "
-                  f"(missing or malformed curation provenance?). Master left unchanged.\n{exc}",
-                  file=sys.stderr)
-            sys.exit(1)
+            fail(f"trial {ident} is not fit for {master_db}.{master_collection} "
+                  f"(missing or malformed curation provenance?). Master left unchanged.\n{exc}")
 
     ctm_db.replace_collection(master_database, master_collection, stamped,
                               ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
-    print(f"Stored {len(stamped)} doc(s) → {master_db}.{master_collection}", file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(stamped), master_db, master_collection,
+              count=len(stamped), database=master_db, collection=master_collection,
+              stage="trials-merge")
 
     # Also snapshot the master into this run's own database, so a run's record is
     # self-contained: 01 through 05 plus the 06 it produced. The master database
@@ -959,18 +970,19 @@ def _cmd_trials_merge(args) -> None:
     if target_db != master_db:
         ctm_db.replace_collection(run_database, master_collection, stamped,
                                   ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
-        print(f"Stored {len(stamped)} doc(s) → {target_db}.{master_collection}",
-              file=sys.stderr)
+        log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(stamped), target_db, master_collection,
+              count=len(stamped), database=target_db, collection=master_collection,
+              stage="trials-merge.run-copy")
     else:
-        print(f"Run database is {target_db}, same as the master — skipping the run copy.",
-              file=sys.stderr)
+        log.info(f"Run database is {target_db}, same as the master — skipping the run copy.")
 
     # Canonical master backup by default; --out overrides the path.
     default_export = master_trial_export_dir() / f"trials_master-{run_date}.json"
     out_path = Path(args.out) if args.out else default_export
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(stamped, indent=2, default=str))
-    print(f"Saved {len(stamped)} trial(s) → {out_path}", file=sys.stderr)
+    log.info(f"Saved {len(stamped)} trial(s) → {out_path}")
 
 
 def _cmd_trials_filter(args) -> None:
@@ -992,9 +1004,8 @@ def _cmd_trials_filter(args) -> None:
     database = ctm_db.get_database(config, master_db)
     rows = ctm_db.read_collection(database, master_collection, keep_metadata=True)
     if not rows:
-        print(f"Error: no trials in {master_db}.{master_collection}. "
-              "Run ctm-mm trials-merge first.", file=sys.stderr)
-        sys.exit(1)
+        fail(f"no trials in {master_db}.{master_collection}. "
+              "Run ctm-mm trials-merge first.")
 
     # A stage must not read the clock when its input already carries a run_date:
     # the weekly cycle spans days, and date.today() would decorrelate this run's
@@ -1002,19 +1013,25 @@ def _cmd_trials_filter(args) -> None:
     run_date = args.run_date or ctm_db.inherited_run_date(rows, date.today().isoformat())
 
     filtered = filter_trials([ctm_db.strip_metadata(row) for row in rows])
-    print(f"Master:   {len(rows)} row(s) from {master_db}.{master_collection}", file=sys.stderr)
-    print(f"Filtered: {len(filtered)} trial(s) ({len(rows) - len(filtered)} excluded)",
-          file=sys.stderr)
+    log.info(f"Master:   {len(rows)} row(s) from {master_db}.{master_collection}")
+    log_event(log, "trials.filtered", "Filtered: %d trial(s) (%d excluded)",
+              len(filtered), len(rows) - len(filtered),
+              kept=len(filtered), excluded=len(rows) - len(filtered),
+              read=len(rows))
     reasons: dict[str, int] = {}
     for trial in filtered:
         reasons[trial["filtered_reason"]] = reasons.get(trial["filtered_reason"], 0) + 1
     for reason in sorted(reasons):
-        print(f"  {reason}: {reasons[reason]}", file=sys.stderr)
+        log_event(log, "trials.filter_reason", "  %s: %d", reason, reasons[reason],
+                  reason=reason, count=reasons[reason])
 
     stamped = [ctm_db.stamp(trial, "ctm-mm trials-filter", run_date) for trial in filtered]
     ctm_db.replace_collection(database, filtered_collection, stamped,
                               ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
-    print(f"Stored {len(stamped)} doc(s) → {master_db}.{filtered_collection}", file=sys.stderr)
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(stamped), master_db, filtered_collection,
+              count=len(stamped), database=master_db, collection=filtered_collection,
+              stage="trials-filter")
 
     # Also snapshot the filtered set into this run's own database — a per-run
     # audit copy. The master database stays authoritative for reads (match-prep
@@ -1022,15 +1039,16 @@ def _cmd_trials_filter(args) -> None:
     if run_db != master_db:
         ctm_db.replace_collection(ctm_db.get_database(config, run_db), filtered_collection,
                                   stamped, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS)
-        print(f"Stored {len(stamped)} doc(s) → {run_db}.{filtered_collection}",
-              file=sys.stderr)
+        log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
+              len(stamped), run_db, filtered_collection,
+              count=len(stamped), database=run_db, collection=filtered_collection,
+              stage="trials-filter.run-copy")
     else:
-        print(f"Run database is {run_db}, same as the master — skipping the run copy.",
-              file=sys.stderr)
+        log.info(f"Run database is {run_db}, same as the master — skipping the run copy.")
 
     if args.out:
         Path(args.out).write_text(json.dumps(filtered, indent=2, default=str))
-        print(f"Saved {len(filtered)} trial(s) → {args.out}", file=sys.stderr)
+        log.info(f"Saved {len(filtered)} trial(s) → {args.out}")
 
 
 def _cmd_load(args) -> None:
@@ -1039,26 +1057,21 @@ def _cmd_load(args) -> None:
 
     path = Path(args.pt_data)
     if not path.exists():
-        print(f"Error: file not found: {path}", file=sys.stderr)
-        sys.exit(1)
+        fail(f"file not found: {path}")
 
     try:
         prepared = prepare(json.loads(path.read_text()))
     except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        fail(str(exc))
 
     config = ctm_db.mongo_config(require_dbname=False)
     patient_db = args.patient_db or config["patient_dbname"]
     if not patient_db:
-        print("Error: set MONGO_PATIENT_DBNAME in .env, or pass --patient-db",
-              file=sys.stderr)
-        sys.exit(1)
+        fail("set MONGO_PATIENT_DBNAME in .env, or pass --patient-db")
 
     if prepared.orphans:
-        print(f"  Warning: {len(prepared.orphans)} genomic SAMPLE_ID(s) have no clinical "
-              f"doc — kept without a CLINICAL_ID (unmatchable): {prepared.orphans}",
-              file=sys.stderr)
+        log.warning(f"  {len(prepared.orphans)} genomic SAMPLE_ID(s) have no clinical "
+              f"doc — kept without a CLINICAL_ID (unmatchable): {prepared.orphans}")
 
     run_date = args.run_date or date.today().isoformat()
     database = ctm_db.get_database(config, patient_db)
@@ -1071,14 +1084,16 @@ def _cmd_load(args) -> None:
         docs = doc_sets[base]
         for name in (f"{run_date}_{base}", f"latest_{base}"):
             ctm_db.overwrite_collection(database, name, docs)
-        print(f"Stored {len(docs)} → {patient_db}.{run_date}_{base} (+ latest_{base})",
-              file=sys.stderr)
+        log_event(log, "db.stored", "Stored %d → %s.%s_%s (+ latest_%s)",
+                  len(docs), patient_db, run_date, base, base,
+                  count=len(docs), database=patient_db,
+                  collection=f"{run_date}_{base}", stage="load")
 
     if args.disk:
         out_dir = Path(args.out_dir) if args.out_dir else Path.cwd()
         counts = export_to_disk(json.loads(path.read_text()), out_dir)
         for base in DOC_SETS:
-            print(f"Wrote {counts[base]} file(s) → {out_dir / base}/", file=sys.stderr)
+            log.info(f"Wrote {counts[base]} file(s) → {out_dir / base}/")
 
 
 def _cmd_match_prep(args) -> None:
@@ -1112,19 +1127,16 @@ def _cmd_match_prep(args) -> None:
             # A doc with no match_level key is unclassified, not uncurated — -1
             # keeps it below every real threshold instead of passing as level 0.
             if not any("match_level" in t for t in trials):
-                print(f"Error: --min-match-level {args.min_match_level} needs match_level, "
+                fail(f"--min-match-level {args.min_match_level} needs match_level, "
                       f"which {args.trials_file} does not carry. "
-                      "Run ctm-mm trials-filter, or drop the flag.", file=sys.stderr)
-                sys.exit(1)
+                      "Run ctm-mm trials-filter, or drop the flag.")
             filtered = [t for t in trials if t.get("match_level", -1) >= args.min_match_level]
             n_trial = ctm_db.overwrite_collection(match_db, "trial", filtered)
             trial_src = f"{args.trials_file} (match_level >= {args.min_match_level})"
     else:
         trial_db = args.trial_db or config["master_dbname"]
         if not trial_db:
-            print("Error: set MONGO_MASTER_DBNAME (or --trial-db), or pass --trials-file",
-                  file=sys.stderr)
-            sys.exit(1)
+            fail("set MONGO_MASTER_DBNAME (or --trial-db), or pass --trials-file")
         trial_coll = resolve_trial_collection(
             config, args.trial_collection,
             set(client[trial_db].list_collection_names()),
@@ -1138,36 +1150,38 @@ def _cmd_match_prep(args) -> None:
             unstamped = source.count_documents({"match_level": {"$exists": False}})
             total = source.count_documents({})
             if total == 0:
-                print(f"Error: --min-match-level {args.min_match_level} needs match_level, "
+                fail(f"--min-match-level {args.min_match_level} needs match_level, "
                       f"but {trial_db}.{trial_coll} is empty. "
-                      "Run ctm-mm trials-filter to populate it.", file=sys.stderr)
-                sys.exit(1)
+                      "Run ctm-mm trials-filter to populate it.")
             elif unstamped:
-                print(f"Error: --min-match-level {args.min_match_level} needs every trial to "
+                fail(f"--min-match-level {args.min_match_level} needs every trial to "
                       f"carry match_level, but {unstamped} of {total} in "
                       f"{trial_db}.{trial_coll} do not. "
-                      "Run ctm-mm trials-filter to regenerate it.", file=sys.stderr)
-                sys.exit(1)
+                      "Run ctm-mm trials-filter to regenerate it.")
         n_trial = ctm_db.copy_collection(source, match_db["trial"], trial_query)
         trial_src = f"{trial_db}.{trial_coll}"
         if trial_query is not None:
             trial_src += f" (match_level >= {args.min_match_level})"
-    print(f"trial:    {n_trial} from {trial_src}", file=sys.stderr)
+    log_event(log, "match_prep.collection", "trial:    %d from %s", n_trial, trial_src,
+              collection="trial", count=n_trial, source_description=trial_src)
 
     # ── clinical + genomic → match_db (Mongo patient db, or a one-off bundle) ──
     if args.pt_data:
         prepared = prepare(json.loads(Path(args.pt_data).read_text()))
         n_clin = ctm_db.overwrite_collection(match_db, "clinical", prepared.clinical)
         n_gen = ctm_db.overwrite_collection(match_db, "genomic", prepared.genomic)
-        print(f"clinical: {n_clin} from {args.pt_data} (linked)", file=sys.stderr)
-        print(f"genomic:  {n_gen} from {args.pt_data} (linked)", file=sys.stderr)
+        log_event(log, "match_prep.collection", "clinical: %d from %s (linked)",
+                  n_clin, args.pt_data, collection="clinical", count=n_clin,
+                  source_description=args.pt_data)
+        log_event(log, "match_prep.collection", "genomic:  %d from %s (linked)",
+                  n_gen, args.pt_data, collection="genomic", count=n_gen,
+                  source_description=args.pt_data)
     else:
         clin_db = args.clinical_db or config["patient_dbname"]
         gen_db = args.genomic_db or config["patient_dbname"]
         if not clin_db or not gen_db:
-            print("Error: set MONGO_PATIENT_DBNAME (or --clinical-db/--genomic-db), "
-                  "or pass --pt-data", file=sys.stderr)
-            sys.exit(1)
+            fail("set MONGO_PATIENT_DBNAME (or --clinical-db/--genomic-db), "
+                  "or pass --pt-data")
         clin_coll = args.clinical_collection or DEFAULT_CLINICAL_COLLECTION
         gen_coll = args.genomic_collection or DEFAULT_GENOMIC_COLLECTION
         # Clinical is read-transformed rather than plain-copied: heal the matchengine
@@ -1177,29 +1191,30 @@ def _cmd_match_prep(args) -> None:
             list(client[clin_db][clin_coll].find({})))
         n_clin = ctm_db.overwrite_collection(match_db, "clinical", clin_docs)
         n_gen = ctm_db.copy_collection(client[gen_db][gen_coll], match_db["genomic"])
-        print(f"clinical: {n_clin} from {clin_db}.{clin_coll}", file=sys.stderr)
-        print(f"genomic:  {n_gen} from {gen_db}.{gen_coll}", file=sys.stderr)
+        log_event(log, "match_prep.collection", "clinical: %d from %s.%s",
+                  n_clin, clin_db, clin_coll, collection="clinical", count=n_clin,
+                  source_description=f"{clin_db}.{clin_coll}")
+        log_event(log, "match_prep.collection", "genomic:  %d from %s.%s",
+                  n_gen, gen_db, gen_coll, collection="genomic", count=n_gen,
+                  source_description=f"{gen_db}.{gen_coll}")
 
-    print(f"Assembled → {match_db_name}.{{trial, clinical, genomic}}", file=sys.stderr)
+    log.info(f"Assembled → {match_db_name}.{{trial, clinical, genomic}}")
 
     # ── run matchengine, or print the command ─────────────────────────────────
     if args.run:
         import subprocess
         cmd = matchengine_command(match_db_name)
         env = {**os.environ, "SECRETS_JSON": json.dumps(synthesize_secrets(config, match_db_name))}
-        print(f"Running: {' '.join(cmd)}", file=sys.stderr)
+        log.info(f"Running: {' '.join(cmd)}")
         try:
             result = subprocess.run(cmd, env=env)
         except FileNotFoundError:
-            print("Error: 'matchengine' not found on PATH. Run it yourself against "
-                  f"{match_db_name}, or install matchengine in this environment.",
-                  file=sys.stderr)
-            sys.exit(1)
+            fail("'matchengine' not found on PATH. Run it yourself against "
+                  f"{match_db_name}, or install matchengine in this environment.")
         sys.exit(result.returncode)
     else:
-        print(f"Run it with:  ctm-mm match-prep --run --match-db {match_db_name}",
-              file=sys.stderr)
-        print(f"        (or:  matchengine match --db {match_db_name})", file=sys.stderr)
+        log.info(f"Run it with:  ctm-mm match-prep --run --match-db {match_db_name}")
+        log.info(f"        (or:  matchengine match --db {match_db_name})")
 
 
 if __name__ == "__main__":

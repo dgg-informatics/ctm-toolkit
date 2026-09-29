@@ -683,7 +683,7 @@ def test_cmd_trials_diff_reads_new_from_the_normalized_collection(tmp_path, fake
     assert "processed_with" not in unchanged[0]
 
 
-def test_cmd_trials_diff_empty_normalized_collection_is_an_error(tmp_path, fake_mongo, capsys):
+def test_cmd_trials_diff_empty_normalized_collection_is_an_error(tmp_path, fake_mongo, caplog):
     from ctm.db import NORMALIZED_COLLECTION
     from ctm.mm_cli import _cmd_trials_diff
 
@@ -691,7 +691,7 @@ def test_cmd_trials_diff_empty_normalized_collection_is_an_error(tmp_path, fake_
 
     with pytest.raises(SystemExit):
         _cmd_trials_diff(_diff_args(out_prefix=str(tmp_path / "x"), master=None))
-    assert "Run ctm-mm trials first" in capsys.readouterr().err
+    assert "Run ctm-mm trials first" in caplog.text
 
 
 def test_cmd_trials_diff_new_file_still_wins(tmp_path, fake_mongo):

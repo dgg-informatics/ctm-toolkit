@@ -228,14 +228,14 @@ def test_trials_merge_rejects_a_master_row_missing_curation(fake_mongo):
     assert fake_mongo["written"] is None, "master left untouched when a row fails the guard"
 
 
-def test_trials_merge_empty_manual_is_an_error(fake_mongo, capsys):
+def test_trials_merge_empty_manual_is_an_error(fake_mongo, caplog):
     from ctm.db import MANUAL_COLLECTION
     from ctm.mm_cli import _cmd_trials_merge
 
     fake_mongo["collections"] = {MANUAL_COLLECTION: []}
     with pytest.raises(SystemExit):
         _cmd_trials_merge(_merge_args())
-    assert "add-manual first" in capsys.readouterr().err
+    assert "add-manual first" in caplog.text
 
 
 def test_trials_merge_legacy_file_flow_still_works(tmp_path):
