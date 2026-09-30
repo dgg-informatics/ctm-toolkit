@@ -244,3 +244,15 @@ def test_load_patients_rejects_a_missing_explicit_workbook(tmp_path, caplog):
     with pytest.raises(SystemExit):
         load_patients_cli.resolve_workbook(str(tmp_path / "nope.xlsx"))
     assert "not found" in caplog.text
+
+
+def test_load_patients_refuses_to_overwrite_todays_bundle(tmp_path, monkeypatch, caplog):
+    """A second same-day load would silently replace the morning's bundle."""
+    from ctm import load_patients_cli
+
+    monkeypatch.setenv("PATIENT_EXPORT_DIR", str(tmp_path))
+    (tmp_path / "2026-10-05_patients.json").touch()
+    with pytest.raises(SystemExit):
+        load_patients_cli.resolve_bundle(None, "2026-10-05")
+    assert "already exists" in caplog.text
+    assert load_patients_cli.resolve_bundle(str(tmp_path / "x.json"), "2026-10-05")

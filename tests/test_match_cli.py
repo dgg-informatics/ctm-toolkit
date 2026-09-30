@@ -203,6 +203,17 @@ def test_a_report_failure_leaves_state_untouched(wired, monkeypatch):
     assert client["latest_trials"][STATE_COLLECTION].find_one({"_id": MATCH_STATE_ID}) is None
 
 
+def test_a_rematch_clears_that_days_old_reports(wired, monkeypatch):
+    """A patient dropped by a same-day reload must not keep a PDF from the
+    earlier run; other days' reports are left alone."""
+    reports = wired["tmp_path"] / "reports"
+    (reports / "2026-09-29_pt_gone-report.pdf").touch()
+    (reports / "2026-09-22_pt_old-report.pdf").touch()
+    _run(_client(), _args(), monkeypatch, wired)
+    assert not (reports / "2026-09-29_pt_gone-report.pdf").exists()
+    assert (reports / "2026-09-22_pt_old-report.pdf").exists()
+
+
 def test_a_second_run_after_success_is_a_no_op(wired, monkeypatch):
     """The property that makes this safe to schedule: run it twice, the second
     does nothing."""
