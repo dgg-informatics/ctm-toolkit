@@ -69,6 +69,7 @@ def test_cache_dir_precedence(monkeypatch, tmp_path):
     ("PATIENT_RAW_DIR", "/var/lib/ctm/patients"),
     ("PATIENT_EXPORT_DIR", "/var/lib/ctm/patients/normalized"),
     ("MATCH_EXPORT_DIR", "/var/lib/ctm/matches"),
+    ("CURATED_DIR", "/var/lib/ctm/curated"),
 ])
 def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, default):
     """A blank env var must fall back to the default, not resolve to Path("") = CWD
@@ -81,7 +82,8 @@ def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, de
             "REPORT_EXPORT_DIR": paths.report_export_dir,
             "PATIENT_RAW_DIR": paths.patient_raw_dir,
             "PATIENT_EXPORT_DIR": paths.patient_export_dir,
-            "MATCH_EXPORT_DIR": paths.match_export_dir}[env]
+            "MATCH_EXPORT_DIR": paths.match_export_dir,
+            "CURATED_DIR": paths.curated_dir}[env]
     monkeypatch.setenv(env, "")
     assert str(func()) == default
 
@@ -90,6 +92,7 @@ def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, de
     ("PATIENT_RAW_DIR", "patient_raw_dir"),
     ("PATIENT_EXPORT_DIR", "patient_export_dir"),
     ("MATCH_EXPORT_DIR", "match_export_dir"),
+    ("CURATED_DIR", "curated_dir"),
 ])
 def test_new_export_dirs_are_overridable(monkeypatch, tmp_path, env, func_name):
     from ctm import paths

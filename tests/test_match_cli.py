@@ -239,3 +239,17 @@ def test_a_missing_config_var_is_an_error_line_not_a_traceback(monkeypatch, capl
         match_cli._run(_args())
     assert excinfo.value.code == 1
     assert "MONGO_MASTER_DBNAME" in caplog.text
+
+
+def test_min_match_level_defaults_to_two(monkeypatch):
+    """Level 0/1 surface trials that match nearly everyone — noise on a report a
+    clinician reads. match-prep's own default stays 0; this is the clinical one."""
+    import sys
+
+    from ctm import match_cli as mc
+
+    captured = {}
+    monkeypatch.setattr(mc, "_run", lambda a: captured.update(args=a) or 0)
+    monkeypatch.setattr(sys, "argv", ["ctm-match"])
+    mc.main()
+    assert captured["args"].min_match_level == 2

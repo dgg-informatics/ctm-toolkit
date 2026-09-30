@@ -224,9 +224,12 @@ def main() -> None:
     parser.add_argument("--patient-db", dest="patient_db", metavar="NAME",
                         help="Patient database (default: MONGO_PATIENT_DBNAME)")
     parser.add_argument("--min-match-level", dest="min_match_level", type=int,
-                        choices=[0, 1, 2, 3], default=0, metavar="N",
+                        choices=[0, 1, 2, 3], default=2, metavar="N",
                         help="Passed to match-prep: only match trials whose match "
-                             "clause is at least this specific")
+                             "clause is at least this specific. Defaults to 2 — "
+                             "clinical beyond age — because level 0 and 1 surface "
+                             "trials that match nearly everyone, which is noise on "
+                             "a report a clinician reads")
     parser.add_argument("--out", metavar="PATH",
                         help="trial_match export path (default: MATCH_EXPORT_DIR)")
     parser.add_argument("--out-dir", dest="out_dir", metavar="DIR",

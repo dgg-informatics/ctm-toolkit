@@ -23,18 +23,36 @@ DEFAULT_KB_PATH = REFS_DIR / "gene_variant_descriptions_v2.json"
 
 
 def load_env() -> Path | None:
-    """Load ``.env`` from the working directory, returning the file used.
+    """Load the ``.env`` for this run, returning the file used.
 
-    ``load_dotenv()`` with no arguments searches upward from the *calling
-    module's* directory. For an installed (non-editable) package that is
-    site-packages, so a ``.env`` sitting next to the user's data is never found
-    and the CLI fails with "UMGPT_API_KEY not set" despite the file being right
-    there. ``usecwd=True`` searches from where the command was actually run,
-    which is the behaviour the README documents.
+    ``CTM_ENV_FILE`` names one explicitly; otherwise the working directory is
+    searched upward.
 
-    Existing environment variables win, so exporting a value or using a wrapper
-    script still overrides the file.
+    The explicit form is what lets a scheduled command find a server-wide
+    configuration file. The search cannot: ``find_dotenv`` walks up from the
+    working directory, and cron runs with a home directory as cwd, so
+    ``/etc/ctm/.env`` is never on the path. That job used to belong to a bash
+    wrapper doing ``set -a; . /etc/ctm/.env; set +a`` before invoking the CLI —
+    naming the file instead keeps the wrappers out of it.
+
+    ``load_dotenv()`` with no arguments searches from the *calling module's*
+    directory, which for an installed package is site-packages; ``usecwd=True``
+    searches from where the command was actually run, which is the behaviour the
+    README documents.
+
+    Existing environment variables win in both cases, so exporting a value still
+    overrides the file.
     """
+    explicit = os.environ.get("CTM_ENV_FILE", "").strip()
+    if explicit:
+        path = Path(explicit).expanduser()
+        if not path.is_file():
+            # Loud, because the alternative is every variable silently missing
+            # and each command failing separately on whichever it needed first.
+            raise ValueError(f"CTM_ENV_FILE={explicit} is not a file")
+        load_dotenv(path)
+        return path
+
     found = find_dotenv(usecwd=True)
     if not found:
         return None
@@ -118,6 +136,22 @@ def patient_export_dir() -> Path:
     """
     return Path(
         os.environ.get("PATIENT_EXPORT_DIR") or "/var/lib/ctm/patients/normalized"
+    ).expanduser()
+
+
+def curated_dir() -> Path:
+    """Directory a curator drops the hand-curated trials file into, and where a
+    bare ``ctm-post-curate`` looks for the newest one.
+
+    Override with ``CURATED_DIR`` (an empty value is treated as unset). The
+    counterpart to :func:`llm_biomarker_export_dir`: the pipeline writes
+    ``to-curate/``, a human reads it, edits it, and drops the result here. Those
+    are two directories rather than one file edited in place so that "has this
+    week been curated?" is answerable by looking, and so an interrupted edit
+    cannot be mistaken for finished work.
+    """
+    return Path(
+        os.environ.get("CURATED_DIR") or "/var/lib/ctm/curated"
     ).expanduser()
 
 

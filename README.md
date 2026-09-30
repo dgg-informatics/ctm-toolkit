@@ -23,6 +23,8 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-report` | Build the trial-match report as a PDF, or serve a live-reload preview |
 | `ctm-status` | What the pipeline holds now, and whether a fresh match is needed |
 | `ctm-match` | Match and report, but only if trials or patients have changed |
+| `ctm-pre-curate` | The weekly trial refresh, through to the curator handoff |
+| `ctm-post-curate` | Ingest a curated trials file and rebuild the master |
 
 Every command supports `--help`, plus `-v` (console DEBUG) and `-q` (errors only).
 
@@ -607,6 +609,52 @@ Run ctm-match (or wait for the nightly run).
 That `←` marker compares the newest dropped workbook against the patient data in
 Mongo. It is the "someone forgot to run `ctm-mm patients`, so the match ran
 against last month's cohort" failure, which otherwise looks like nothing at all.
+
+### Scheduling: the pipelines as entry points
+
+`ctm-pre-curate` and `ctm-post-curate` are commands, not shell scripts in
+`/usr/local/bin`. That means they ship in the wheel, deploy with the release and
+roll back with the symlink — an untracked wrapper on a server has no rollback,
+and drifts from the repo it drives. It also means they are tested.
+
+```cron
+MAILTO=deemer@med.umich.edu
+CTM_ENV_FILE=/etc/ctm/.env
+PATH=/opt/ctm/current/venv/bin:/usr/bin:/bin
+
+0  7 * * MON  dgg-mipro  ctm-pre-curate --yes
+0  1 * * *    dgg-mipro  ctm-match
+```
+
+That is the whole of it. No redirection, no `stage()` function, no ERR trap:
+the toolkit writes its own run log, brackets its own stages and exits non-zero,
+which is what turns a failure into mail.
+
+**`CTM_ENV_FILE` is what makes this possible.** `load_env()` otherwise searches
+upward from the working directory, and cron runs with a home directory as cwd,
+so `/etc/ctm/.env` is never on the path. Naming the file explicitly is the job
+the old wrapper's `set -a; . /etc/ctm/.env; set +a` was doing.
+
+| | |
+| --- | --- |
+| `ctm-pre-curate` | `trials` → `trials-diff` → `ctm-llm general` → `ctm-llm biomarkers`. `--sources` overrides `--amc --ddots --west`; `--yes` keeps a cold cache from stopping an unattended run at the confirmation prompt |
+| `ctm-post-curate` | `add-manual` → `trials-merge` → `trials-filter`. Reads the newest `*.json` in `CURATED_DIR` unless `--curated` names one |
+
+Both take `--dry-run`, which lists the stages without running them.
+
+**Post-curate stops before matching.** `ctm-match` owns that, because it has to
+run when *either* input changes — trials from here, or patients from `ctm-mm
+load`. Chaining reports onto curation is wrong in both directions: curate Monday
+and load patients Tuesday, and Monday's reports used a stale cohort; do both in
+one afternoon and you match twice for nothing.
+
+**The run is identified by the curated file's `YYYY-MM-DD` name prefix**, not by
+today's date. Ingesting Monday's curation on Thursday belongs to Monday's run —
+that is the database its upstream stages wrote, and re-deriving from the clock
+would write into a database whose upstream collections do not exist.
+
+Each stage stops the run on failure and its code becomes the exit status, so a
+half-finished master is never built from a partial run.
 
 ### MatchMiner Preparation and Running
 

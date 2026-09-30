@@ -62,11 +62,15 @@ _AMC_FETCH = "<fetch>"
 _WEST_DEFAULT = "<default>"
 
 
-def main() -> None:
-    # trials-curate and trials-confidence-split reach UMGPT via build_client();
-    # load_env() first so .env can also carry the CTM_LOG_* settings.
-    load_env()
+def build_parser() -> argparse.ArgumentParser:
+    """The full ctm-mm parser.
 
+    Separate from ``main()`` so callers can build a subcommand's Namespace the
+    way the CLI would — `ctm.pipelines` runs these stages in-process, and the
+    test suite does the same. Hand-rolling a Namespace means every new flag
+    breaks a caller with an AttributeError; going through the parser keeps the
+    defaults in one place.
+    """
     parser = argparse.ArgumentParser(
         prog="ctm-mm",
         description="CTM → MatchMiner import tooling",
@@ -329,10 +333,17 @@ def main() -> None:
                               "3 genomic. Requires a collection carrying match_level "
                               "(07_filtered_trials)")
 
-    args = parser.parse_args()
-    configure_logging(verbosity=verbosity_from_args(args))
+    return parser
 
-    dispatch = {
+
+def command_handlers() -> dict:
+    """Subcommand name → handler, shared with `ctm.pipelines`, which runs some of
+    these as stages of a larger job.
+
+    A function rather than a module constant because every handler is defined
+    below this point in the file.
+    """
+    return {
         "patients": _cmd_raw_to_mm,
         "trials": _cmd_trials,
         "trials-diff": _cmd_trials_diff,
@@ -344,6 +355,16 @@ def main() -> None:
         "load": _cmd_load,
         "match-prep": _cmd_match_prep,
     }
+
+
+def main() -> None:
+    # trials-curate and trials-confidence-split reach UMGPT via build_client();
+    # load_env() first so .env can also carry the CTM_LOG_* settings.
+    load_env()
+    args = build_parser().parse_args()
+    configure_logging(verbosity=verbosity_from_args(args))
+
+    dispatch = command_handlers()
     with command_context(log, f"ctm-mm {args.command}"):
         # A subcommand may return an exit code rather than raise — match-prep
         # forwards matchengine's. Returning None means success, as most do.
