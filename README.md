@@ -21,8 +21,13 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-fetch` | Fetch a single trial from ClinicalTrials.gov by NCT ID |
 | `ctm-meta` | Multi-section CSV comparing coverage, overlap, and status across trial sources |
 | `ctm-report` | Build the trial-match report as a PDF, or serve a live-reload preview |
+| `ctm-status` | What the pipeline holds now, and whether a fresh match is needed |
+| `ctm-match` | Match and report, but only if trials or patients have changed |
+| `ctm-pre-curate` | The weekly trial refresh, through to the curator handoff |
+| `ctm-post-curate` | Ingest a curated trials file and rebuild the master |
+| `ctm-load-patients` | Normalize a patient workbook and load it into the patient database |
 
-Every command supports `--help`.
+Every command supports `--help`, plus `-v` (console DEBUG) and `-q` (errors only).
 
 ## Quick Start
 
@@ -530,6 +535,143 @@ Not every trial in `07_filtered_trials` is equally useful to match against: some
 
 Adopting `match_level` on an existing deployment needs one re-run of `ctm-mm trials-filter` to stamp the field onto `07_filtered_trials`.
 
+### Keeping matches current: `ctm-status` and `ctm-match`
+
+Two things trigger work in this pipeline, and they are independent of each
+other: a curator publishing curated trials, and someone dropping a new patient
+workbook. Chaining matching onto either one is wrong in both directions — curate
+Monday and load patients Tuesday and Monday's match used a stale cohort; do both
+in one afternoon and you match twice.
+
+So `ctm-match` **reconciles** rather than reacts. It compares the current inputs
+against the ones the last match consumed, and does nothing unless they differ:
+
+```bash
+ctm-status          # what is here, and is a match needed?
+ctm-match           # match + report if stale; otherwise a no-op
+ctm-match --force   # match regardless
+ctm-match --dry-run # say what would happen, change nothing
+```
+
+Three properties follow, and they are the reason it is shaped this way:
+
+- Two inputs changing five minutes apart produce **one** match.
+- Running it twice is a **no-op**, so it is safe on a timer and safe by hand.
+- A crashed or missed run is repaired by the next invocation — there is no
+  timer, no debounce and no state to strand.
+
+It also expresses something the chained pipeline could not: a week with no trial
+changes but new patient data still deserves a match.
+
+**Staleness is measured by watermark.** A collection's version is the timestamp
+inside its highest `ObjectId`. Every stage here drops and re-inserts, and
+`stamp()` strips `_id` before writing, so a rewrite always mints fresh ids and
+the maximum is "when this was last written". Nothing to add to a schema, nothing
+for a future stage to forget to set. `ctm-match` records what it consumed in a
+`pipeline_state` document in the master database.
+
+**Every match starts from an empty database.** `ctm-match` drops every collection
+in `<date>_match`, matchengine's `trial_match`, `run_log_trial_match` and
+`clinical_run_history_trial_match` included, before `match-prep` reassembles it.
+That is safe because the database is derived in full; *not* doing it is not,
+because `copy_collection` preserves `_id`, so a leftover `trial_match` still
+resolves against freshly-copied clinical documents and the database looks
+internally consistent while mixing two generations of results. The drop is
+guarded on the name ending in `_match`, so a mistyped `--match-db` cannot take
+the trial master with it.
+
+**State advances only on full success.** A run that matched but failed to render
+reports must look unfinished, or the watermark says done while no reports exist
+and the next run skips instead of retrying.
+
+**Matches are exported to disk** as `MATCH_EXPORT_DIR/<date>_trial_match.json`
+(default `/var/lib/ctm/matches`). That is what makes the `<date>_match`
+databases disposable — the record is kept indefinitely as a file, so Mongo only
+has to hold however many recent runs are convenient.
+
+`ctm-status` exits `0` up to date, `1` stale, `2` not ready, so a wrapper can
+branch on it; `--json` puts the same content on stdout for a dashboard.
+
+```
+trials    latest_trials.07_filtered_trials    353 docs  written 2026-09-29
+clinical  patients_dev.latest_clinical         37 docs  written 2026-09-21  (8d ago)
+genomic   patients_dev.latest_genomic         412 docs  written 2026-09-21  (8d ago)
+match     2026-09-22_match                     37 reports  ran 2026-09-22
+
+workbooks          1 in /var/lib/ctm/patients  ← newer than the loaded patient
+                                                 data; run ctm-mm patients
+reports on disk    37 in /var/lib/ctm/reports
+match exports      6 in /var/lib/ctm/matches
+
+STALE: trials changed since the last match
+Run ctm-match (or wait for the nightly run).
+```
+
+That `←` marker compares the newest dropped workbook against the patient data in
+Mongo. It is the "someone forgot to run `ctm-mm patients`, so the match ran
+against last month's cohort" failure, which otherwise looks like nothing at all.
+
+### Scheduling: the pipelines as entry points
+
+`ctm-pre-curate` and `ctm-post-curate` are commands, not shell scripts in
+`/usr/local/bin`. That means they ship in the wheel, deploy with the release and
+roll back with the symlink — an untracked wrapper on a server has no rollback,
+and drifts from the repo it drives. It also means they are tested.
+
+```cron
+MAILTO=deemer@med.umich.edu
+CTM_ENV_FILE=/etc/ctm/.env
+PATH=/opt/ctm/current/venv/bin:/usr/bin:/bin
+
+0  7 * * MON  dgg-mipro  ctm-pre-curate --yes
+0  1 * * *    dgg-mipro  ctm-match
+```
+
+That is the whole of it. No redirection, no `stage()` function, no ERR trap:
+the toolkit writes its own run log, brackets its own stages and exits non-zero,
+which is what turns a failure into mail.
+
+**`CTM_ENV_FILE` is what makes this possible.** `load_env()` otherwise searches
+upward from the working directory, and cron runs with a home directory as cwd,
+so `/etc/ctm/.env` is never on the path. Naming the file explicitly is the job
+the old wrapper's `set -a; . /etc/ctm/.env; set +a` was doing.
+
+| | |
+| --- | --- |
+| `ctm-pre-curate` | `trials` → `trials-diff` → `ctm-llm general` → `ctm-llm biomarkers`. `--sources` overrides `--amc --ddots --west`; `--yes` keeps a cold cache from stopping an unattended run at the confirmation prompt |
+| `ctm-post-curate` | `add-manual` → `trials-merge` → `trials-filter`. Reads the newest `*.json` in `CURATED_DIR` unless `--curated` names one |
+| `ctm-load-patients` | `ctm-mm patients` → `ctm-mm load`. Reads the newest `*.xlsx` in `PATIENT_RAW_DIR` unless `--workbook` names one |
+
+All three take `--dry-run`, which lists the stages without running them.
+
+`ctm-load-patients` exists because those two commands were always run together,
+and splitting them meant copying a generated path from the first into the second
+by hand — the kind of step that gets skipped, and a skipped patient load is
+exactly the stale-cohort failure the reconciler is there to catch. The bundle is
+written to disk *before* it is loaded, so a Mongo failure still leaves you the
+normalized file.
+
+**"Newest" means modification time**, not the date in a filename. `touch` changes
+it, and a plain `cp` sets it to now — so copying in an older file makes it the
+newest (`cp -p` preserves the original). When more than one candidate is present
+the choice is logged, and `--dry-run` prints it before anything runs. Note the
+asymmetry: a curated file's `YYYY-MM-DD` prefix determines its run and database,
+while a patient workbook's filename carries no meaning at all.
+
+**Post-curate stops before matching.** `ctm-match` owns that, because it has to
+run when *either* input changes — trials from here, or patients from `ctm-mm
+load`. Chaining reports onto curation is wrong in both directions: curate Monday
+and load patients Tuesday, and Monday's reports used a stale cohort; do both in
+one afternoon and you match twice for nothing.
+
+**The run is identified by the curated file's `YYYY-MM-DD` name prefix**, not by
+today's date. Ingesting Monday's curation on Thursday belongs to Monday's run —
+that is the database its upstream stages wrote, and re-deriving from the clock
+would write into a database whose upstream collections do not exist.
+
+Each stage stops the run on failure and its code becomes the exit status, so a
+half-finished master is never built from a partial run.
+
 ### MatchMiner Preparation and Running
 
 1. **Read MatchMiner docs to prepare for the next 2 steps!**
@@ -646,6 +788,86 @@ python -m matchengine.main load -t trials.json --trial-format json --db <your-db
 ```
 
 MatchMiner expects each document to conform to CTML format. See the [MatchMiner docs](https://matchminer.gitbook.io) for the full field reference.
+
+## Deploying to a server
+
+The server runs a **release**, not a checkout: a versioned directory with its own
+virtualenv, selected by a symlink.
+
+```
+/opt/ctm/releases/2.3.0/venv/
+/opt/ctm/releases/2.3.1/venv/
+/opt/ctm/current -> releases/2.3.1        <- what the wrappers and PATH use
+```
+
+Two things that buys. Deploys are **atomic** — the symlink moves in one step, so
+nothing ever runs half-installed. And **rollback is repointing the symlink**,
+which takes seconds and needs no network, no rebuild and no git.
+
+Install non-editable (`uv pip install .`, never `-e`). `toolkit_version()` reads
+installed package metadata and `stamp()` writes `processed_with = "<stage>
+<version>"` onto every document, so an editable install makes every row in the
+master claim a version that is not what ran. Editable belongs on a development
+machine, where `pythonpath = ["src"]` in `pyproject.toml` keeps the test suite
+reading the working tree regardless.
+
+### Cutting a release
+
+Tag the repo, let GitHub publish it, then install that exact tag on the server:
+
+```bash
+# on your machine
+git tag -a v2.3.1 -m "..." && git push origin v2.3.1
+# GitHub → Releases → Draft a new release → choose v2.3.1 → Publish
+```
+
+```bash
+# on the server, as an account that can write /opt/ctm
+VER=2.3.1
+uv venv /opt/ctm/releases/$VER/venv
+uv pip install --python /opt/ctm/releases/$VER/venv \
+    "ctm-toolkit[all] @ git+https://github.com/dgg-informatics/ctm-report-preview@v$VER"
+```
+
+Smoke-test the new release **before** it becomes `current` — this is the whole
+point of installing beside rather than over:
+
+```bash
+/opt/ctm/releases/$VER/venv/bin/ctm-mm --help >/dev/null
+/opt/ctm/releases/$VER/venv/bin/ctm-status        # reads only; safe to run
+```
+
+Then switch, and confirm what is live:
+
+```bash
+ln -sfn releases/$VER /opt/ctm/current            # atomic
+ctm-status -v 2>&1 | head -1                      # via /opt/ctm/current/venv/bin
+```
+
+`ln -sfn` replaces the link in place. Without `-n` it would follow the existing
+symlink and create `/opt/ctm/current/releases/...` instead, which is the classic
+way to break this layout.
+
+### Rolling back
+
+```bash
+ln -sfn releases/2.3.0 /opt/ctm/current
+```
+
+That is the whole procedure. Keep the previous release directory until the new
+one has survived a full weekly cycle; documents written in between carry their
+own `processed_with` stamp, so which version produced what stays answerable.
+
+### Making the commands available
+
+```bash
+# /etc/profile.d/ctm.sh
+[ -d /opt/ctm/current/venv/bin ] && PATH="/opt/ctm/current/venv/bin:$PATH"
+```
+
+Now `ctm-status`, `ctm-mm` and the rest work for anyone in the `ctm` group with
+no virtualenv to activate. The cron wrappers set the same path explicitly rather
+than relying on a login shell having sourced it.
 
 ## Setup
 

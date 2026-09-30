@@ -34,7 +34,15 @@ from ctm.logging_config import (
     log_event,
     verbosity_from_args,
 )
-from ctm.paths import cache_dir, cache_path, load_env, master_trial_export_dir, west_trials_path
+from ctm.paths import (
+    cache_dir,
+    cache_path,
+    load_env,
+    master_trial_export_dir,
+    patient_export_dir,
+    patient_raw_dir,
+    west_trials_path,
+)
 
 log = logging.getLogger(__name__)
 
@@ -54,11 +62,15 @@ _AMC_FETCH = "<fetch>"
 _WEST_DEFAULT = "<default>"
 
 
-def main() -> None:
-    # trials-curate and trials-confidence-split reach UMGPT via build_client();
-    # load_env() first so .env can also carry the CTM_LOG_* settings.
-    load_env()
+def build_parser() -> argparse.ArgumentParser:
+    """The full ctm-mm parser.
 
+    Separate from ``main()`` so callers can build a subcommand's Namespace the
+    way the CLI would — `ctm.pipelines` runs these stages in-process, and the
+    test suite does the same. Hand-rolling a Namespace means every new flag
+    breaks a caller with an AttributeError; going through the parser keeps the
+    defaults in one place.
+    """
     parser = argparse.ArgumentParser(
         prog="ctm-mm",
         description="CTM → MatchMiner import tooling",
@@ -70,12 +82,17 @@ def main() -> None:
         "patients",
         help="Normalize Excel template → matchminer-compatible JSON ({clinical, genomic})",
     )
-    p_patients.add_argument("excel", metavar="EXCEL",
-                            help="Path to the filled-in patient-data workbook (.xlsx)")
+    p_patients.add_argument("excel", metavar="EXCEL", nargs="?",
+                            help="Path to the filled-in patient-data workbook (.xlsx). "
+                                 "Omit to read the newest .xlsx in PATIENT_RAW_DIR")
     p_patients.add_argument("--pt-uuid", dest="pt_uuid", metavar="ID[,ID...]",
                             help="Filter to one or more patients by pt_uuid (comma-separated, e.g. pt_0000001,pt_0000002)")
     p_patients.add_argument("--out", metavar="PATH",
-                            help="Save JSON output to file (default: print to stdout)")
+                            help="Write the bundle here instead of the canonical "
+                                 "PATIENT_EXPORT_DIR path")
+    p_patients.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
+                            help="--no-disk prints the bundle to stdout instead of "
+                                 "writing it (for piping)")
 
     p_trials = sub.add_parser(
         "trials",
@@ -274,7 +291,7 @@ def main() -> None:
                         help="Also split the payload to clinical/, genomic/, patient_data/ "
                              "folders (one JSON per doc — a matchengine-loadable fallback)")
     p_load.add_argument("--out-dir", dest="out_dir", metavar="DIR",
-                        help="Directory for --disk output (default: current directory)")
+                        help="Directory for --disk output (default: PATIENT_EXPORT_DIR)")
 
     p_match = sub.add_parser(
         "match-prep",
@@ -316,10 +333,17 @@ def main() -> None:
                               "3 genomic. Requires a collection carrying match_level "
                               "(07_filtered_trials)")
 
-    args = parser.parse_args()
-    configure_logging(verbosity=verbosity_from_args(args))
+    return parser
 
-    dispatch = {
+
+def command_handlers() -> dict:
+    """Subcommand name → handler, shared with `ctm.pipelines`, which runs some of
+    these as stages of a larger job.
+
+    A function rather than a module constant because every handler is defined
+    below this point in the file.
+    """
+    return {
         "patients": _cmd_raw_to_mm,
         "trials": _cmd_trials,
         "trials-diff": _cmd_trials_diff,
@@ -331,8 +355,22 @@ def main() -> None:
         "load": _cmd_load,
         "match-prep": _cmd_match_prep,
     }
+
+
+def main() -> None:
+    # trials-curate and trials-confidence-split reach UMGPT via build_client();
+    # load_env() first so .env can also carry the CTM_LOG_* settings.
+    load_env()
+    args = build_parser().parse_args()
+    configure_logging(verbosity=verbosity_from_args(args))
+
+    dispatch = command_handlers()
     with command_context(log, f"ctm-mm {args.command}"):
-        dispatch[args.command](args)
+        # A subcommand may return an exit code rather than raise — match-prep
+        # forwards matchengine's. Returning None means success, as most do.
+        code = dispatch[args.command](args)
+        if code:
+            sys.exit(code)
 
 
 def _resolve_out(args, default_path: Path | None) -> Path | None:
@@ -378,9 +416,7 @@ def _cmd_raw_to_mm(args) -> None:
     from ctm.transformers.excel_reader import read_and_normalize
     from ctm.transformers.to_matchminer import to_clinical, to_genomic_docs
 
-    excel_path = Path(args.excel)
-    if not excel_path.exists():
-        fail(f"file not found: {excel_path}")
+    excel_path = _resolve_patient_workbook(args.excel)
 
     pt_uuid_filter = (
         {u.strip() for u in args.pt_uuid.split(",") if u.strip()}
@@ -441,11 +477,34 @@ def _cmd_raw_to_mm(args) -> None:
     }
     json_str = json.dumps(output, indent=2, default=str)
 
-    if args.out:
-        Path(args.out).write_text(json_str)
-        log.info(f"Saved → {args.out}")
-    else:
+    # Canonical dated export by default — the disk copy that makes the patient
+    # database rebuildable. --no-disk prints to stdout for a pipe.
+    out_path = _resolve_out(
+        args, patient_export_dir() / f"{date.today().isoformat()}_patients.json")
+    if out_path is None:
         print(json_str)
+        return
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json_str)
+    log_event(log, "patients.exported", "Saved → %s", out_path,
+              path=str(out_path), patients=len(patients))
+
+
+def _resolve_patient_workbook(explicit: str | None) -> Path:
+    """The workbook to normalize: the path given, else the newest in
+    ``PATIENT_RAW_DIR``. Shares ``newest_file`` with ``ctm-post-curate``, which
+    resolves its curated file the same way."""
+    from ctm.pipelines import newest_file
+
+    if explicit:
+        path = Path(explicit)
+        if not path.exists():
+            fail(f"file not found: {path}")
+        return path
+
+    workbook = newest_file(patient_raw_dir(), "*.xlsx", "patient workbook (.xlsx)")
+    log_event(log, "patients.workbook", "Using %s", workbook, path=str(workbook))
+    return workbook
 
 
 def _cmd_trials(args) -> None:
@@ -1090,13 +1149,13 @@ def _cmd_load(args) -> None:
                   collection=f"{run_date}_{base}", stage="load")
 
     if args.disk:
-        out_dir = Path(args.out_dir) if args.out_dir else Path.cwd()
+        out_dir = Path(args.out_dir) if args.out_dir else patient_export_dir()
         counts = export_to_disk(json.loads(path.read_text()), out_dir)
         for base in DOC_SETS:
             log.info(f"Wrote {counts[base]} file(s) → {out_dir / base}/")
 
 
-def _cmd_match_prep(args) -> None:
+def _cmd_match_prep(args) -> int | None:
     import os
 
     from ctm import db as ctm_db
@@ -1211,7 +1270,9 @@ def _cmd_match_prep(args) -> None:
         except FileNotFoundError:
             fail("'matchengine' not found on PATH. Run it yourself against "
                   f"{match_db_name}, or install matchengine in this environment.")
-        sys.exit(result.returncode)
+        # Returned rather than exited, so `ctm-match` can run reports afterwards
+        # instead of the process ending here. main() turns non-zero into exit.
+        return result.returncode
     else:
         log.info(f"Run it with:  ctm-mm match-prep --run --match-db {match_db_name}")
         log.info(f"        (or:  matchengine match --db {match_db_name})")
