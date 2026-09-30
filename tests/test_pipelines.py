@@ -191,3 +191,56 @@ def test_a_missing_ctm_env_file_is_loud(tmp_path, monkeypatch):
     monkeypatch.setenv("CTM_ENV_FILE", str(tmp_path / "nope.env"))
     with pytest.raises(ValueError, match="not a file"):
         load_env()
+
+
+# ── ctm-load-patients ────────────────────────────────────────────────────────
+
+def _patient_args(**kwargs):
+    import argparse
+
+    base = {"workbook": None, "out": None, "pt_uuid": None, "patient_db": None,
+            "run_date": None, "dry_run": False}
+    return argparse.Namespace(**{**base, **kwargs})
+
+
+def test_load_patients_threads_one_bundle_path_through_both_stages(tmp_path):
+    """The bug this pipeline exists to remove: the load stage reading a path it
+    guessed rather than the one the normalize stage actually wrote."""
+    from ctm import load_patients_cli, mm_cli
+
+    workbook = tmp_path / "2026-10-05-patients.xlsx"
+    workbook.touch()
+    bundle = tmp_path / "2026-10-05_patients.json"
+
+    stages = load_patients_cli.build_stages(workbook, bundle, _patient_args())
+    assert [s.label for s in stages] == [
+        f"ctm-mm patients {workbook.name}", f"ctm-mm load {bundle.name}"]
+
+    normalize = mm_cli.build_parser().parse_args(
+        ["patients", str(workbook), "--out", str(bundle)])
+    load = mm_cli.build_parser().parse_args(["load", "--pt-data", str(bundle)])
+    assert normalize.out == load.pt_data == str(bundle)
+
+
+def test_load_patients_passes_optional_flags_on(tmp_path):
+    from ctm import load_patients_cli, mm_cli
+
+    workbook = tmp_path / "wb.xlsx"
+    workbook.touch()
+    load_patients_cli.build_stages(
+        workbook, tmp_path / "b.json",
+        _patient_args(pt_uuid="pt_1,pt_2", patient_db="patients_test",
+                      run_date="2026-10-05"))
+    parsed = mm_cli.build_parser().parse_args(
+        ["load", "--pt-data", "b.json", "--patient-db", "patients_test",
+         "--run-date", "2026-10-05"])
+    assert parsed.patient_db == "patients_test"
+    assert parsed.run_date == "2026-10-05"
+
+
+def test_load_patients_rejects_a_missing_explicit_workbook(tmp_path, caplog):
+    from ctm import load_patients_cli
+
+    with pytest.raises(SystemExit):
+        load_patients_cli.resolve_workbook(str(tmp_path / "nope.xlsx"))
+    assert "not found" in caplog.text

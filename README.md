@@ -25,6 +25,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-match` | Match and report, but only if trials or patients have changed |
 | `ctm-pre-curate` | The weekly trial refresh, through to the curator handoff |
 | `ctm-post-curate` | Ingest a curated trials file and rebuild the master |
+| `ctm-load-patients` | Normalize a patient workbook and load it into the patient database |
 
 Every command supports `--help`, plus `-v` (console DEBUG) and `-q` (errors only).
 
@@ -639,8 +640,23 @@ the old wrapper's `set -a; . /etc/ctm/.env; set +a` was doing.
 | --- | --- |
 | `ctm-pre-curate` | `trials` → `trials-diff` → `ctm-llm general` → `ctm-llm biomarkers`. `--sources` overrides `--amc --ddots --west`; `--yes` keeps a cold cache from stopping an unattended run at the confirmation prompt |
 | `ctm-post-curate` | `add-manual` → `trials-merge` → `trials-filter`. Reads the newest `*.json` in `CURATED_DIR` unless `--curated` names one |
+| `ctm-load-patients` | `ctm-mm patients` → `ctm-mm load`. Reads the newest `*.xlsx` in `PATIENT_RAW_DIR` unless `--workbook` names one |
 
-Both take `--dry-run`, which lists the stages without running them.
+All three take `--dry-run`, which lists the stages without running them.
+
+`ctm-load-patients` exists because those two commands were always run together,
+and splitting them meant copying a generated path from the first into the second
+by hand — the kind of step that gets skipped, and a skipped patient load is
+exactly the stale-cohort failure the reconciler is there to catch. The bundle is
+written to disk *before* it is loaded, so a Mongo failure still leaves you the
+normalized file.
+
+**"Newest" means modification time**, not the date in a filename. `touch` changes
+it, and a plain `cp` sets it to now — so copying in an older file makes it the
+newest (`cp -p` preserves the original). When more than one candidate is present
+the choice is logged, and `--dry-run` prints it before anything runs. Note the
+asymmetry: a curated file's `YYYY-MM-DD` prefix determines its run and database,
+while a patient workbook's filename carries no meaning at all.
 
 **Post-curate stops before matching.** `ctm-match` owns that, because it has to
 run when *either* input changes — trials from here, or patients from `ctm-mm
