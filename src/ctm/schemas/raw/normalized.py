@@ -88,7 +88,7 @@ class ReportMetadata(BaseModel):
     unique_test_id: str | None = None
     unique_test_id_source: str | None = None
     ordering_physician: str | None = None
-    report_date: date                     # most recent report wins a biomarker conflict
+    report_date: date                     # newest report wins in the genomic collection
     raw: dict[str, Any] = {}            # every other report column, keyed by column name
 
 
@@ -104,9 +104,6 @@ class Finding(BaseModel):
     signature_level: str | None = None   # SIGNATURE only: Deficient | Proficient | Stable
     wildtype: str | None = None          # MUTATION/CNV/SV: true | false | indeterminate
     nucleotide_change: str | None = None # → TRUE_CDNA_CHANGE (stored, not matchable)
-    # report_uuid(s) of the newer report that covers this biomarker; set by
-    # select_latest_findings. A superseded finding is recorded but never matched.
-    superseded_by: str | None = None
     raw: dict[str, Any] = {}            # every other finding column, keyed by column name
 
     @field_validator("wildtype", mode="before")
