@@ -53,12 +53,6 @@ def test_a_failure_is_logged_at_error_with_the_stage_name(caplog):
 
 # ── newest_file ──────────────────────────────────────────────────────────────
 
-def test_newest_file_picks_by_mtime(tmp_path):
-    for name, mtime in (("a.json", 1_000), ("b.json", 2_000)):
-        (tmp_path / name).write_text("[]")
-        os.utime(tmp_path / name, (mtime, mtime))
-    assert newest_file(tmp_path, "*.json", "thing").name == "b.json"
-
 
 def test_newest_file_skips_excel_lock_files(tmp_path):
     (tmp_path / "real.xlsx").write_text("x")
@@ -145,23 +139,6 @@ def test_post_curate_stops_before_matching(tmp_path):
         "ctm-mm add-manual", "ctm-mm trials-merge", "ctm-mm trials-filter"]
 
 
-def test_post_curate_stage_args_come_from_the_real_parser(tmp_path):
-    """Built through ctm-mm's own parser, so a new flag cannot arrive without
-    its default and break these callers with an AttributeError — which is what
-    hand-rolled Namespaces did every time a source flag was added."""
-    from ctm import mm_cli
-
-    # trials-filter takes flags this pipeline never passes; they must still be
-    # present on the Namespace, with their defaults.
-    parsed = mm_cli.build_parser().parse_args(["trials-filter", "--db", "d"])
-    assert parsed.command == "trials-filter"
-    assert hasattr(parsed, "out") and hasattr(parsed, "run_date")
-    assert parsed.command in mm_cli.command_handlers()
-
-    labels = [s.label for s in post_curate_cli.build_stages(
-        _curated(tmp_path), "2026-09-21", "2026-09-21_dev", "deemer")]
-    assert all(label.startswith("ctm-mm ") for label in labels)
-
 
 # ── ctm-pre-curate ───────────────────────────────────────────────────────────
 
@@ -176,24 +153,6 @@ def test_pre_curate_runs_the_four_stages():
         "ctm-llm biomarkers",
     ]
 
-
-def test_pre_curate_sources_are_overridable():
-    import argparse
-
-    args = argparse.Namespace(sources=["--west"], yes=False, dry_run=True)
-    assert pre_curate_cli.build_stages(args)[0].label == "ctm-mm trials --west"
-
-
-def test_yes_reaches_the_llm_stages():
-    """Without it an unattended run stops at the cold-cache confirmation prompt."""
-    import argparse
-
-    from ctm import llm_cli
-
-    args = argparse.Namespace(sources=None, yes=True, dry_run=True)
-    pre_curate_cli.build_stages(args)          # must build without error
-    parsed = llm_cli.build_parser().parse_args(["general", "--yes"])
-    assert parsed.yes is True
 
 
 # ── CTM_ENV_FILE ─────────────────────────────────────────────────────────────

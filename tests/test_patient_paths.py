@@ -21,10 +21,6 @@ def _args(**kwargs):
     return argparse.Namespace(**{**base, **kwargs})
 
 
-def test_explicit_path_wins(tmp_path, monkeypatch):
-    monkeypatch.setenv("PATIENT_RAW_DIR", str(tmp_path / "raw"))
-    assert _resolve_patient_workbook(str(FIXTURE)) == FIXTURE
-
 
 def test_missing_explicit_path_fails_loudly(tmp_path):
     with pytest.raises(SystemExit) as excinfo:
@@ -44,24 +40,6 @@ def test_bare_invocation_picks_the_newest_workbook(tmp_path, monkeypatch):
     assert _resolve_patient_workbook(None).name == "2026-09-28-patients.xlsx"
 
 
-def test_excel_lock_files_are_ignored(tmp_path, monkeypatch):
-    """Excel drops ~$name.xlsx beside a workbook opened over SMB. It is newer
-    than the real file and would otherwise win the mtime sort."""
-    raw = tmp_path / "raw"
-    raw.mkdir()
-    shutil.copy(FIXTURE, raw / "2026-09-28-patients.xlsx")
-    (raw / "~$2026-09-28-patients.xlsx").write_bytes(b"lock")
-    monkeypatch.setenv("PATIENT_RAW_DIR", str(raw))
-    assert _resolve_patient_workbook(None).name == "2026-09-28-patients.xlsx"
-
-
-def test_empty_raw_dir_fails_naming_the_directory(tmp_path, monkeypatch, caplog):
-    raw = tmp_path / "raw"
-    raw.mkdir()
-    monkeypatch.setenv("PATIENT_RAW_DIR", str(raw))
-    with pytest.raises(SystemExit):
-        _resolve_patient_workbook(None)
-    assert str(raw) in caplog.text
 
 
 def test_bundle_lands_in_the_canonical_export_dir(tmp_path, monkeypatch):

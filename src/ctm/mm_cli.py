@@ -491,32 +491,20 @@ def _cmd_raw_to_mm(args) -> None:
 
 
 def _resolve_patient_workbook(explicit: str | None) -> Path:
-    """The workbook to normalize: the path given, else the newest ``.xlsx`` in
-    ``PATIENT_RAW_DIR``.
+    """The workbook to normalize: the path given, else the newest in
+    ``PATIENT_RAW_DIR``. Shares ``newest_file`` with ``ctm-post-curate``, which
+    resolves its curated file the same way."""
+    from ctm.pipelines import newest_file
 
-    Excel writes a ``~$name.xlsx`` lock file beside a workbook that is open over
-    SMB, and it disappears when the file is closed — so it is skipped explicitly
-    rather than left to chance on an alphabetical or mtime sort.
-    """
     if explicit:
         path = Path(explicit)
         if not path.exists():
             fail(f"file not found: {path}")
         return path
 
-    raw_dir = patient_raw_dir()
-    candidates = sorted(
-        (p for p in raw_dir.glob("*.xlsx") if not p.name.startswith("~$")),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    if not candidates:
-        fail(f"no .xlsx in {raw_dir} — drop a workbook there, or pass one explicitly")
-    if len(candidates) > 1:
-        log.info("  %d workbooks in %s; using the newest", len(candidates), raw_dir)
-    log_event(log, "patients.workbook", "Using %s", candidates[0],
-              path=str(candidates[0]))
-    return candidates[0]
+    workbook = newest_file(patient_raw_dir(), "*.xlsx", "patient workbook (.xlsx)")
+    log_event(log, "patients.workbook", "Using %s", workbook, path=str(workbook))
+    return workbook
 
 
 def _cmd_trials(args) -> None:

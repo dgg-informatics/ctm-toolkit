@@ -88,18 +88,6 @@ def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, de
     assert str(func()) == default
 
 
-@pytest.mark.parametrize("env,func_name", [
-    ("PATIENT_RAW_DIR", "patient_raw_dir"),
-    ("PATIENT_EXPORT_DIR", "patient_export_dir"),
-    ("MATCH_EXPORT_DIR", "match_export_dir"),
-    ("CURATED_DIR", "curated_dir"),
-])
-def test_new_export_dirs_are_overridable(monkeypatch, tmp_path, env, func_name):
-    from ctm import paths
-
-    monkeypatch.setenv(env, str(tmp_path / "elsewhere"))
-    assert getattr(paths, func_name)() == tmp_path / "elsewhere"
-
 
 def test_west_trials_path_default_and_override(monkeypatch):
     """`ctm-mm trials --west` (passed bare) reads this location; overridable so

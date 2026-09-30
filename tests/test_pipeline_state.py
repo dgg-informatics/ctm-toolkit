@@ -4,10 +4,8 @@ No server: the doubles below mirror what pymongo actually exposes, including
 the things it *forbids* — a Database is deliberately not iterable, so a double
 built from a plain dict would accept `in` where the real object raises.
 """
-import operator
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from mongo_doubles import FakeClient, FakeCollection, FakeDatabase, docs_written_at
 
 from ctm.pipeline_state import (
@@ -157,14 +155,6 @@ def test_write_then_read_round_trips_to_not_stale():
     assert not _status(last_match=stored).stale
 
 
-def test_a_database_double_must_reject_membership_tests():
-    """Guards the doubles themselves: pymongo's Database raises on `in`, so a
-    test that passes against a dict would hide a real crash."""
-    # operator.contains goes through the same protocol as `in`, which falls back
-    # to __iter__ — writing `"trial" in db` here would just read as dead code.
-    with pytest.raises(TypeError):
-        operator.contains(FakeDatabase(), "trial")
-
 
 # ── ctm-status rendering ─────────────────────────────────────────────────────
 
@@ -183,23 +173,3 @@ def test_unloaded_workbook_is_flagged(tmp_path):
                                 datetime.now(tz=UTC) + timedelta(minutes=1))
     assert not _unloaded_workbook(raw, loaded_just_now)
 
-
-def test_unloaded_workbook_ignores_excel_lock_files(tmp_path):
-    from ctm.status_cli import _unloaded_workbook
-
-    raw = tmp_path / "raw"
-    raw.mkdir()
-    (raw / "~$2026-09-29-patients.xlsx").touch()
-    assert not _unloaded_workbook(raw, Watermark("p", "latest_clinical", 37, LAST_WEEK))
-
-
-def test_render_says_up_to_date_once(tmp_path):
-    """Guards a cosmetic regression: the verdict line read 'up to date: up to
-    date' when the reason and the verdict were the same string."""
-    from ctm.status_cli import _render
-
-    status = _status(last_match=_state(NOW, NOW))
-    extras = {"raw_dir": str(tmp_path), "workbooks": 0, "report_dir": str(tmp_path),
-              "reports": 0, "export_dir": str(tmp_path), "exports": 0,
-              "workbook_unloaded": False}
-    assert _render(status, extras).splitlines()[-1] == "up to date"

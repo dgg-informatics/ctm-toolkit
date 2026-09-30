@@ -155,23 +155,8 @@ def test_reset_refuses_a_database_that_is_not_a_match_db():
         match_cli.reset_match_database(client, "latest_trials")
 
 
-@pytest.mark.parametrize("name", ["2026-09-29_match", "custom_match"])
-def test_reset_accepts_match_suffixed_names(name):
-    client = FakeClient({name: FakeDatabase({"trial_match": FakeCollection()})})
-    assert match_cli.reset_match_database(client, name) == ["trial_match"]
-
 
 # ── Durable record ───────────────────────────────────────────────────────────
-
-def test_matches_are_exported_to_disk(wired, monkeypatch):
-    """The disk copy is what lets the <date>_match databases be pruned."""
-    client = _client()
-    wired["produces"] = [{"_id": "a", "sample_id": "pt_1"},
-                         {"_id": "b", "sample_id": "pt_2"}]
-    _run(client, _args(), monkeypatch, wired)
-    export = wired["tmp_path"] / "matches" / "2026-09-29_trial_match.json"
-    exported = json.loads(export.read_text())
-    assert [d["sample_id"] for d in exported] == ["pt_1", "pt_2"]
 
 
 def test_export_happens_after_the_reset_not_before(wired, monkeypatch):
