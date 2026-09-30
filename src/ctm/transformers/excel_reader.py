@@ -15,14 +15,6 @@ from .normalize_manual import (
 log = logging.getLogger(__name__)
 
 
-class MissingReportDateError(ValueError):
-    """One or more report_metadata rows have a blank or unparseable report_date.
-
-    Raised rather than skipping the row: report_date decides which report wins a
-    biomarker conflict, and a skipped report would leave its findings flowing to
-    matching with nothing to compare them by."""
-
-
 def _sheet_rows(ws) -> list[dict]:
     headers = [cell.value for cell in ws[1]]
     rows = []
@@ -41,8 +33,10 @@ def read_and_normalize(
 
     pt_uuid_filter: if set, only rows for the given pt_uuid(s) are returned.
     Accepts a single pt_uuid string or a set of them. Rows that fail validation
-    are skipped with a printed warning, except a missing report_date, which
-    raises MissingReportDateError naming every such report.
+    are skipped with a printed warning. A report with a blank or unparseable
+    report_date is skipped with an error, and so are its findings: report_date
+    decides which report wins in the genomic collection, so an undated report's
+    findings would have nothing to be compared by.
     """
     if isinstance(pt_uuid_filter, str):
         pt_uuid_filter = {pt_uuid_filter}
@@ -66,7 +60,7 @@ def read_and_normalize(
 
     # ── Report metadata ────────────────────────────────────────────────────────
     metadata: list[ReportMetadata] = []
-    undated: list[str] = []
+    undated: set[str] = set()
     if "report_metadata" in wb.sheetnames:
         for row in _sheet_rows(wb["report_metadata"]):
             if row.get("report_uuid") is None:
@@ -74,7 +68,13 @@ def read_and_normalize(
             if row.get("pt_uuid") not in valid_pt_uuids:
                 continue
             if _to_date(row.get("report_date")) is None:
-                undated.append(str(row["report_uuid"]))
+                report_uuid = str(row["report_uuid"])
+                undated.add(report_uuid)
+                log.error("  report_metadata: report %s skipped, with its findings — "
+                          "report_date is blank or not a date", report_uuid,
+                          extra={"event": "patients.report_skipped",
+                                 "reason": "missing_report_date",
+                                 "report_uuid": report_uuid})
                 continue
             try:
                 metadata.append(
@@ -84,12 +84,6 @@ def read_and_normalize(
                 log.warning("  report_metadata row skipped — %s", exc,
                             extra={"event": "patients.row_skipped",
                                    "sheet": "report_metadata"})
-
-    if undated:
-        raise MissingReportDateError(
-            f"report_metadata: report_date is blank or not a date for "
-            f"{len(undated)} report(s): {', '.join(undated)}"
-        )
 
     report_source: dict[str, str] = {m.report_uuid: m.source for m in metadata}
     report_date = {m.report_uuid: m.report_date for m in metadata}
@@ -106,6 +100,8 @@ def read_and_normalize(
                 continue
             try:
                 raw = raw_cls.model_validate(row)
+                if raw.report_uuid in undated:
+                    continue
                 source = report_source.get(
                     raw.report_uuid,
                     sheet_name.replace("_findings", ""),
