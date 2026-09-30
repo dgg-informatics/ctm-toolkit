@@ -375,9 +375,9 @@ def _build_extras(patients: list, metadata: list, findings: list) -> dict:
 
 
 def _cmd_raw_to_mm(args) -> None:
-    from ctm.transformers.excel_reader import MissingReportDateError, read_and_normalize
+    from ctm.transformers.excel_reader import read_and_normalize
     from ctm.transformers.to_matchminer import (
-        select_latest_findings,
+        latest_genomic_docs,
         to_clinical,
         to_genomic_docs,
     )
@@ -392,10 +392,7 @@ def _cmd_raw_to_mm(args) -> None:
     )
 
     log.info(f"Reading {excel_path} ...")
-    try:
-        patients, metadata, findings = read_and_normalize(excel_path, pt_uuid_filter=pt_uuid_filter)
-    except MissingReportDateError as exc:
-        fail(str(exc))
+    patients, metadata, findings = read_and_normalize(excel_path, pt_uuid_filter=pt_uuid_filter)
 
     if not patients:
         fail("no patients found (check --pt-uuid or pt_general sheet)")
@@ -404,10 +401,6 @@ def _cmd_raw_to_mm(args) -> None:
               "  %d patient(s)  %d report(s)  %d finding(s)",
               len(patients), len(metadata), len(findings),
               patients=len(patients), reports=len(metadata), findings=len(findings))
-
-    # Where reports overlap on a biomarker the newest wins; older rows stay in
-    # patient_data marked superseded_by, and produce no genomic doc.
-    findings = select_latest_findings(findings)
 
     findings_by_pt: dict[str, list] = defaultdict(list)
     for f in findings:
@@ -439,6 +432,10 @@ def _cmd_raw_to_mm(args) -> None:
         log_event(log, "patients.genomic_built",
                   "  pt_uuid=%s  → %d genomic doc(s)", patient.pt_uuid, len(genomic),
                   pt_uuid=patient.pt_uuid, genomic_docs=len(genomic))
+
+    # Only the newest report's doc per variant goes to matching; the older rows
+    # remain in patient_data.
+    all_genomic = latest_genomic_docs(all_genomic)
 
     output = {
         "clinical": all_clinical,
