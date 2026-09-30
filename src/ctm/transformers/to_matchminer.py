@@ -14,7 +14,6 @@ silently never matches.
 This module is pure (no I/O). Callers handle MongoDB writes.
 """
 import logging
-from collections import defaultdict
 from datetime import UTC, datetime
 
 from ..schemas.raw.normalized import Finding, Patient, _is_malformed_protein_change
@@ -80,84 +79,43 @@ def _split_fusion(gene: str) -> tuple[str, str | None]:
     return gene, None
 
 
-def _biomarker_key(f: Finding) -> tuple[str, str, str] | None:
-    """What two reports must share to compete: patient, gene, variant_category
-    (case-insensitive). None for a row with no biomarker or category — nothing
-    to match on, so nothing to resolve."""
-    if not f.biomarker or not f.variant_category:
-        return None
-    return (f.pt_uuid, f.biomarker.strip().upper(), f.variant_category.strip().upper())
+def latest_genomic_docs(docs: list[dict]) -> list[dict]:
+    """Keep only the newest report's genomic docs for each variant.
 
+    MatchEngine matches every doc in the genomic collection and can't be changed
+    to prefer one report over another, so the collection must hold only the docs
+    we want matched. Docs are grouped by SAMPLE_ID + TRUE_HUGO_SYMBOL
+    (case-insensitive) + VARIANT_CATEGORY + TRUE_PROTEIN_CHANGE; within a group,
+    every doc with the latest REPORT_DATE is kept (so same-date reports are all
+    kept) and older ones are dropped. A doc with no REPORT_DATE never beats a
+    dated one. The dropped rows still live in patient_data under
+    reports[].findings, so nothing is lost.
 
-def _result(f: Finding) -> tuple:
-    """The reported result, for telling whether two same-date reports disagree.
-    A blank wildtype counts as false (detected), as it does in to_genomic_docs."""
-    return (f.wildtype or "false", f.protein_change, f.nucleotide_change,
-            f.cnv_call, f.signature_level)
-
-
-def select_latest_findings(findings: list[Finding]) -> list[Finding]:
-    """Resolve findings reported by more than one report — the most recent wins.
-
-    Findings are grouped by patient + gene + variant_category. Within a group,
-    every row from the report(s) with the latest report_date is kept; rows from
-    older reports come back with superseded_by set to the winning report_uuid(s),
-    so to_genomic_docs skips them while patient_data still records them. The
-    newer report wins whether or not the results differ.
-
-    Two or more reports sharing the latest date are never resolved silently: all
-    of them are kept, and if their results disagree an error is logged naming
-    the reports for a person to review.
-
-    Findings are returned in their input order. A finding with no report_date
-    never beats a dated one.
+    Docs are returned in their input order.
     """
-    groups: dict[tuple, list[Finding]] = defaultdict(list)
-    for f in findings:
-        if (key := _biomarker_key(f)) is not None:
-            groups[key].append(f)
+    def key(d: dict) -> tuple:
+        return (d["SAMPLE_ID"], d["TRUE_HUGO_SYMBOL"].upper(), d["VARIANT_CATEGORY"],
+                d.get("TRUE_PROTEIN_CHANGE"))
 
-    superseded: dict[int, str] = {}   # id(finding) → winning report_uuid(s)
-    for (pt_uuid, biomarker, category), group in groups.items():
-        if len({f.report_uuid for f in group}) < 2:
-            continue
-        dates = [f.report_date for f in group if f.report_date is not None]
-        if not dates:
-            continue
-        latest = max(dates)
-        winners = sorted({f.report_uuid for f in group if f.report_date == latest})
+    latest: dict[tuple, str] = {}
+    for d in docs:
+        if (rd := d.get("REPORT_DATE")) is not None and rd > latest.get(key(d), ""):
+            latest[key(d)] = rd
 
-        if len(winners) > 1:
-            results = {r: {_result(f) for f in group if f.report_uuid == r} for r in winners}
-            if len({frozenset(v) for v in results.values()}) > 1:
-                log.error(
-                    "  %s %s %s: reports %s share report_date %s but disagree — "
-                    "all kept for matching; review which is correct",
-                    pt_uuid, biomarker, category, ", ".join(winners), latest.isoformat(),
-                    extra={"event": "genomic.report_date_tie", "pt_uuid": pt_uuid,
-                           "biomarker": biomarker, "variant_category": category,
-                           "report_uuids": winners, "report_date": latest.isoformat()},
-                )
-
-        losers = sorted({f.report_uuid for f in group if f.report_uuid not in winners})
-        if not losers:
-            continue
-        winner_ids = ", ".join(winners)
-        for f in group:
-            if f.report_uuid in losers:
-                superseded[id(f)] = winner_ids
-        log.info(
-            "  %s %s %s: using report %s (%s); superseded %s",
-            pt_uuid, biomarker, category, winner_ids, latest.isoformat(), ", ".join(losers),
-            extra={"event": "genomic.finding_superseded", "pt_uuid": pt_uuid,
-                   "biomarker": biomarker, "variant_category": category,
-                   "winning_report_uuids": winners, "superseded_report_uuids": losers},
-        )
-
-    return [
-        f.model_copy(update={"superseded_by": superseded[id(f)]}) if id(f) in superseded else f
-        for f in findings
-    ]
+    kept = []
+    for d in docs:
+        if d.get("REPORT_DATE") == latest.get(key(d)):
+            kept.append(d)
+        else:
+            log.info(
+                "  %s %s %s: dropped genomic doc from report dated %s; newer report %s",
+                d["SAMPLE_ID"], d["TRUE_HUGO_SYMBOL"], d["VARIANT_CATEGORY"],
+                d.get("REPORT_DATE"), latest.get(key(d)),
+                extra={"event": "genomic.docs_superseded", "sample_id": d["SAMPLE_ID"],
+                       "biomarker": d["TRUE_HUGO_SYMBOL"],
+                       "variant_category": d["VARIANT_CATEGORY"]},
+            )
+    return kept
 
 
 def to_clinical(patient: Patient, report_date: str | None = None) -> dict:
@@ -188,8 +146,6 @@ def to_genomic_docs(
 
     clinical_id: ObjectId of the corresponding clinical doc (None for dry-run).
     Rows are skipped (no genomic doc, but still present in patient_data) when:
-      * a newer report covers the same biomarker (superseded_by is set — see
-        select_latest_findings)
       * variant_category is blank or "Other"
       * a SIGNATURE row's signature_level isn't Deficient/Proficient/Stable —
         i.e. blank, or an explicit no-result sentinel like "Indeterminate" /
@@ -207,8 +163,6 @@ def to_genomic_docs(
     malformed_protein: set[str] = set()
 
     for f in findings:
-        if f.superseded_by:
-            continue
         category = (f.variant_category or "").strip().upper()
         if not category or category in _SKIP_CATEGORIES:
             continue
@@ -222,6 +176,8 @@ def to_genomic_docs(
             "SAMPLE_ID": sample_id,
             "TRUE_HUGO_SYMBOL": f.biomarker,
             "VARIANT_CATEGORY": category,
+            # Lets latest_genomic_docs keep only the newest report's docs.
+            "REPORT_DATE": f.report_date.isoformat() if f.report_date else None,
             "_updated": datetime.now(tz=UTC).isoformat(),
         }
         if clinical_id is not None:
