@@ -134,7 +134,7 @@ def test_post_curate_stops_before_matching(tmp_path):
     """Matching belongs to ctm-match, which runs when *either* trials or
     patients change — chaining it here re-introduces the stale-cohort bug."""
     stages = post_curate_cli.build_stages(
-        _curated(tmp_path), "2026-09-21", "2026-09-21_dev", "deemer")
+        _curated(tmp_path), "2026-09-21", "2026-09-21", "deemer")
     assert [s.label for s in stages] == [
         "ctm-mm add-manual", "ctm-mm trials-merge", "ctm-mm trials-filter"]
 

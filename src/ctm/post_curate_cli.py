@@ -110,7 +110,7 @@ def main() -> None:
     parser.add_argument("--curated", metavar="PATH",
                         help="Curated trials JSON (default: newest in CURATED_DIR)")
     parser.add_argument("--db", metavar="NAME",
-                        help="Run database (default: <run-date>_dev, from the "
+                        help="Run database (default: <run-date>, from the "
                              "curated file's name prefix)")
     parser.add_argument("--curated-by-user", dest="curated_by_user", metavar="NAME",
                         help="Recorded as the curator (default: the invoking user)")
@@ -123,7 +123,8 @@ def main() -> None:
     with command_context(log, "ctm-post-curate"):
         curated = resolve_curated(args.curated)
         run_date = run_date_from(curated)
-        db = args.db or f"{run_date}_dev"
+        from ctm.db import run_dbname
+        db = args.db or run_dbname(run_date)
         # SUDO_USER first: this is usually run with sudo, and the person who
         # curated is the one who typed the command, not the account it became.
         curated_by = (args.curated_by_user or os.environ.get("SUDO_USER")

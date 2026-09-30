@@ -334,10 +334,10 @@ def test_cmd_trials_diff_db_flag_overrides_the_run_database(tmp_path, fake_mongo
     from ctm.mm_cli import _cmd_trials_diff
 
     _, _, args = _three_bucket_case(tmp_path)
-    args.db = "2026-09-01_dev"
+    args.db = "2026-09-01"
     _cmd_trials_diff(args)
 
-    assert fake_mongo["written"]["db"] == "<db 2026-09-01_dev>"
+    assert fake_mongo["written"]["db"] == "<db 2026-09-01>"
 
 
 def test_cmd_trials_diff_missing_master_file_is_an_error(tmp_path, fake_mongo):
@@ -441,10 +441,10 @@ def test_cmd_trials_diff_master_db_and_collection_flags_override_the_source(tmp_
     new_path.write_text(json.dumps(fake_mongo["master"]))
 
     args = _diff_args(new=str(new_path), out_prefix=str(tmp_path / "2026-07-14"),
-                      master_db="2026-08-10_dev", master_collection="trials")
+                      master_db="2026-08-10", master_collection="trials")
     _cmd_trials_diff(args)
 
-    assert fake_mongo["read_from"] == ("<db 2026-08-10_dev>", "trials")
+    assert fake_mongo["read_from"] == ("<db 2026-08-10>", "trials")
 
 
 def test_cmd_trials_diff_master_db_flag_satisfies_the_required_env_var(tmp_path, fake_mongo,

@@ -170,7 +170,7 @@ like every West trial had changed, dumping all of them into manual curation.
 |---|---|---|
 | `MONGO_HOST` | yes | e.g. `localhost` |
 | `MONGO_PORT` | yes | e.g. `27018` (the `docker-compose` mongo service maps `27018:27017`) |
-| `MONGO_DBNAME` | no | **This run's** database, e.g. `2026-08-17_dev`. One database per run keeps runs isolated. When unset, defaults to `YYYY-MM-DD_dev` (today's date) — so an unattended run gets a fresh database. However, automation must pin this explicitly to ensure all stages of one run share the same database (a run spanning midnight would otherwise split across dates). Override per-run with `--db NAME` |
+| `MONGO_DBNAME` | no | **This run's** database, e.g. `2026-08-17`. One database per run keeps runs isolated. When unset, defaults to `YYYY-MM-DD` (today's date) — so an unattended run gets a fresh database. However, automation must pin this explicitly to ensure all stages of one run share the same database (a run spanning midnight would otherwise split across dates). Override per-run with `--db NAME` |
 | `MONGO_MASTER_DBNAME` | only without `--master` | The master trial list's database. Deliberately **not** per-run — the master is rolling current state, so it has a fixed address. No default: a default here would silently resolve to an empty database and route every trial to `changed` |
 | `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
 | `MONGO_FILTERED_COLLECTION` | no | Defaults to `07_filtered_trials` — what `ctm-mm match-prep` reads, falling back to `MONGO_MASTER_COLLECTION` if `ctm-mm trials-filter` hasn't run yet |
@@ -224,9 +224,9 @@ morning already share a name and append to one file, in order, with no wrapper
 configuration:
 
 ```bash
-export MONGO_DBNAME=2026-09-28_dev      # stages already share this
+export MONGO_DBNAME=2026-09-28      # stages already share this
 export CTM_LOG_ENV=prod
-ctm-mm trials --amc --ddots --west      # → /var/lib/ctm/logs/2026-09-28_dev.log
+ctm-mm trials --amc --ddots --west      # → /var/lib/ctm/logs/2026-09-28.log
 ctm-mm trials-diff                      # → the same file
 ctm-llm general                         # → the same file
 ```
@@ -235,11 +235,11 @@ Read one back with `jq`:
 
 ```bash
 # the narrative
-jq -r '"\(.time[11:19])  \(.level)  \(.message)"' /var/lib/ctm/logs/2026-09-28_dev.log
+jq -r '"\(.time[11:19])  \(.level)  \(.message)"' /var/lib/ctm/logs/2026-09-28.log
 
 # just the numbers: where did trials come from this run?
 jq -r 'select(.event=="trials.source") | "\(.source)\t\(.count)"' \
-   /var/lib/ctm/logs/2026-09-28_dev.log
+   /var/lib/ctm/logs/2026-09-28.log
 ```
 
 > **No PHI in logs.** Log `pt_uuid`, never an MRN or a name — `pt_uuid` is the
