@@ -73,8 +73,9 @@ class RawReportMetadata(BaseModel):
     unique_test_id: str | None = None
     unique_test_id_source: str | None = None
     ordering_physician: str | None = None
-    # Required: the tie-breaker when two reports disagree on a biomarker — the
-    # most recent report is the source of truth. Blank or unparseable fails.
+    # Required: stamped on genomic docs so only the newest report's doc for a
+    # variant is matched. Blank or unparseable fails validation (the reader
+    # skips such a report, with its findings).
     report_date: date
 
     @field_validator("report_uuid", "pt_uuid", "unique_test_id", mode="before")
