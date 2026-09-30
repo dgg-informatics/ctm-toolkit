@@ -1,10 +1,9 @@
 """report_date — required on every report, and the tie-breaker between reports.
 
-When two or more of a patient's reports cover the same biomarker (gene +
-variant_category), the report with the most recent report_date is the source of
-truth: its rows are matched, the older reports' rows are kept in patient_data
-but marked superseded. Two reports on the same date that disagree are never
-resolved silently — both are kept and an error is logged for a person to review.
+Every genomic doc carries its report's date as REPORT_DATE. Among genomic docs
+sharing SAMPLE_ID + TRUE_HUGO_SYMBOL + VARIANT_CATEGORY + TRUE_PROTEIN_CHANGE,
+only those from the most recent report go to matching (same-date docs are all
+kept). The older rows remain in patient_data, so nothing is lost.
 """
 import logging
 from datetime import date, datetime
@@ -15,9 +14,9 @@ from pydantic import ValidationError
 
 from ctm.schemas.raw.models import RawReportMetadata
 from ctm.schemas.raw.normalized import Finding, Patient
-from ctm.transformers.excel_reader import MissingReportDateError, read_and_normalize
+from ctm.transformers.excel_reader import read_and_normalize
 from ctm.transformers.normalize_manual import normalize_report_metadata
-from ctm.transformers.to_matchminer import select_latest_findings, to_genomic_docs
+from ctm.transformers.to_matchminer import latest_genomic_docs, to_genomic_docs
 
 PT = "pt_1000000"
 
@@ -65,17 +64,19 @@ def _workbook(tmp_path, report_rows):
     return path
 
 
-def test_reader_fails_naming_every_report_missing_a_date(tmp_path):
+def test_reader_skips_and_logs_every_report_missing_a_date(tmp_path, caplog):
     path = _workbook(tmp_path, [
         ["rp_1", PT, "tempus", datetime(2026, 9, 1)],
         ["rp_2", PT, "tempus", None],
         ["rp_3", PT, "tempus", "not a date"],
     ])
-    with pytest.raises(MissingReportDateError) as exc:
-        read_and_normalize(path)
-    assert "rp_2" in str(exc.value)
-    assert "rp_3" in str(exc.value)
-    assert "rp_1" not in str(exc.value)
+    with caplog.at_level(logging.ERROR):
+        _, metadata, findings = read_and_normalize(path)
+    assert [m.report_uuid for m in metadata] == ["rp_1"]
+    assert [f.report_uuid for f in findings] == ["rp_1"]   # skipped with its report
+    errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(errors) == 2
+    assert "rp_2" in errors[0] and "rp_3" in errors[1]
 
 
 def test_findings_carry_their_reports_date(tmp_path):
@@ -90,98 +91,69 @@ def test_findings_carry_their_reports_date(tmp_path):
 
 # ── Most recent report wins ────────────────────────────────────────────────────
 
+def _latest(*findings):
+    return latest_genomic_docs(to_genomic_docs(Patient(pt_uuid=PT), list(findings)))
+
+
+def test_genomic_docs_carry_their_reports_date():
+    docs = to_genomic_docs(Patient(pt_uuid=PT), [_finding("rp_A", date(2026, 9, 1))])
+    assert docs[0]["REPORT_DATE"] == "2026-09-01"
+
+
 def test_most_recent_report_wins_a_conflict():
     """The spec example: Company A (09/01/2026) says MET wildtype, Company B
-    (06/01/2026) says MET detected — A is used for matching."""
-    a = _finding("rp_A", date(2026, 9, 1), wildtype=True)
-    b = _finding("rp_B", date(2026, 6, 1), wildtype=False)
-    resolved = {f.report_uuid: f for f in select_latest_findings([b, a])}
-    assert resolved["rp_A"].superseded_by is None
-    assert resolved["rp_B"].superseded_by == "rp_A"
+    (06/01/2026) says MET detected — only A is matched."""
+    docs = _latest(_finding("rp_B", date(2026, 6, 1), wildtype=False),
+                   _finding("rp_A", date(2026, 9, 1), wildtype=True))
+    assert [(d["WILDTYPE"], d["REPORT_DATE"]) for d in docs] == [(True, "2026-09-01")]
 
 
-def test_newer_report_wins_even_when_results_agree_on_wildtype():
-    a = _finding("rp_A", date(2026, 9, 1), wildtype=False, protein_change="p.Y1003F")
-    b = _finding("rp_B", date(2026, 6, 1), wildtype=False, protein_change="p.Y1003C")
-    resolved = {f.report_uuid: f for f in select_latest_findings([a, b])}
-    assert resolved["rp_B"].superseded_by == "rp_A"
+def test_different_protein_changes_do_not_compete():
+    """Protein change is part of the key, so an older report's variant the newer
+    report doesn't list is still matched."""
+    docs = _latest(_finding("rp_A", date(2026, 9, 1), protein_change="p.Y1003F"),
+                   _finding("rp_B", date(2026, 6, 1), protein_change="p.D1228N"))
+    assert len(docs) == 2
 
 
-def test_biomarker_match_ignores_case():
-    a = _finding("rp_A", date(2026, 9, 1), biomarker="MET", category="MUTATION")
-    b = _finding("rp_B", date(2026, 6, 1), biomarker="met", category="Mutation")
-    resolved = {f.report_uuid: f for f in select_latest_findings([a, b])}
-    assert resolved["rp_B"].superseded_by == "rp_A"
+def test_same_protein_change_newest_wins():
+    docs = _latest(_finding("rp_A", date(2026, 9, 1), protein_change="p.Y1003F"),
+                   _finding("rp_B", date(2026, 6, 1), protein_change="p.Y1003F"))
+    assert [d["REPORT_DATE"] for d in docs] == ["2026-09-01"]
 
 
-def test_older_report_still_counts_for_biomarkers_the_newer_one_lacks():
-    a = _finding("rp_A", date(2026, 9, 1), biomarker="MET")
-    b_met = _finding("rp_B", date(2026, 6, 1), biomarker="MET")
-    b_kras = _finding("rp_B", date(2026, 6, 1), biomarker="KRAS")
-    resolved = select_latest_findings([a, b_met, b_kras])
-    kras = next(f for f in resolved if f.biomarker == "KRAS")
-    assert kras.superseded_by is None
+def test_gene_match_ignores_case():
+    docs = _latest(_finding("rp_A", date(2026, 9, 1), biomarker="MET"),
+                   _finding("rp_B", date(2026, 6, 1), biomarker="met"))
+    assert [d["REPORT_DATE"] for d in docs] == ["2026-09-01"]
 
 
-def test_every_row_from_the_winning_report_is_kept():
-    """One report can list several variants of the same gene."""
-    a1 = _finding("rp_A", date(2026, 9, 1), protein_change="p.Y1003F")
-    a2 = _finding("rp_A", date(2026, 9, 1), protein_change="p.D1228N")
-    b = _finding("rp_B", date(2026, 6, 1), protein_change="p.Y1003F")
-    resolved = select_latest_findings([a1, a2, b])
-    assert [f.superseded_by for f in resolved] == [None, None, "rp_A"]
-
-
-def test_different_variant_categories_do_not_compete():
-    a = _finding("rp_A", date(2026, 9, 1), category="CNV", cnv_call="High Amplification")
-    b = _finding("rp_B", date(2026, 6, 1), category="MUTATION")
-    assert all(f.superseded_by is None for f in select_latest_findings([a, b]))
+def test_different_genes_and_categories_do_not_compete():
+    docs = _latest(
+        _finding("rp_A", date(2026, 9, 1), biomarker="MET"),
+        _finding("rp_B", date(2026, 6, 1), biomarker="KRAS"),
+        _finding("rp_B", date(2026, 6, 1), category="CNV", cnv_call="High Amplification"),
+    )
+    assert len(docs) == 3
 
 
 def test_different_patients_do_not_compete():
-    a = _finding("rp_A", date(2026, 9, 1))
-    b = _finding("rp_B", date(2026, 6, 1)).model_copy(update={"pt_uuid": "pt_other"})
-    assert all(f.superseded_by is None for f in select_latest_findings([a, b]))
+    a = to_genomic_docs(Patient(pt_uuid=PT), [_finding("rp_A", date(2026, 9, 1))])
+    b = to_genomic_docs(Patient(pt_uuid="pt_other"), [_finding("rp_B", date(2026, 6, 1))])
+    assert len(latest_genomic_docs(a + b)) == 2
 
 
-def test_superseded_findings_produce_no_genomic_doc():
-    a = _finding("rp_A", date(2026, 9, 1), wildtype=True)
-    b = _finding("rp_B", date(2026, 6, 1), wildtype=False)
-    docs = to_genomic_docs(Patient(pt_uuid=PT), select_latest_findings([a, b]))
-    assert [d["WILDTYPE"] for d in docs] == [True]
+def test_same_date_docs_are_all_kept():
+    docs = _latest(_finding("rp_A", date(2026, 9, 1), wildtype=True),
+                   _finding("rp_B", date(2026, 9, 1), wildtype=False))
+    assert len(docs) == 2
 
 
-# ── Same-date ties go to a person ──────────────────────────────────────────────
-
-def test_same_date_disagreement_keeps_both_and_logs_an_error(caplog):
-    a = _finding("rp_A", date(2026, 9, 1), wildtype=True)
-    b = _finding("rp_B", date(2026, 9, 1), wildtype=False)
-    with caplog.at_level(logging.ERROR):
-        resolved = select_latest_findings([a, b])
-    assert all(f.superseded_by is None for f in resolved)
-    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
-    assert len(errors) == 1
-    assert "rp_A" in errors[0].getMessage() and "rp_B" in errors[0].getMessage()
-    assert "MET" in errors[0].getMessage()
-
-
-def test_same_date_agreement_is_not_an_error(caplog):
-    a = _finding("rp_A", date(2026, 9, 1), wildtype=False)
-    b = _finding("rp_B", date(2026, 9, 1), wildtype=False)
-    with caplog.at_level(logging.ERROR):
-        resolved = select_latest_findings([a, b])
-    assert all(f.superseded_by is None for f in resolved)
-    assert not [r for r in caplog.records if r.levelno == logging.ERROR]
-
-
-def test_same_date_tie_still_beats_an_older_report():
-    a = _finding("rp_A", date(2026, 9, 1), wildtype=True)
-    b = _finding("rp_B", date(2026, 9, 1), wildtype=False)
-    c = _finding("rp_C", date(2026, 1, 1), wildtype=False)
-    resolved = {f.report_uuid: f for f in select_latest_findings([a, b, c])}
-    assert resolved["rp_A"].superseded_by is None
-    assert resolved["rp_B"].superseded_by is None
-    assert resolved["rp_C"].superseded_by == "rp_A, rp_B"
+def test_same_date_pair_still_beats_an_older_report():
+    docs = _latest(_finding("rp_A", date(2026, 9, 1), wildtype=True),
+                   _finding("rp_B", date(2026, 9, 1), wildtype=False),
+                   _finding("rp_C", date(2026, 1, 1), wildtype=False))
+    assert [d["REPORT_DATE"] for d in docs] == ["2026-09-01", "2026-09-01"]
 
 
 # ── Wired through `ctm-mm patients` ────────────────────────────────────────────
@@ -205,12 +177,17 @@ def test_patients_command_matches_only_the_newest_report(tmp_path):
     assert out["clinical"][0]["REPORT_DATE"] == "2026-09-01"
     reports = {r["report_uuid"]: r for r in out["extras"]["patients"][PT]["reports"]}
     assert reports["rp_A"]["report_date"] == "2026-09-01"
-    assert reports["rp_A"]["findings"][0]["superseded_by"] is None
-    assert reports["rp_B"]["findings"][0]["superseded_by"] == "rp_A"
+    assert out["genomic"][0]["REPORT_DATE"] == "2026-09-01"
+    # The older report's row is not matched, but is still recorded.
+    assert len(reports["rp_B"]["findings"]) == 1
 
 
-def test_patients_command_stops_on_a_missing_report_date(tmp_path):
-    path = _workbook(tmp_path, [["rp_A", PT, "tempus", None]])
-    with pytest.raises(SystemExit):
-        _run_patients(path, tmp_path / "out.json")
-    assert not (tmp_path / "out.json").exists()
+def test_patients_command_skips_a_report_missing_its_date(tmp_path):
+    path = _workbook(tmp_path, [
+        ["rp_A", PT, "tempus", datetime(2026, 6, 1)],
+        ["rp_B", PT, "tempus", None],
+    ])
+    out = _run_patients(path, tmp_path / "out.json")
+    assert [d["REPORT_DATE"] for d in out["genomic"]] == ["2026-06-01"]
+    reports = out["extras"]["patients"][PT]["reports"]
+    assert [r["report_uuid"] for r in reports] == ["rp_A"]
