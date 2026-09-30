@@ -128,7 +128,9 @@ class PipelineStatus:
         if not self.ready:
             missing = [w.collection for w in (self.trials, self.patients_clinical)
                        if not w.exists]
-            return [f"not ready: {', '.join(missing)} is empty or missing"]
+            # No "not ready:" prefix — the caller supplies the verdict, and
+            # duplicating it reads as "NOT READY: not ready: ...".
+            return [f"{', '.join(missing)} is empty or missing"]
         if not self.last_match:
             return ["no match has been run yet"]
         seen = self.last_match.get("inputs") or {}

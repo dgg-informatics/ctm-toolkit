@@ -103,7 +103,7 @@ def test_missing_patients_is_not_ready_rather_than_stale():
     status.patients_clinical = Watermark("patients", "latest_clinical", 0, None)
     assert not status.ready
     assert not status.stale
-    assert "not ready" in status.reasons()[0]
+    assert status.reasons() == ["latest_clinical is empty or missing"]
 
 
 # ── Wiring ───────────────────────────────────────────────────────────────────
