@@ -53,6 +53,22 @@ def resolve_workbook(explicit: str | None) -> Path:
     return newest_file(patient_raw_dir(), "*.xlsx", "patient workbook (.xlsx)")
 
 
+def resolve_bundle(explicit: str | None, run_date: str) -> Path:
+    """Where the bundle goes: the path named, else PATIENT_EXPORT_DIR/<run-date>_patients.json.
+
+    The default refuses to overwrite. A second load on the same day would replace
+    that day's bundle, the lossless record of the earlier workbook. Naming
+    ``--out`` explicitly is the way to overwrite on purpose.
+    """
+    if explicit:
+        return Path(explicit).expanduser()
+    bundle = patient_export_dir() / f"{run_date}_patients.json"
+    if bundle.exists():
+        fail("%s already exists — a second load today would overwrite it. "
+             "Pass --out to write elsewhere (or to overwrite on purpose)", bundle)
+    return bundle
+
+
 def build_stages(workbook: Path, bundle: Path, args) -> list[Stage]:
     """Normalize, then load. The bundle path is computed here and passed to both,
     so the second stage reads exactly what the first wrote rather than guessing
@@ -106,8 +122,7 @@ def main() -> None:
     with command_context(log, "ctm-load-patients"):
         workbook = resolve_workbook(args.workbook)
         run_date = args.run_date or date.today().isoformat()
-        bundle = (Path(args.out).expanduser() if args.out
-                  else patient_export_dir() / f"{run_date}_patients.json")
+        bundle = resolve_bundle(args.out, run_date)
 
         log_event(log, "patients.begin", "Loading %s → %s", workbook.name, bundle,
                   workbook=str(workbook), bundle=str(bundle), run_date=run_date)

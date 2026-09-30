@@ -181,6 +181,13 @@ def _run(args) -> int:
 
     exported = export_trial_match(client, match_db, export_path)
 
+    from ctm.paths import report_export_dir
+    out_dir = Path(args.out_dir) if args.out_dir else report_export_dir()
+    # Clear this date's reports first: a patient dropped from a same-day reload
+    # would otherwise keep a PDF that looks like part of this run.
+    for stale in out_dir.glob(f"{run_date}_*-report.pdf"):
+        stale.unlink()
+
     # Reports last, and state after them: a run that matched but failed to render
     # must look unfinished, or the watermark says done while no reports exist.
     try:
@@ -190,9 +197,7 @@ def _run(args) -> int:
             fail("report generation exited %s — state not advanced", exc.code,
                  code=exc.code)
 
-    from ctm.paths import report_export_dir
-    out_dir = Path(args.out_dir) if args.out_dir else report_export_dir()
-    reports = sum(1 for _ in out_dir.glob(f"{run_date}_*.pdf"))
+    reports = sum(1 for _ in out_dir.glob(f"{run_date}_*-report.pdf"))
 
     write_match_state(client, config["master_dbname"], status, match_db,
                       reports=reports, export_path=str(export_path))

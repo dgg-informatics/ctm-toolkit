@@ -18,7 +18,7 @@ def _clean_mongo_env(monkeypatch):
 def _set_required(monkeypatch):
     monkeypatch.setenv("MONGO_HOST", "localhost")
     monkeypatch.setenv("MONGO_PORT", "27018")
-    monkeypatch.setenv("MONGO_DBNAME", "2026-08-17_dev")
+    monkeypatch.setenv("MONGO_DBNAME", "2026-08-17")
 
 
 @pytest.mark.parametrize("missing", ["MONGO_HOST", "MONGO_PORT"])
@@ -49,7 +49,7 @@ def test_mongo_config_routes_a_uri_placed_in_mongo_host_to_uri(monkeypatch):
     from ctm.db import mongo_config
 
     monkeypatch.delenv("MONGO_URI", raising=False)
-    monkeypatch.setenv("MONGO_DBNAME", "2026-08-17_dev")
+    monkeypatch.setenv("MONGO_DBNAME", "2026-08-17")
     monkeypatch.setenv("MONGO_HOST", "mongodb://u:p@localhost:27017/?authSource=admin")
 
     config = mongo_config()
@@ -94,7 +94,7 @@ def test_mongo_config_master_dbname_is_not_the_run_database(monkeypatch):
 
     config = mongo_config(require_master=True)
     assert config["master_dbname"] == "ctm_master"
-    assert config["dbname"] == "2026-08-17_dev"
+    assert config["dbname"] == "2026-08-17"
     assert config["master_dbname"] != config["dbname"]
 
 
@@ -418,7 +418,7 @@ def test_copy_collection_passes_the_query_through():
 
 def test_mongo_config_derives_dbname_when_unset_and_require_dbname_true(monkeypatch):
     """When MONGO_DBNAME is unset and require_dbname=True (the default), derive
-    YYYY-MM-DD_dev from today's date. This allows an unattended cron job to get
+    YYYY-MM-DD from today's date. This allows an unattended cron job to get
     a fresh database per run rather than failing on a missing env var."""
     from ctm.db import mongo_config
     from datetime import date
@@ -427,7 +427,7 @@ def test_mongo_config_derives_dbname_when_unset_and_require_dbname_true(monkeypa
     monkeypatch.delenv("MONGO_DBNAME")
 
     config = mongo_config()
-    expected = f"{date.today().isoformat()}_dev"
+    expected = date.today().isoformat()
     assert config["dbname"] == expected
 
 
@@ -451,7 +451,7 @@ def test_mongo_config_derives_dbname_when_set_to_empty_string(monkeypatch):
     monkeypatch.setenv("MONGO_DBNAME", "")
 
     config = mongo_config()
-    expected = f"{date.today().isoformat()}_dev"
+    expected = date.today().isoformat()
     assert config["dbname"] == expected
 
 
