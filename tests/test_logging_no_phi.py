@@ -54,7 +54,7 @@ def test_patient_ingest_writes_no_phi_to_the_log_file(tmp_path, monkeypatch, cap
 
     out = tmp_path / "bundle.json"
     _cmd_raw_to_mm(argparse.Namespace(
-        excel=str(FIXTURE), pt_uuid=None, out=str(out),
+        excel=str(FIXTURE), pt_uuid=None, out=str(out), disk=None,
     ))
     for handler in logging.getLogger().handlers:
         handler.flush()
@@ -82,6 +82,7 @@ def test_the_bundle_itself_still_contains_the_phi(tmp_path):
     silently dropped the data. The JSON bundle is storage, not a log, and the
     patient_data rollup is deliberately lossless."""
     out = tmp_path / "bundle.json"
-    _cmd_raw_to_mm(argparse.Namespace(excel=str(FIXTURE), pt_uuid=None, out=str(out)))
+    _cmd_raw_to_mm(argparse.Namespace(excel=str(FIXTURE), pt_uuid=None, out=str(out),
+                                      disk=None))
     body = out.read_text()
     assert any(v in body for v in _identifying_values())

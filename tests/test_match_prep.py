@@ -185,12 +185,27 @@ def test_match_prep_run_invokes_matchengine_with_synthesized_secrets(monkeypatch
 
     monkeypatch.setattr("subprocess.run", _fake_run)
 
-    with pytest.raises(SystemExit) as exc:
-        mm_cli._cmd_match_prep(_match_args(run=True))
-
-    assert exc.value.code == 0
+    # Returned, not exited: ctm-match runs reports after this, so the process
+    # must survive it. mm_cli.main() is what turns a non-zero code into an exit.
+    assert mm_cli._cmd_match_prep(_match_args(run=True)) == 0
     assert calls["cmd"] == ["matchengine", "match", "--db", "2026-09-04_match"]
     assert calls["secrets"]["MONGO_DBNAME"] == "2026-09-04_match"
+
+
+def test_match_prep_forwards_a_matchengine_failure(monkeypatch):
+    """A non-zero code has to reach the caller — ctm-match refuses to advance
+    its state on it, so a failed match is retried rather than recorded as done."""
+    from ctm import mm_cli
+
+    _base_env(monkeypatch)
+    monkeypatch.setattr("ctm.db.get_client", lambda config: _FakeClient({
+        "latest_trials": {"06_master_trials": []},
+        "patients_dev": {"latest_clinical": [], "latest_genomic": []},
+    }))
+    monkeypatch.setattr("subprocess.run",
+                        lambda cmd, env=None: argparse.Namespace(returncode=3))
+
+    assert mm_cli._cmd_match_prep(_match_args(run=True)) == 3
 
 
 def test_match_prep_errors_without_master_db(monkeypatch):

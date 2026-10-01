@@ -121,8 +121,8 @@ def test_ctm_log_config_overrides_everything(tmp_path, monkeypatch):
 
 def test_file_is_named_for_the_run_not_the_command(tmp_path, monkeypatch):
     monkeypatch.setenv("CTM_LOG_DIR", str(tmp_path))
-    monkeypatch.setenv("MONGO_DBNAME", "2026-09-28_dev")
-    assert lc.log_file_path() == tmp_path / "2026-09-28_dev.log"
+    monkeypatch.setenv("MONGO_DBNAME", "2026-09-28")
+    assert lc.log_file_path() == tmp_path / "2026-09-28.log"
 
 
 def test_explicit_file_wins_over_dir(tmp_path, monkeypatch):
@@ -144,14 +144,14 @@ def test_run_id_falls_back_to_a_date(monkeypatch):
 def test_stages_sharing_a_run_id_share_one_file(tmp_path, monkeypatch):
     """The property that replaces the wrapper's `exec` redirect."""
     monkeypatch.setenv("CTM_LOG_DIR", str(tmp_path))
-    monkeypatch.setenv("CTM_RUN_ID", "2026-09-28_dev")
+    monkeypatch.setenv("CTM_RUN_ID", "2026-09-28")
     for stage in ("trials", "trials-diff"):
         lc.configure_logging(env="staging")
         logging.getLogger("ctm.test").info("ran %s", stage)
     for handler in _ctm_handlers():
         handler.flush()
     assert len(list(tmp_path.glob("*.log"))) == 1
-    body = (tmp_path / "2026-09-28_dev.log").read_text()
+    body = (tmp_path / "2026-09-28.log").read_text()
     assert "ran trials" in body and "ran trials-diff" in body
 
 
@@ -167,8 +167,8 @@ def test_unwritable_log_file_does_not_kill_the_process(tmp_path, monkeypatch, ca
 
 def test_console_restores_the_error_prefix(capsys):
     lc.configure_logging(env="dev")
-    logging.getLogger("ctm.test").error("no trials in %s", "2026-09-28_dev")
-    assert capsys.readouterr().err.strip() == "Error: no trials in 2026-09-28_dev"
+    logging.getLogger("ctm.test").error("no trials in %s", "2026-09-28")
+    assert capsys.readouterr().err.strip() == "Error: no trials in 2026-09-28"
 
 
 def test_console_restores_the_warning_prefix_keeping_indent(capsys):

@@ -7,7 +7,7 @@ pattern the rest of `mm_cli` uses for optional dependencies.
 
 Two different databases are in play, and the distinction is the whole design:
 
-* The **per-run** database (``MONGO_DBNAME``, e.g. ``2026-08-17_dev``) holds one
+* The **per-run** database (``MONGO_DBNAME``, e.g. ``2026-08-17``) holds one
   run's stage outputs. A fresh one per run gives structural isolation — a stray
   query cannot mix runs, and dropping a bad run is dropping a database.
 * The **master** database (``MONGO_MASTER_DBNAME``) is deliberately *not*
@@ -106,6 +106,16 @@ DIFF_LOOKUP_KEYS = ("entity", "trial_key")
 METADATA_FIELDS = ("_id", "processed_with", "run_date", "diff_status", "trial_key")
 
 
+def run_dbname(run_date: str) -> str:
+    """The per-run database for a run date: the date itself, ``YYYY-MM-DD``.
+
+    The one place the name is built. ``ctm-pre-curate`` derives it from today and
+    ``ctm-post-curate`` from the curated file's prefix, and the two must agree or
+    post-curate merges a master out of an empty database.
+    """
+    return run_date
+
+
 def toolkit_version() -> str:
     """Installed ctm-toolkit version.
 
@@ -127,7 +137,7 @@ def mongo_config(require_master: bool = False, require_dbname: bool = True) -> d
     that passes ``--master <file>`` never fails on a variable it does not use.
 
     ``require_dbname`` controls the per-run database name: when True, a missing
-    ``MONGO_DBNAME`` derives ``YYYY-MM-DD_dev`` from today (so an unattended run
+    ``MONGO_DBNAME`` derives ``YYYY-MM-DD`` from today (so an unattended run
     gets a fresh database instead of failing). When False, the name stays ``None``.
     ``ctm-mm load`` and ``ctm-mm match-prep`` set it off — they are patient-only
     commands that touch ``MONGO_PATIENT_DBNAME``, never the per-run database.
@@ -148,7 +158,7 @@ def mongo_config(require_master: bool = False, require_dbname: bool = True) -> d
         # for every stage it runs): a run that spans midnight, or a curator picking
         # up a later stage the next day, would otherwise derive a different name and
         # read an empty database.
-        dbname = f"{date.today().isoformat()}_dev"
+        dbname = run_dbname(date.today().isoformat())
 
     # Two ways to point at a server. MONGO_URI wins and is the only form that
     # carries credentials — a bare host/port cannot authenticate. The auth
