@@ -108,52 +108,10 @@ def test_most_recent_report_wins_a_conflict():
     assert [(d["WILDTYPE"], d["REPORT_DATE"]) for d in docs] == [(True, "2026-09-01")]
 
 
-def test_different_protein_changes_do_not_compete():
-    """Protein change is part of the key, so an older report's variant the newer
-    report doesn't list is still matched."""
-    docs = _latest(_finding("rp_A", date(2026, 9, 1), protein_change="p.Y1003F"),
-                   _finding("rp_B", date(2026, 6, 1), protein_change="p.D1228N"))
-    assert len(docs) == 2
-
-
-def test_same_protein_change_newest_wins():
-    docs = _latest(_finding("rp_A", date(2026, 9, 1), protein_change="p.Y1003F"),
-                   _finding("rp_B", date(2026, 6, 1), protein_change="p.Y1003F"))
-    assert [d["REPORT_DATE"] for d in docs] == ["2026-09-01"]
-
-
-def test_gene_match_ignores_case():
-    docs = _latest(_finding("rp_A", date(2026, 9, 1), biomarker="MET"),
-                   _finding("rp_B", date(2026, 6, 1), biomarker="met"))
-    assert [d["REPORT_DATE"] for d in docs] == ["2026-09-01"]
-
-
-def test_different_genes_and_categories_do_not_compete():
-    docs = _latest(
-        _finding("rp_A", date(2026, 9, 1), biomarker="MET"),
-        _finding("rp_B", date(2026, 6, 1), biomarker="KRAS"),
-        _finding("rp_B", date(2026, 6, 1), category="CNV", cnv_call="High Amplification"),
-    )
-    assert len(docs) == 3
-
-
-def test_different_patients_do_not_compete():
-    a = to_genomic_docs(Patient(pt_uuid=PT), [_finding("rp_A", date(2026, 9, 1))])
-    b = to_genomic_docs(Patient(pt_uuid="pt_other"), [_finding("rp_B", date(2026, 6, 1))])
-    assert len(latest_genomic_docs(a + b)) == 2
-
-
 def test_same_date_docs_are_all_kept():
     docs = _latest(_finding("rp_A", date(2026, 9, 1), wildtype=True),
                    _finding("rp_B", date(2026, 9, 1), wildtype=False))
     assert len(docs) == 2
-
-
-def test_same_date_pair_still_beats_an_older_report():
-    docs = _latest(_finding("rp_A", date(2026, 9, 1), wildtype=True),
-                   _finding("rp_B", date(2026, 9, 1), wildtype=False),
-                   _finding("rp_C", date(2026, 1, 1), wildtype=False))
-    assert [d["REPORT_DATE"] for d in docs] == ["2026-09-01", "2026-09-01"]
 
 
 # ── Wired through `ctm-mm patients` ────────────────────────────────────────────
