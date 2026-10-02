@@ -39,7 +39,7 @@ ctm-mm patients <patient_data.xlsx> --pt-uuid 1234 --out pt_1234.json
 ```
 
 For the expected layout, see the reference workbook
-`tests/fixtures/test-pt-data-v1.3.0.xlsx`, which carries a mock patient plus a
+`tests/fixtures/test-pt-data-latest.xlsx`, which carries a mock patient plus a
 sample row for every finding combination. Fill in a copy of it — never commit a
 filled-in workbook, it is PHI.
 
@@ -325,7 +325,7 @@ Trial filtering is deliberately *not* done here: `07_filtered_trials` and
 
 #### Patient Data
 
-Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See the reference workbook at *tests/fixtures/test-pt-data-v1.3.0.xlsx* and fill in a copy of it.
+Patient data is based upon **manual recording** of patient data into a template excel sheet. Until we can automate the process of pulling a patient's file and normalizing it, this will have to do. See the reference workbook at *tests/fixtures/test-pt-data-latest.xlsx* and fill in a copy of it.
 
 ⚠️ **A filled-in workbook is PHI and must never be committed.** Keep real
 workbooks outside the repo entirely.
@@ -387,7 +387,7 @@ For matching a patient to trials, we define 2 categories of patient data:
 
 **Raw --> Normalized Patient Data**
 
-Starting input (1 file): **test-pt-data-v1.3.0.xlsx** (excel template)
+Starting input (1 file): **test-pt-data-latest.xlsx** (excel template)
 Ending output (2 files): [**patient_clinical.json**, **patient_genomic.json**]
 
 1. Fill out a copy of the workbook's sheets
@@ -1041,7 +1041,7 @@ or trial data** — names, MRNs, protocol numbers, and NCT IDs are all fabricate
 
 | Fixture | Purpose |
 | --- | --- |
-| `test-pt-data-v1.3.0.xlsx` | Reference intake workbook: a mock patient plus a sample row for every finding combination. Doubles as the layout to copy when filling one in. |
+| `test-pt-data-latest.xlsx` | Reference intake workbook: a mock patient plus a sample row for every finding combination. Doubles as the layout to copy when filling one in. |
 | `pt-clinical-v1.0.0.json`, `pt-genomic-v1.0.0.json` | Golden output of the workbook conversion — `test_to_matchminer.py` pins the transform against these. |
 | `test-pts-v0.0.1.json` | Normalized patient collection — output of `ctm-mm patients` |
 | `test-trials-v0.0.1.json` | Fully curated trial collection, i.e. post-LLM and post-manual-review. This is what report tests need, since genomic and OncoTree criteria only exist after curation. |

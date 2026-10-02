@@ -13,7 +13,7 @@ import pytest
 
 from ctm.mm_cli import _cmd_raw_to_mm, _resolve_patient_workbook
 
-FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.2.0.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-latest.xlsx"
 
 
 def _args(**kwargs):
