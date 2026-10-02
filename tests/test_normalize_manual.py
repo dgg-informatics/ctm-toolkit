@@ -11,7 +11,7 @@ from ctm.transformers.normalize_manual import (
     normalize_report_metadata,
 )
 
-FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.2.0.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "test-pt-data-latest.xlsx"
 
 
 def test_normalize_finding_maps_canonical_fields():
@@ -44,7 +44,7 @@ def test_normalize_report_metadata_promotes_identity_and_raws_the_rest():
         "report_uuid": "rp_0000001", "pt_uuid": "pt_0000001", "source": "tempus",
         "test_name": "xT CDx", "unique_test_id": "TL-123",
         "unique_test_id_source": "accession_no", "ordering_physician": "Dr. Doe",
-        "case_no": "C-9", "specimen_site": "lung",
+        "report_date": "2026-09-01", "case_no": "C-9", "specimen_site": "lung",
     })
     m = normalize_report_metadata(row)
     assert m.unique_test_id == "TL-123"

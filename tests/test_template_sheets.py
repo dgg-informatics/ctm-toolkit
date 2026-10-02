@@ -1,6 +1,6 @@
 """Keeps the v1 reference workbook in sync with the parser.
 
-The intake template is now hand-authored (test-pt-data-v1.2.0.xlsx, with colors
+The intake template is now hand-authored (test-pt-data-latest.xlsx, with colors
 and cell-validation the code cannot regenerate) rather than emitted by a script.
 These tests assert the committed workbook still matches what the parser expects:
 every finding sheet present, the canonical columns spelled exactly, the report
@@ -12,7 +12,7 @@ import openpyxl
 
 from ctm.transformers.normalize_manual import SHEET_NORMALIZERS
 
-REFERENCE = Path(__file__).parent / "fixtures" / "test-pt-data-v1.2.0.xlsx"
+REFERENCE = Path(__file__).parent / "fixtures" / "test-pt-data-latest.xlsx"
 
 CANONICAL = {
     "pt_uuid", "report_uuid", "biomarker", "variant_category", "protein_change",
@@ -20,7 +20,7 @@ CANONICAL = {
 }
 REPORT_IDENTITY = {
     "report_uuid", "pt_uuid", "source", "test_name",
-    "unique_test_id", "unique_test_id_source",
+    "unique_test_id", "unique_test_id_source", "report_date"
 }
 
 

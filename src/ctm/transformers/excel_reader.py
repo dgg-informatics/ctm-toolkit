@@ -4,7 +4,7 @@ from pathlib import Path
 
 import openpyxl
 
-from ..schemas.raw.models import RawPatientGeneral, RawReportMetadata
+from ..schemas.raw.models import RawPatientGeneral, RawReportMetadata, _to_date
 from ..schemas.raw.normalized import Finding, Patient, ReportMetadata
 from .normalize_manual import (
     SHEET_NORMALIZERS,
@@ -33,7 +33,10 @@ def read_and_normalize(
 
     pt_uuid_filter: if set, only rows for the given pt_uuid(s) are returned.
     Accepts a single pt_uuid string or a set of them. Rows that fail validation
-    are skipped with a printed warning.
+    are skipped with a printed warning. A report with a blank or unparseable
+    report_date is skipped with an error, and so are its findings: report_date
+    decides which report wins in the genomic collection, so an undated report's
+    findings would have nothing to be compared by.
     """
     if isinstance(pt_uuid_filter, str):
         pt_uuid_filter = {pt_uuid_filter}
@@ -57,11 +60,21 @@ def read_and_normalize(
 
     # ── Report metadata ────────────────────────────────────────────────────────
     metadata: list[ReportMetadata] = []
+    undated: set[str] = set()
     if "report_metadata" in wb.sheetnames:
         for row in _sheet_rows(wb["report_metadata"]):
             if row.get("report_uuid") is None:
                 continue
             if row.get("pt_uuid") not in valid_pt_uuids:
+                continue
+            if _to_date(row.get("report_date")) is None:
+                report_uuid = str(row["report_uuid"])
+                undated.add(report_uuid)
+                log.error("  report_metadata: report %s skipped, with its findings — "
+                          "report_date is blank or not a date", report_uuid,
+                          extra={"event": "patients.report_skipped",
+                                 "reason": "missing_report_date",
+                                 "report_uuid": report_uuid})
                 continue
             try:
                 metadata.append(
@@ -73,6 +86,7 @@ def read_and_normalize(
                                    "sheet": "report_metadata"})
 
     report_source: dict[str, str] = {m.report_uuid: m.source for m in metadata}
+    report_date = {m.report_uuid: m.report_date for m in metadata}
 
     # ── Findings (all source sheets) ──────────────────────────────────────────
     findings: list[Finding] = []
@@ -86,11 +100,14 @@ def read_and_normalize(
                 continue
             try:
                 raw = raw_cls.model_validate(row)
+                if raw.report_uuid in undated:
+                    continue
                 source = report_source.get(
                     raw.report_uuid,
                     sheet_name.replace("_findings", ""),
                 )
-                findings.append(norm_fn(raw, source=source))
+                findings.append(norm_fn(raw, source=source,
+                                        report_date=report_date.get(raw.report_uuid)))
             except Exception as exc:
                 log.warning("  %s row skipped — %s", sheet_name, exc,
                             extra={"event": "patients.row_skipped", "sheet": sheet_name})

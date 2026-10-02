@@ -79,6 +79,45 @@ def _split_fusion(gene: str) -> tuple[str, str | None]:
     return gene, None
 
 
+def latest_genomic_docs(docs: list[dict]) -> list[dict]:
+    """Keep only the newest report's genomic docs for each variant.
+
+    MatchEngine matches every doc in the genomic collection and can't be changed
+    to prefer one report over another, so the collection must hold only the docs
+    we want matched. Docs are grouped by SAMPLE_ID + TRUE_HUGO_SYMBOL
+    (case-insensitive) + VARIANT_CATEGORY + TRUE_PROTEIN_CHANGE; within a group,
+    every doc with the latest REPORT_DATE is kept (so same-date reports are all
+    kept) and older ones are dropped. A doc with no REPORT_DATE never beats a
+    dated one. The dropped rows still live in patient_data under
+    reports[].findings, so nothing is lost.
+
+    Docs are returned in their input order.
+    """
+    def key(d: dict) -> tuple:
+        return (d["SAMPLE_ID"], d["TRUE_HUGO_SYMBOL"].upper(), d["VARIANT_CATEGORY"],
+                d.get("TRUE_PROTEIN_CHANGE"))
+
+    latest: dict[tuple, str] = {}
+    for d in docs:
+        if (rd := d.get("REPORT_DATE")) is not None and rd > latest.get(key(d), ""):
+            latest[key(d)] = rd
+
+    kept = []
+    for d in docs:
+        if d.get("REPORT_DATE") == latest.get(key(d)):
+            kept.append(d)
+        else:
+            log.info(
+                "  %s %s %s: dropped genomic doc from report dated %s; newer report %s",
+                d["SAMPLE_ID"], d["TRUE_HUGO_SYMBOL"], d["VARIANT_CATEGORY"],
+                d.get("REPORT_DATE"), latest.get(key(d)),
+                extra={"event": "genomic.docs_superseded", "sample_id": d["SAMPLE_ID"],
+                       "biomarker": d["TRUE_HUGO_SYMBOL"],
+                       "variant_category": d["VARIANT_CATEGORY"]},
+            )
+    return kept
+
+
 def to_clinical(patient: Patient, report_date: str | None = None) -> dict:
     """Build a MatchMiner clinical document from a Patient.
 
@@ -137,6 +176,8 @@ def to_genomic_docs(
             "SAMPLE_ID": sample_id,
             "TRUE_HUGO_SYMBOL": f.biomarker,
             "VARIANT_CATEGORY": category,
+            # Lets latest_genomic_docs keep only the newest report's docs.
+            "REPORT_DATE": f.report_date.isoformat() if f.report_date else None,
             "_updated": datetime.now(tz=UTC).isoformat(),
         }
         if clinical_id is not None:

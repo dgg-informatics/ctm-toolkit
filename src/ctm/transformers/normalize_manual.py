@@ -5,8 +5,10 @@ Pattern:
   2. Every other column is captured verbatim into a ``raw`` dict, keyed by
      column name, Nones dropped — lossless, so nothing from the workbook is
      silently discarded.
-  3. A finding's source is propagated from its ReportMetadata row.
+  3. A finding's source and report_date are propagated from its ReportMetadata row.
 """
+from datetime import date
+
 from ..schemas.raw.models import RawFinding, RawPatientGeneral, RawReportMetadata
 from ..schemas.raw.normalized import Finding, Patient, ReportMetadata
 
@@ -17,7 +19,7 @@ _FINDING_FIELDS = {
 }
 _REPORT_FIELDS = {
     "report_uuid", "pt_uuid", "source", "test_name", "unique_test_id",
-    "unique_test_id_source", "ordering_physician",
+    "unique_test_id_source", "ordering_physician", "report_date",
 }
 _PATIENT_FIELDS = {
     "pt_uuid", "mrn", "first_name", "last_name", "dob", "sex", "vital_status",
@@ -69,15 +71,19 @@ def normalize_report_metadata(row: RawReportMetadata) -> ReportMetadata:
         unique_test_id=row.unique_test_id,
         unique_test_id_source=row.unique_test_id_source,
         ordering_physician=row.ordering_physician,
+        report_date=row.report_date,
         raw=_raw_fields(row, _REPORT_FIELDS),
     )
 
 
-def normalize_finding(row: RawFinding, source: str) -> Finding:
+def normalize_finding(
+    row: RawFinding, source: str, report_date: date | None = None,
+) -> Finding:
     return Finding(
         pt_uuid=row.pt_uuid,
         report_uuid=row.report_uuid,
         source=source,
+        report_date=report_date,
         biomarker=row.biomarker,
         variant_category=row.variant_category,
         protein_change=row.protein_change,

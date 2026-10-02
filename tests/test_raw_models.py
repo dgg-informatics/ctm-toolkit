@@ -37,7 +37,7 @@ def test_integer_ids_are_coerced_to_str():
 def test_report_metadata_accepts_extra_columns():
     raw = RawReportMetadata.model_validate({
         "report_uuid": "rp_0000001", "pt_uuid": "pt_0000001", "source": "tempus",
-        "case_no": "C-123", "specimen_site": "lung",
+        "report_date": "2026-09-01", "case_no": "C-123", "specimen_site": "lung",
     })
     dumped = raw.model_dump()
     assert dumped["case_no"] == "C-123"

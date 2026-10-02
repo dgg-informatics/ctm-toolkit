@@ -3,24 +3,28 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MUT1",
     "VARIANT_CATEGORY": "MUTATION",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MUT2",
     "VARIANT_CATEGORY": "MUTATION",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": true
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MUT3",
     "VARIANT_CATEGORY": "MUTATION",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MUT4",
     "VARIANT_CATEGORY": "MUTATION",
+    "REPORT_DATE": "2026-08-01",
     "TRUE_PROTEIN_CHANGE": "p.A100B",
     "WILDTYPE": false
   },
@@ -28,6 +32,7 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MUT5",
     "VARIANT_CATEGORY": "MUTATION",
+    "REPORT_DATE": "2026-08-01",
     "TRUE_PROTEIN_CHANGE": "p.A100B",
     "TRUE_CDNA_CHANGE": "c.A300B",
     "WILDTYPE": false
@@ -36,6 +41,7 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MUT6",
     "VARIANT_CATEGORY": "MUTATION",
+    "REPORT_DATE": "2026-08-01",
     "TRUE_CDNA_CHANGE": "c.A300B",
     "WILDTYPE": false
   },
@@ -43,24 +49,28 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "CNV1",
     "VARIANT_CATEGORY": "CNV",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "CNV2",
     "VARIANT_CATEGORY": "CNV",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": true
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "CNV3",
     "VARIANT_CATEGORY": "CNV",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "CNV4",
     "VARIANT_CATEGORY": "CNV",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false,
     "CNV_CALL": "High level amplification"
   },
@@ -68,6 +78,7 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "CNV5",
     "VARIANT_CATEGORY": "CNV",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false,
     "CNV_CALL": "Gain"
   },
@@ -75,6 +86,7 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "CNV6",
     "VARIANT_CATEGORY": "CNV",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false,
     "CNV_CALL": "Homozygous deletion"
   },
@@ -82,6 +94,7 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "CNV7",
     "VARIANT_CATEGORY": "CNV",
+    "REPORT_DATE": "2026-08-01",
     "WILDTYPE": false,
     "CNV_CALL": "Heterozygous deletion"
   },
@@ -89,6 +102,7 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "SV1",
     "VARIANT_CATEGORY": "SV",
+    "REPORT_DATE": "2026-08-01",
     "LEFT_PARTNER_GENE": "SV1",
     "RIGHT_PARTNER_GENE": "SV2"
   },
@@ -96,6 +110,7 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "SV1",
     "VARIANT_CATEGORY": "SV",
+    "REPORT_DATE": "2026-08-01",
     "LEFT_PARTNER_GENE": "SV1",
     "RIGHT_PARTNER_GENE": "SV3"
   },
@@ -103,36 +118,42 @@
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MSI",
     "VARIANT_CATEGORY": "SIGNATURE",
+    "REPORT_DATE": "2026-08-01",
     "MMR_STATUS": "Deficient (MMR-D / MSI-H)"
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MSI",
     "VARIANT_CATEGORY": "SIGNATURE",
+    "REPORT_DATE": "2026-08-01",
     "MMR_STATUS": "Proficient (MMR-P / MSS)"
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MSI",
     "VARIANT_CATEGORY": "SIGNATURE",
+    "REPORT_DATE": "2026-08-01",
     "MMR_STATUS": "Proficient (MMR-P / MSS)"
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MMR",
     "VARIANT_CATEGORY": "SIGNATURE",
+    "REPORT_DATE": "2026-08-01",
     "MMR_STATUS": "Deficient (MMR-D / MSI-H)"
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MMR",
     "VARIANT_CATEGORY": "SIGNATURE",
+    "REPORT_DATE": "2026-08-01",
     "MMR_STATUS": "Proficient (MMR-P / MSS)"
   },
   {
     "SAMPLE_ID": "pt_0000001",
     "TRUE_HUGO_SYMBOL": "MMR",
     "VARIANT_CATEGORY": "SIGNATURE",
+    "REPORT_DATE": "2026-08-01",
     "MMR_STATUS": "Proficient (MMR-P / MSS)"
   }
 ]
