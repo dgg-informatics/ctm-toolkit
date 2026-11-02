@@ -144,8 +144,15 @@ def test_genomic_prompt_pins_vocabulary():
                  "Structural Variation", "wildcard_protein_change", "variant_classification", "exon",
                  "germline", "somatic"):
         assert term in GENOMIC_SYSTEM_PROMPT, term
-    for term in ("MUTATION", "!Mutation", "(MMR-D / MSI-H)"):
+    for term in ("MUTATION", "(MMR-D / MSI-H)", '"!Copy Number Variation"', '"!Structural Variation"'):
         assert term not in GENOMIC_SYSTEM_PROMPT, term
+
+
+def test_genomic_prompt_documents_the_wildtype_table():
+    for term in ('"!Mutation"', "untested", "never \"!\"", "ms_status", "no wildtype"):
+        assert term in GENOMIC_SYSTEM_PROMPT, term
+    assert "no documented mutation" in GENOMIC_SYSTEM_PROMPT.lower()
+    assert '"!Mutation", wildtype: false' in GENOMIC_SYSTEM_PROMPT
 
 
 # ── final-review fixes ───────────────────────────────────────────────────────
@@ -163,12 +170,12 @@ def test_malformed_ref_fields_are_coerced_so_stamp_never_fails():
         MolecularGenomicRef.model_validate(r)
 
 
-def test_exclusion_piece_missing_wildtype_becomes_null():
+def test_exclusion_no_known_mutation_node_is_kept():
     trial = {"eligibility": {"exclusion": [_crit("Known KRAS mutation")]}}
-    node = {"genomic": {"hugo_symbol": "KRAS", "variant_category": "Mutation"}}
+    node = {"genomic": {"hugo_symbol": "KRAS", "variant_category": "!Mutation"}}
     cur = _cur(trial, QueuedClient([_resp(node)]))
-    assert cur["_ctml_suggestions"] == []
-    assert cur["_null_ctml_suggestions"][0]["source"] == "exclusion"
+    assert cur["_ctml_suggestions"][0]["suggested_node"] == {
+        "genomic": {"hugo_symbol": "KRAS", "variant_category": "!Mutation", "wildtype": False}}
 
 
 def test_prompt_change_misses_the_cache(monkeypatch):

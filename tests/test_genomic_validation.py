@@ -19,8 +19,22 @@ def test_patient_side_category_drops_the_leaf():
     assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="MUTATION")) is None
 
 
-def test_bang_mutation_drops_the_leaf():
-    assert validate_genomic_node(g(hugo_symbol="KRAS", variant_category="!Mutation", wildtype=True)) is None
+def test_bang_mutation_is_valid_and_defaults_wildtype_false():
+    """"No documented KRAS mutation" = !Mutation + wildtype false (keeps WT and untested)."""
+    no_known = g(hugo_symbol="KRAS", variant_category="!Mutation", wildtype=False)
+    assert validate_genomic_node(no_known) == no_known
+    assert validate_genomic_node(g(hugo_symbol="KRAS", variant_category="!Mutation")) == no_known
+
+
+@pytest.mark.parametrize("category", ["!Copy Number Variation", "!Structural Variation"])
+def test_bang_on_cnv_and_sv_drops_the_leaf(category):
+    assert validate_genomic_node(g(hugo_symbol="ALK", variant_category=category, wildtype=False)) is None
+
+
+def test_signature_leaves_never_carry_wildtype():
+    assert validate_genomic_node(g(ms_status="MSS")) == g(ms_status="MSS")
+    assert validate_genomic_node(g(ms_status="MSS", wildtype=False)) is None
+    assert validate_genomic_node(g(hugo_symbol="MLH1", mmr_status="MMR-Deficient", wildtype=True)) is None
 
 
 def test_wildtype_string_drops_the_leaf():
@@ -116,9 +130,8 @@ def test_hugo_symbol_rejects_negation_and_junk():
     assert validate_genomic_node(g(hugo_symbol="C9orf72")) == g(hugo_symbol="C9orf72")
 
 
-def test_exclusion_without_wildtype_is_dropped_not_defaulted():
-    node = g(hugo_symbol="KRAS", variant_category="Mutation")
-    assert validate_genomic_node(node, source="exclusion") is None
-    assert validate_genomic_node(node, source="inclusion")["genomic"]["wildtype"] is False
-    explicit = g(hugo_symbol="KRAS", variant_category="Mutation", wildtype=True)
-    assert validate_genomic_node(explicit, source="exclusion") == explicit
+def test_missing_wildtype_defaults_false_on_every_source():
+    for source in ("inclusion", "exclusion", "summary", None):
+        for category in ("Mutation", "!Mutation", "Copy Number Variation", "Structural Variation"):
+            out = validate_genomic_node(g(hugo_symbol="KRAS", variant_category=category), source=source)
+            assert out["genomic"]["wildtype"] is False

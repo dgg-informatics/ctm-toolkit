@@ -31,7 +31,8 @@ from .trials_curate import _trial_id
 
 log = logging.getLogger(__name__)
 
-VARIANT_CATEGORIES = frozenset({"Mutation", "Copy Number Variation", "Structural Variation"})
+# "!" negates Mutation only ("no documented mutation"); CNV and SV have no "!" form.
+VARIANT_CATEGORIES = frozenset({"Mutation", "!Mutation", "Copy Number Variation", "Structural Variation"})
 CNV_CALLS = frozenset({"High Amplification", "Low Amplification",
                        "Homozygous Deletion", "Heterozygous Deletion"})
 MMR_VALUES = frozenset({"MMR-Deficient", "MMR-Proficient"})
@@ -89,15 +90,16 @@ def _validate_leaf(fields, source: str | None) -> dict | None:
     if "hugo_symbol" not in fields and _GENE_SCOPED & fields.keys():
         _drop("gene-scoped keys without hugo_symbol", field="hugo_symbol")
         return None
+    if "wildtype" in fields and "variant_category" not in fields:
+        # wildtype belongs to Mutation / CNV / SV only; MSI/MMR signature
+        # leaves (ms_status / mmr_status) never carry it.
+        _drop("wildtype without variant_category", field="wildtype")
+        return None
     kept = dict(fields)
     if "variant_category" in kept and "wildtype" not in kept:
-        if source == "exclusion":
-            # Defaulting here would invert the requirement ("known KRAS
-            # mutation" excluded → asks FOR it), so leave it to the curator.
-            _drop("exclusion without wildtype", field="wildtype")
-            return None
-        # Every Mutation / CNV / SV node carries wildtype. A bare mention
-        # ("KRAS mutation") asks for an alteration, so false.
+        # Every Mutation / !Mutation / CNV / SV node carries wildtype. false is
+        # right for both "has a documented mutation" (Mutation) and "no
+        # documented mutation" (!Mutation); omitting it is the WT trap.
         kept["wildtype"] = False
         log.info("  defaulted wildtype=false on %s", kept["variant_category"],
                  extra={"event": "llm.genomic_wildtype_default",
@@ -108,8 +110,7 @@ def _validate_leaf(fields, source: str | None) -> dict | None:
 def validate_genomic_node(node, source: str | None = None) -> dict | None:
     """``node`` with clinical and invalid genomic leaves removed; None if empty.
 
-    ``source`` is the piece's source; on ``exclusion`` a leaf missing
-    ``wildtype`` is dropped rather than defaulted.
+    ``source`` is accepted for logging context and future source-specific rules.
     """
     if not isinstance(node, dict):
         return None
@@ -136,8 +137,8 @@ GENOMIC NODE
 A leaf is {"genomic": {...}}. Combine leaves with {"and": [...]} or {"or": [...]}.
 Allowed keys and values (use these exact spellings):
   hugo_symbol             HUGO gene symbol, e.g. "EGFR", "BRAF", "ERBB2"
-  variant_category        "Mutation" | "Copy Number Variation" | "Structural Variation"
-  wildtype                JSON true or false (never a string). REQUIRED whenever variant_category is set.
+  variant_category        "Mutation" | "!Mutation" | "Copy Number Variation" | "Structural Variation"
+  wildtype                JSON true or false (never a string)
   protein_change          HGVS protein change with the p. prefix, exact: "p.V600E", "p.G12C"
   wildcard_protein_change p. + codon, matches any substitution there: "p.V600", "p.G12"
   variant_classification  "Missense_Mutation" | "Nonsense_Mutation" | "In_Frame_Del" | "Frame_Shift_Del" | "Splice_Site"
@@ -146,12 +147,23 @@ Allowed keys and values (use these exact spellings):
   mmr_status              "MMR-Deficient" | "MMR-Proficient"
   ms_status               "MSI-H" | "MSI-L" | "MSS"
 
-wildtype says whether the patient must have the alteration:
-  - must have the alteration, or must NOT be wildtype      → wildtype: false
-  - must be wildtype, or must NOT have the alteration       → wildtype: true
-This is how exclusions are written. Never put "!" on a genomic field.
-Fusions/rearrangements are "Structural Variation" on the gene (partner may be unknown).
-Amplification/deletion is "Copy Number Variation"; add cnv_call only when the text says which.
+WILDTYPE — every node with a variant_category MUST carry wildtype (true or false).
+A wildtype test result is stored as a mutation record with wildtype true, so leaving wildtype
+out changes what matches. Mutations:
+  must HAVE a documented mutation          → "Mutation",  wildtype: false
+  must be documented/confirmed wildtype    → "Mutation",  wildtype: true   (untested patients do NOT match)
+  must have NO documented mutation         → "!Mutation", wildtype: false  (wildtype and untested patients match)
+This last row is the standard way to write a mutation exclusion ("no known KRAS mutation",
+exclusion source "known KRAS mutation", "KRAS wild-type or untested"). Never write "!Mutation"
+without wildtype: false — that also drops patients with a documented wildtype result.
+Copy number and fusions have no "!" form — never "!" on "Copy Number Variation" or
+"Structural Variation". They still carry wildtype:
+  CNV present            → "Copy Number Variation", wildtype: false (add cnv_call only when the text says which)
+  CNV documented absent  → "Copy Number Variation", wildtype: true
+  fusion present         → "Structural Variation",  wildtype: false (partner may be unknown)
+  fusion documented absent → "Structural Variation", wildtype: true
+MSI and MMR are the exception: use ms_status / mmr_status only, with no variant_category and
+no wildtype. Never put "!" on any field other than variant_category "!Mutation".
 If the text mentions no expressible genomic requirement, "node" is null. TMB, HRD, IHC/protein
 expression (HER2 IHC 3+, PD-L1, ER/PR) and anything else without a key above → node null, but log it in refs.
 
@@ -182,16 +194,16 @@ EXAMPLES
    "refs": [{"biomarker": "BRAF", "type": "snv", "reference": "BRAF V600E mutation", "origin": "somatic"}]}
 
 Source: exclusion — "Known KRAS mutation"
-→ {"node": {"genomic": {"hugo_symbol": "KRAS", "variant_category": "Mutation", "wildtype": true}},
+→ {"node": {"genomic": {"hugo_symbol": "KRAS", "variant_category": "!Mutation", "wildtype": false}},
    "refs": [{"biomarker": "KRAS", "type": "snv", "reference": "KRAS mutation", "origin": "unknown"}]}
 
-"Tumor must be KRAS wildtype"
-→ {"node": {"genomic": {"hugo_symbol": "KRAS", "variant_category": "Mutation", "wildtype": true}},
-   "refs": [{"biomarker": "KRAS", "type": "snv", "reference": "KRAS wildtype", "origin": "somatic"}]}
+"No documented KRAS mutation (wild-type or not tested)"
+→ {"node": {"genomic": {"hugo_symbol": "KRAS", "variant_category": "!Mutation", "wildtype": false}},
+   "refs": [{"biomarker": "KRAS", "type": "snv", "reference": "No documented KRAS mutation", "origin": "unknown"}]}
 
-"Must not be BRCA2 wildtype"
-→ {"node": {"genomic": {"hugo_symbol": "BRCA2", "variant_category": "Mutation", "wildtype": false}},
-   "refs": [{"biomarker": "BRCA2", "type": "snv", "reference": "not be BRCA2 wildtype", "origin": "unknown"}]}
+"Tumor must be confirmed KRAS wild-type by NGS"
+→ {"node": {"genomic": {"hugo_symbol": "KRAS", "variant_category": "Mutation", "wildtype": true}},
+   "refs": [{"biomarker": "KRAS", "type": "snv", "reference": "KRAS wild-type", "origin": "somatic"}]}
 
 "Deleterious germline BRCA1 or BRCA2 mutation"
 → {"node": {"or": [{"genomic": {"hugo_symbol": "BRCA1", "variant_category": "Mutation", "wildtype": false}},
@@ -207,14 +219,18 @@ Source: exclusion — "Known KRAS mutation"
 → {"node": {"genomic": {"hugo_symbol": "MYCN", "variant_category": "Copy Number Variation", "cnv_call": "High Amplification", "wildtype": false}},
    "refs": [{"biomarker": "MYCN", "type": "cnv", "reference": "MYCN amplification", "origin": "unknown"}]}
 
+"ALK rearrangement"
+→ {"node": {"genomic": {"hugo_symbol": "ALK", "variant_category": "Structural Variation", "wildtype": false}},
+   "refs": [{"biomarker": "ALK", "type": "fusion", "reference": "ALK rearrangement", "origin": "unknown"}]}
+
 "Microsatellite instability-high (MSI-H) or mismatch repair deficient (dMMR) tumors"
 → {"node": {"or": [{"genomic": {"ms_status": "MSI-H"}}, {"genomic": {"mmr_status": "MMR-Deficient"}}]},
    "refs": [{"biomarker": "MSI", "type": "msi", "reference": "MSI-H", "origin": "somatic"},
             {"biomarker": "MMR", "type": "mmr", "reference": "dMMR", "origin": "somatic"}]}
 
-"ALK rearrangement"
-→ {"node": {"genomic": {"hugo_symbol": "ALK", "variant_category": "Structural Variation", "wildtype": false}},
-   "refs": [{"biomarker": "ALK", "type": "fusion", "reference": "ALK rearrangement", "origin": "unknown"}]}
+"Microsatellite stable (MSS) colorectal cancer"
+→ {"node": {"genomic": {"ms_status": "MSS"}},
+   "refs": [{"biomarker": "MSI", "type": "msi", "reference": "Microsatellite stable (MSS)", "origin": "somatic"}]}
 
 "TMB >= 10 mut/Mb"
 → {"node": null, "refs": [{"biomarker": "TMB", "type": "tmb", "reference": "TMB >= 10 mut/Mb", "origin": "somatic"}]}
