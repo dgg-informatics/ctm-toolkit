@@ -151,6 +151,7 @@ def test_pre_curate_runs_the_four_stages():
         "ctm-mm trials-diff",
         "ctm-llm clinical",
         "ctm-llm genomic",
+        "ctm-llm autofill-ctml",
     ]
 
 
