@@ -1,10 +1,10 @@
-"""LLM-assisted translation of eligibility free text → CTML match nodes.
+"""Shared helpers for the LLM curation stages.
 
-Uses an OpenAI-compatible API (UMGPT) to suggest CTML match nodes for each
-eligibility criterion. Results are cached by MD5 hash of the criterion text
-so unchanged criteria never re-hit the API.
-
-Cache file: ~/.cache/ctm/.ctml_cache.json (override with --cache or CTM_CACHE_DIR)
+The drafting itself lives in ``clinical_ctml`` (``ctm-llm clinical``) and
+``genomic_ctml`` (``ctm-llm genomic``). This module keeps what they, and
+other code, share: the UMGPT client, the OncoTree name list and clinical-node
+validation, content-filter detection, criterion text, JSON caches keyed by MD5,
+and the ``conditions`` record.
 """
 import hashlib
 import json
@@ -13,102 +13,7 @@ import os
 import urllib.request
 from pathlib import Path
 
-from ..paths import cache_path
-
 log = logging.getLogger(__name__)
-
-DEFAULT_CACHE_NAME = ".ctml_cache.json"
-
-
-def default_cache_path() -> Path:
-    """Resolved lazily so CTM_CACHE_DIR / XDG_CACHE_HOME are honoured at call time."""
-    return cache_path(DEFAULT_CACHE_NAME)
-
-SYSTEM_PROMPT = """You are a clinical trial eligibility translator for MatchMiner.
-
-Given a free-text eligibility criterion, output a MatchMiner CTML match node as JSON.
-Only return null if the criterion truly cannot be expressed with the available fields
-(e.g. prior treatment history, lab values with age-dependent thresholds, consent language,
-administrative requirements, or enrollment at specific institutions).
-
-If a criterion is partially expressible, output the expressible portion and ignore the rest.
-For example, "Patients must have B-ALL with >= 5% blasts" — the blast percentage cannot be
-expressed, but the diagnosis can: output {"clinical": {"oncotree_primary_diagnosis": "B-Lymphoblastic Leukemia/Lymphoma"}}.
-
-Available fields:
-  clinical:
-    age_numerical       - numeric comparison string: ">=18", "<11", ">=11"
-    oncotree_primary_diagnosis - OncoTree cancer type name (parent matches all children)
-    gender              - "Male" or "Female"
-    ecog_score          - numeric comparison string: "<=2", "<=3"
-  genomic:
-    hugo_symbol         - HUGO gene symbol: "EGFR", "BRAF", "TP53"
-    variant_category    - "MUTATION", "CNV", "SV", "SIGNATURE", "WT"
-    mmr_status          - "Deficient (MMR-D / MSI-H)" or "Proficient (MMR-P / MSS)"
-    variant_classification - e.g. "Missense_Mutation", "Nonsense_Mutation"
-
-If the source is "exclusion", prefix clinical field values with "!" to negate the match.
-The "!" negation applies ONLY to clinical fields (oncotree_primary_diagnosis, gender, ecog_score, age_numerical).
-Do NOT apply "!" to genomic fields — if the exclusion criterion is genomic-only, return null.
-  e.g. exclusion diagnosis → {"clinical": {"oncotree_primary_diagnosis": "!Lung"}}
-  e.g. exclusion gender    → {"clinical": {"gender": "!Female"}}
-  e.g. exclusion list      → {"and": [{"clinical": {"oncotree_primary_diagnosis": "!Dysgerminoma"}},
-                                       {"clinical": {"oncotree_primary_diagnosis": "!Seminoma"}}]}
-
-Output format — return ONLY valid JSON, no explanation:
-  Single clinical node:  {"clinical": {"age_numerical": ">=18"}}
-  Single genomic node:   {"genomic": {"hugo_symbol": "EGFR", "variant_category": "MUTATION"}}
-  AND of nodes:          {"and": [{"clinical": {...}}, {"genomic": {...}}]}
-  OR of nodes:           {"or": [{"clinical": {...}}, {"clinical": {...}}]}
-  Cannot express:        null
-
-Examples:
-  "Patients must be >= 18 years of age"
-  → {"clinical": {"age_numerical": ">=18"}}
-
-  "ECOG performance status 0, 1, or 2"
-  → {"clinical": {"ecog_score": "<=2"}}
-
-  "ECOG performance status 0, 1, 2, or 3"
-  → {"clinical": {"ecog_score": "<=3"}}
-
-  "Patients must have a diagnosis of acute lymphoblastic leukemia"
-  → {"clinical": {"oncotree_primary_diagnosis": "Acute Lymphoblastic Leukemia"}}
-
-  "Patients must have B-ALL or B lymphoblastic lymphoma"
-  → {"clinical": {"oncotree_primary_diagnosis": "B-Lymphoblastic Leukemia/Lymphoma"}}
-
-  "EGFR mutation required"
-  → {"genomic": {"hugo_symbol": "EGFR", "variant_category": "MUTATION"}}
-
-  "Female patients only"
-  → {"clinical": {"gender": "Female"}}
-
-  "Age >= 11 and < 25"
-  → {"and": [{"clinical": {"age_numerical": ">=11"}}, {"clinical": {"age_numerical": "<25"}}]}
-
-  Source: exclusion
-  "Prior CNS tumor including:
-    Primary CNS germ cell tumor
-    Spermatocytic seminoma"
-  → {"and": [{"clinical": {"oncotree_primary_diagnosis": "!Germ Cell Tumor, Brain"}},
-              {"clinical": {"oncotree_primary_diagnosis": "!Seminoma"}}]}
-
-  "Histologically confirmed non-seminoma or seminoma, or AFP >= 1000 ng/mL without histologic confirmation"
-  → {"or": [{"clinical": {"oncotree_primary_diagnosis": "Non-Seminomatous Germ Cell Tumor"}},
-             {"clinical": {"oncotree_primary_diagnosis": "Seminoma"}}]}
-
-  "Newly diagnosed de novo AML per 2016 WHO classification with or without extramedullary disease; patient must have 1 of the following:"
-  → {"clinical": {"oncotree_primary_diagnosis": "Acute Myeloid Leukemia"}}
-
-  "Prior treatment with cisplatin required"
-  → null
-
-  "Serum creatinine based on age/gender table"
-  → null
-
-  "Able to speak English"
-  → null"""
 
 
 def _cache_key(text: str) -> str:
@@ -146,15 +51,13 @@ def _validate_node(node: dict | None, valid: set[str]) -> dict | None:
     return node
 
 
-def load_cache(path: Path | None = None) -> dict:
-    path = path or default_cache_path()
+def load_cache(path: Path) -> dict:
     if path.exists():
         return json.loads(path.read_text())
     return {}
 
 
-def save_cache(cache: dict, path: Path | None = None) -> None:
-    path = path or default_cache_path()
+def save_cache(cache: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(cache, indent=2))
 
@@ -169,47 +72,6 @@ def is_content_filter(exc: Exception) -> bool:
     the [llm] extra.
     """
     return getattr(exc, "code", None) == "content_filter" or "content_filter" in str(exc)
-
-
-def suggest_node(text: str, source: str, cache: dict, client, valid_oncotree: set[str]) -> dict | None:
-
-    key = _cache_key(f"{source}:{text}")
-    if key in cache:
-        return cache[key]
-
-    model = os.environ.get("UMGPT_MODEL", "gpt-4o")
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Source: {source}\nCriterion: {text}"},
-            ],
-            temperature=0,
-            max_tokens=300,
-        )
-    except Exception as exc:
-        if not is_content_filter(exc):
-            raise
-        # Filtered: no suggestion for this criterion, which is exactly the
-        # suggested_node=None a curator resolves by hand. Cache it so an identical
-        # criterion elsewhere does not re-trigger the same paid-for error.
-        log.warning("  content filter — no suggestion for %s criterion: %r",
-                    source, text[:80],
-                    extra={"event": "llm.content_filter", "criterion_source": source,
-                           "stage": "general"})
-        cache[key] = None
-        return None
-
-    raw = response.choices[0].message.content.strip()
-    try:
-        result = json.loads(raw)
-    except json.JSONDecodeError:
-        result = None
-
-    result = _validate_node(result, valid_oncotree)
-    cache[key] = result
-    return result
 
 
 def build_client():
@@ -242,60 +104,6 @@ def _criterion_full_text(criterion: dict, depth: int = 0) -> str:
     return "\n".join(lines)
 
 
-def criterion_suggestions(trial: dict, cache: dict, client, valid_oncotree: set[str]) -> list[dict]:
-    """One suggestion per top-level eligibility criterion, in document order."""
-    # One item per top-level criterion; sub_criteria are included in the text
-    items = []
-    for source in ("inclusion", "exclusion"):
-        for criterion in trial.get("eligibility", {}).get(source, []):
-            items.append((source, _criterion_full_text(criterion)))
-
-    total = len(items)
-    milestones = {int(total * p) for p in (0.25, 0.50, 0.75, 1.0)} - {0}
-    suggestions = []
-
-    for i, (source, text) in enumerate(items, 1):
-        node = suggest_node(text, source, cache, client, valid_oncotree)
-        suggestions.append({"source": source, "text": text, "suggested_node": node, "transferred_to_match": False})
-        if i in milestones:
-            pct = int(i / total * 100)
-            cached = sum(1 for s, t in items[:i] if _cache_key(f"{s}:{t}") in cache)
-            log.info("  %d%% (%d/%d, %d cached)", pct, i, total, cached,
-                     extra={"event": "llm.progress", "percent": pct, "done": i,
-                            "total": total, "cached": cached, "stage": "general"})
-
-    return suggestions
-
-
-def title_suggestion(trial: dict, cache: dict, client, valid_oncotree: set[str]) -> dict | None:
-    """A suggestion drafted from ``_summary.long_title``, or None if absent.
-
-    Same prompt and same output shape as a criterion suggestion — the title is
-    just another piece of text that can state a requirement, and sometimes states
-    one the criteria never restate ("...in Patients with a Pathogenic BRCA1,
-    BRCA2 or PALB2 Mutation"). It lived in the biomarker stage until the CLI was
-    partitioned, which put a match-node call in the collection named for
-    biomarkers.
-    """
-    long_title = (trial.get("_summary") or {}).get("long_title")
-    if not long_title:
-        return None
-    return {
-        "source": "summary",
-        "text": long_title,
-        "suggested_node": suggest_node(long_title, "summary", cache, client, valid_oncotree),
-        "transferred_to_match": False,
-    }
-
-
-def _with_suggestions(trial: dict, suggestions: list[dict]) -> dict:
-    drafted = {k: v for k, v in trial.items() if k != "_ctml_suggestions"}
-    curation = dict(drafted.get("_llm_curation") or {})
-    curation["_ctml_suggestions"] = suggestions
-    drafted["_llm_curation"] = curation
-    return drafted
-
-
 def conditions_suggestion(trial: dict) -> dict | None:
     """Record of the diagnosis the CTGov transform derived from ``_raw.conditions``.
 
@@ -318,50 +126,3 @@ def conditions_suggestion(trial: dict) -> dict | None:
         "mapping_source": "keyword",
     }
 
-
-DIAGNOSIS_SOURCES = ("conditions", "disease_site")
-
-
-def draft_diagnosis_only(trial: dict, client, valid_oncotree: set[str],
-                         reviewed: dict, site_drafts: dict) -> dict:
-    """Replace only the ``conditions`` and ``disease_site`` suggestions; keep the rest.
-
-    For back-filling onto trials that were already drafted (and possibly
-    curated): no criterion or title calls are made, and existing
-    ``transferred_to_match`` flags on other suggestions survive.
-    """
-    from .disease_site_to_oncotree import site_suggestion
-    existing = (trial.get("_llm_curation") or {}).get("_ctml_suggestions") or []
-    kept = [s for s in existing if s.get("source") not in DIAGNOSIS_SOURCES]
-    added = [conditions_suggestion(trial),
-             site_suggestion(trial, reviewed, site_drafts, client, valid_oncotree)]
-    return _with_suggestions(trial, kept + [s for s in added if s])
-
-
-def draft_trial(trial: dict, cache: dict, client, valid_oncotree: set[str],
-                reviewed: dict | None = None, site_drafts: dict | None = None) -> dict:
-    """Every match-node suggestion for one trial, under ``_llm_curation``.
-
-    This is the whole of the `ctm-llm general` job: criterion suggestions plus the
-    title suggestion, which share a prompt and an output shape, plus one
-    ``conditions`` record and one ``disease_site`` suggestion (see
-    disease_site_to_oncotree). Written straight
-    to ``_llm_curation._ctml_suggestions`` rather than to a top-level
-    ``_ctml_suggestions`` that a later stage has to relocate.
-
-    Merges into any existing ``_llm_curation`` instead of replacing it, so running
-    this after the biomarker stage does not discard ``biomarker_references``.
-    """
-    from .disease_site_to_oncotree import site_suggestion
-    suggestions = criterion_suggestions(trial, cache, client, valid_oncotree)
-    title = title_suggestion(trial, cache, client, valid_oncotree)
-    if title:
-        suggestions.append(title)
-    conditions = conditions_suggestion(trial)
-    if conditions:
-        suggestions.append(conditions)
-    site = site_suggestion(trial, reviewed or {}, site_drafts if site_drafts is not None else {},
-                           client, valid_oncotree)
-    if site:
-        suggestions.append(site)
-    return _with_suggestions(trial, suggestions)

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from ctm.transformers import disease_site_to_oncotree as dsm
-from ctm.transformers.eligibility_to_ctml import draft_diagnosis_only, draft_trial
+from ctm.transformers.clinical_ctml import draft_clinical
 
 VALID = {"Colon", "Melanoma", "Lymphoid", "Breast"}
 
@@ -104,28 +104,6 @@ def test_no_disease_site_means_no_suggestion():
     assert dsm.site_suggestion({}, {}, {}, _Client(), VALID) is None
 
 
-def test_draft_trial_adds_the_site_suggestion_alongside_others():
-    client = _Client({"Colon": '{"oncotree": "Colon", "type": "solid"}'})
-    result = draft_trial(_amc("Colon"), cache={}, client=client, valid_oncotree=VALID)
-    sources = [s["source"] for s in result["_llm_curation"]["_ctml_suggestions"]]
-    assert sources == ["disease_site"]
-
-
-def test_disease_site_only_keeps_other_suggestions_and_their_flags():
-    kept = {"source": "inclusion", "text": "x", "suggested_node": None, "transferred_to_match": True}
-    stale = {"source": "disease_site", "text": "old", "suggested_node": None}
-    trial = _amc("Colon", _llm_curation={"_ctml_suggestions": [kept, stale],
-                                         "biomarker_references": [{"biomarker": "BRCA1"}]})
-    reviewed = {"colon": {"oncotree": "Colon", "type": "solid"}}
-
-    result = draft_diagnosis_only(trial, _Client(), VALID, reviewed, {})
-    suggestions = result["_llm_curation"]["_ctml_suggestions"]
-
-    assert suggestions[0] == kept
-    assert [s["source"] for s in suggestions] == ["inclusion", "disease_site"]
-    assert suggestions[1]["suggested_node"] == _node("Colon")
-    assert result["_llm_curation"]["biomarker_references"] == [{"biomarker": "BRCA1"}]
-    assert trial["_llm_curation"]["_ctml_suggestions"] == [kept, stale]  # input not mutated
 
 
 def test_drafts_round_trip(tmp_path):
@@ -169,11 +147,6 @@ def test_a_reviewed_row_can_list_several_names():
     assert s["suggested_node"] == {"or": [_node("Hodgkin Lymphoma"), _node("Non-Hodgkin Lymphoma")]}
 
 
-def test_cli_exposes_disease_site_only():
-    from ctm.llm_cli import build_parser
-    args = build_parser().parse_args(["general", "--diagnosis-only"])
-    assert args.diagnosis_only is True
-
 
 # --- conditions record -------------------------------------------------------
 
@@ -204,23 +177,17 @@ def test_no_conditions_means_no_record():
     assert conditions_suggestion({}) is None
 
 
-def test_draft_trial_records_conditions_without_a_model_call():
+def test_clinical_stage_adds_the_site_entry():
+    client = _Client({"Colon": '{"oncotree": "Colon", "type": "solid"}'})
+    cur = draft_clinical(_amc("Colon"), {}, client, VALID, {}, {})["_llm_curation"]
+    site = [e for e in cur["_ctml_suggestions"] if e["source"] == "disease_site"]
+    assert len(site) == 1 and site[0]["node_type"] == "clinical"
+    assert site[0]["suggested_node"] == _node("Colon")
+
+
+def test_clinical_stage_records_conditions_without_a_model_call():
     client = _Client()
     trial = {"eligibility": {}, "_summary": {}, "_raw": {"conditions": ["Breast Cancer"]}}
-    result = draft_trial(trial, cache={}, client=client, valid_oncotree=VALID)
-    assert [s["source"] for s in result["_llm_curation"]["_ctml_suggestions"]] == ["conditions"]
+    cur = draft_clinical(trial, {}, client, VALID, {}, {})["_llm_curation"]
+    assert [e["source"] for e in cur["_ctml_suggestions"]] == ["conditions"]
     assert client.asked == []
-
-
-def test_diagnosis_only_replaces_both_records_and_keeps_the_rest():
-    kept = {"source": "inclusion", "text": "x", "suggested_node": None, "transferred_to_match": True}
-    stale = [{"source": "conditions", "text": "old"}, {"source": "disease_site", "text": "old"}]
-    trial = {"_raw": {"conditions": ["Breast Cancer"], "_ddots": {"disease_site": "Breast"}},
-             "_llm_curation": {"_ctml_suggestions": [kept, *stale]}}
-    reviewed = {"breast": {"oncotree": "Breast", "type": "solid"}}
-
-    result = draft_diagnosis_only(trial, _Client(), VALID, reviewed, {})
-    suggestions = result["_llm_curation"]["_ctml_suggestions"]
-
-    assert [s["source"] for s in suggestions] == ["inclusion", "conditions", "disease_site"]
-    assert all(s["text"] != "old" for s in suggestions)
