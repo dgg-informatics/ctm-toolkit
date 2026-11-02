@@ -28,7 +28,8 @@ from .eligibility_to_ctml import _criterion_full_text
 CLINICAL = "clinical"
 GENOMIC = "genomic"
 
-CLINICAL_SOURCES = ("inclusion", "exclusion", "summary", "conditions", "disease_site")
+CLINICAL_SOURCES = ("inclusion", "exclusion", "summary", "structured", "conditions",
+                    "amc_categories", "disease_site")
 GENOMIC_SOURCES = ("inclusion", "exclusion", "summary", "conditions", "genes_of_interest")
 
 SUGGESTIONS = "_ctml_suggestions"

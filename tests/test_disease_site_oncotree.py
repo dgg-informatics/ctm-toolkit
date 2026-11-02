@@ -161,7 +161,7 @@ def test_conditions_record_mirrors_the_transform_mapping():
     assert s["text"] == "Metastatic Breast Cancer; Melanoma"
     assert s["suggested_node"] == diagnoses_to_match_node(ctgov_conditions_to_oncotree(conditions))
     assert s["suggested_node"] is not None
-    assert s["transferred_to_match"] is True     # the transform already put it in the match tree
+    assert s["transferred_to_match"] is False    # only autofill-ctml writes the match clause
 
 
 def test_conditions_with_no_keyword_hit_are_still_recorded():

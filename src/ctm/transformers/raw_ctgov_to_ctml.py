@@ -8,8 +8,9 @@ What we can derive structurally from CTGov fields:
   - gender from sex
   - oncotree_primary_diagnosis is NOT populated (conditions are free text, not Oncotree codes)
 
-The match tree is populated with age and gender where available; genomic
-and oncotree criteria are left for manual/AI population downstream.
+The match tree is left empty: ctm-llm clinical records age, gender and the
+conditions diagnosis as entries (structured_ctml, conditions_suggestion), and
+only ctm-llm autofill-ctml writes the match clause.
 """
 import re
 
@@ -155,22 +156,6 @@ def _parse_eligibility(criteria: str | None) -> CtmlEligibility:
     return CtmlEligibility(inclusion=inclusion, exclusion=exclusion)
 
 
-def _age_match_criteria(minimum_age: str | None, gender: str | None, conditions: list[str]) -> list[dict]:
-    """Build clinical match nodes from age, gender, and conditions where available."""
-    from .oncotree_mapping import ctgov_conditions_to_oncotree, diagnoses_to_match_node
-    nodes: list[dict] = []
-    clinical: dict = {}
-    age_constraint = _parse_minimum_age(minimum_age)
-    if age_constraint:
-        clinical["age_numerical"] = age_constraint
-    if gender and gender != "All":
-        clinical["gender"] = gender
-    if clinical:
-        nodes.append({"clinical": clinical})
-    diagnosis_node = diagnoses_to_match_node(ctgov_conditions_to_oncotree(conditions))
-    if diagnosis_node:
-        nodes.append(diagnosis_node)
-    return nodes
 
 
 def _build_treatment_list(minimum_age: str | None, gender: str | None, conditions: list[str]) -> CtmlTreatmentList:
@@ -179,7 +164,7 @@ def _build_treatment_list(minimum_age: str | None, gender: str | None, condition
             step_internal_id=1,
             step_code="1",
             step_type="Registration",
-            match=_age_match_criteria(minimum_age, gender, conditions),
+            match=[],   # only ctm-llm autofill-ctml writes match clauses
             arm=[CtmlArm(
                 arm_internal_id=1,
                 arm_code="ARM 1",

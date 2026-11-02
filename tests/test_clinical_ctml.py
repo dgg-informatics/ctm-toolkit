@@ -64,7 +64,7 @@ def test_clinical_includes_conditions_and_disease_site():
     by_source = {e["source"]: e for e in cur["_ctml_suggestions"]}
     assert set(by_source) == {"conditions", "disease_site"}
     assert all(e["node_type"] == "clinical" and e["mixed"] is False for e in by_source.values())
-    assert by_source["conditions"]["transferred_to_match"] is True
+    assert by_source["conditions"]["transferred_to_match"] is False
     assert by_source["disease_site"]["mapping_source"] == "reviewed"
     assert client.call_count == 0
 
@@ -74,7 +74,8 @@ def test_clinical_parsed_sections_rows():
     trial["eligibility"]["inclusion"].append(_crit("ECOG 0-1"))
     client = QueuedClient(["null"] * 4)
     rows = _draft(trial, client)["_llm_curation"]["parsed_sections"]["clinical"]
-    assert set(rows) == {"inclusion", "exclusion", "summary", "conditions", "disease_site"}
+    assert set(rows) == {"inclusion", "exclusion", "summary", "structured", "conditions",
+                         "amc_categories", "disease_site"}
     assert rows["inclusion"] == {"found": True, "scanned": True, "pieces": 2}
     assert rows["conditions"] == {"found": False, "scanned": False, "pieces": 0}
     assert rows["disease_site"] == {"found": True, "scanned": True, "pieces": 2}
@@ -86,7 +87,7 @@ def test_clinical_empty_trial():
     assert cur["_ctml_suggestions"] == [] and cur["_null_ctml_suggestions"] == []
     assert all(r == {"found": False, "scanned": False, "pieces": 0}
                for r in cur["parsed_sections"]["clinical"].values())
-    assert len(cur["parsed_sections"]["clinical"]) == 5
+    assert len(cur["parsed_sections"]["clinical"]) == 7
     assert client.call_count == 0
 
 

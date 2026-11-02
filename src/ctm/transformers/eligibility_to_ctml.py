@@ -122,7 +122,7 @@ def conditions_suggestion(trial: dict) -> dict | None:
         "source": "conditions",
         "text": "; ".join(conditions),
         "suggested_node": diagnoses_to_match_node(diagnoses),
-        "transferred_to_match": bool(diagnoses),
+        "transferred_to_match": False,
         "mapping_source": "keyword",
     }
 

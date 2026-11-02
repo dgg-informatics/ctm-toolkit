@@ -35,6 +35,7 @@ from .llm_curation import (
     piece_texts,
     section_row,
 )
+from .structured_ctml import amc_categories_suggestion, structured_suggestion
 
 log = logging.getLogger(__name__)
 
@@ -190,10 +191,13 @@ def draft_clinical(trial: dict, cache: dict, client, valid_oncotree: set[str],
             entries.append(make_entry(source, text, node, CLINICAL))
         sections[source] = section_row(bool(texts), bool(texts), len(texts))
 
-    conditions = conditions_suggestion(trial)
-    if conditions:
-        entries.append(_as_entry(conditions))
-    sections["conditions"] = section_row(bool(conditions), bool(conditions), 1 if conditions else 0)
+    for source, suggest in (("structured", structured_suggestion),
+                            ("conditions", conditions_suggestion),
+                            ("amc_categories", amc_categories_suggestion)):
+        suggestion = suggest(trial)
+        if suggestion:
+            entries.append(_as_entry(suggestion))
+        sections[source] = section_row(bool(suggestion), bool(suggestion), 1 if suggestion else 0)
 
     site = site_suggestion(trial, reviewed, site_drafts, client, valid_oncotree)
     if site:
