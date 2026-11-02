@@ -1,7 +1,7 @@
 """ctm-llm — the pipeline's LLM-assisted curation stages.
 
 Usage:
-  ctm-llm general    --out JSON [--trials JSON] [--limit N] [--nct ID ...]
+  ctm-llm general    --out JSON [--trials JSON] [--limit N] [--nct ID ...] [--diagnosis-only]
   ctm-llm biomarkers --out JSON [--trials JSON] [--kb JSON]
 
 Two subcommands, split along what the model is actually asked to do rather than
@@ -106,6 +106,9 @@ def build_parser() -> argparse.ArgumentParser:
                            help="Process only the first N trials (for testing)")
     p_general.add_argument("--nct", default=None, metavar="ID", nargs="+",
                            help="Process only trials matching these NCT or protocol numbers")
+    p_general.add_argument("--diagnosis-only", action="store_true",
+                           help="Only (re)draft the conditions + disease_site suggestions; keep every other "
+                                "suggestion as-is and make no criterion/title calls")
 
     p_biomarkers = sub.add_parser(
         "biomarkers",
@@ -164,6 +167,7 @@ def _cmd_general(args) -> None:
     from ctm import db as ctm_db
     from ctm.transformers.eligibility_to_ctml import (
         build_client,
+        draft_diagnosis_only,
         draft_trial,
         fetch_oncotree_names,
         load_cache,
@@ -197,9 +201,16 @@ def _cmd_general(args) -> None:
     elif args.limit:
         trials = trials[:args.limit]
 
+    from ctm.transformers import disease_site_to_oncotree as site_map
     client = build_client()
     cache = load_cache(cache_file)
-    _confirm_cold_cache(cache, cache_file, args.yes)
+    site_file = site_map.default_draft_path()
+    reviewed = site_map.load_reviewed()
+    site_drafts = site_map.load_drafts(site_file)
+    if args.diagnosis_only:
+        _confirm_cold_cache({**reviewed, **site_drafts}, site_file, args.yes)
+    else:
+        _confirm_cold_cache(cache, cache_file, args.yes)
 
     log.info("Fetching OncoTree names...")
     valid_oncotree = fetch_oncotree_names()
@@ -216,9 +227,13 @@ def _cmd_general(args) -> None:
         label = trial.get("protocol_no") or trial.get("nct_id") or f"trial-{i}"
         log_event(log, "llm.trial", "[%d/%d] %s", i + 1, len(trials), label,
                   trial=label, index=i + 1, total=len(trials), stage="general")
-        drafted = draft_trial(trial, cache, client, valid_oncotree)
+        if args.diagnosis_only:
+            drafted = draft_diagnosis_only(trial, client, valid_oncotree, reviewed, site_drafts)
+        else:
+            drafted = draft_trial(trial, cache, client, valid_oncotree, reviewed, site_drafts)
+            save_cache(cache, cache_file)  # after each trial so progress survives interruption
+        site_map.save_drafts(site_drafts, site_file)
         results.append(drafted)
-        save_cache(cache, cache_file)  # after each trial so progress survives interruption
         # Stored per trial for the same reason: this stage costs a model call per
         # criterion, so an interruption must not discard trials already paid for.
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm general", run_date),

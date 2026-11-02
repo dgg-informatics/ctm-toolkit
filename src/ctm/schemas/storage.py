@@ -57,7 +57,8 @@ class StorageMetadata(BaseModel):
 class CtmlSuggestion(BaseModel):
     """One match-node suggestion under ``_llm_curation._ctml_suggestions``.
 
-    Written by ``ctm-llm general`` (per criterion and from the title). ``extra``
+    Written by ``ctm-llm general``: per criterion, from the title, a ``conditions``
+    record and a ``disease_site`` suggestion. ``extra``
     is allowed: the body can legitimately grow, and this only guards the fields
     downstream reads.
     """
