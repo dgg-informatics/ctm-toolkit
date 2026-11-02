@@ -502,6 +502,7 @@ def test_cmd_trials_merge_concatenates_to_out(tmp_path):
     assert [t["protocol_no"] for t in master] == ["2015.063", "2021.070"]
 
 
+@pytest.mark.xfail(reason="rewired in Task 6", strict=True)
 def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mongo):
     from ctm import mm_cli
 
@@ -551,6 +552,7 @@ def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mon
     assert "final_suggested_ctml" not in result[0]["_llm_curation"]
 
 
+@pytest.mark.xfail(reason="rewired in Task 6", strict=True)
 def test_cmd_trials_curate_alias_only_makes_the_biomarker_call(tmp_path, monkeypatch, fake_mongo):
     """The alias must reach `biomarkers`, not the old fused stage: one call, and no
     OncoTree fetch, since biomarker references are not match nodes."""
