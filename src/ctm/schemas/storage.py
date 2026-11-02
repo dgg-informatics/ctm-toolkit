@@ -55,12 +55,14 @@ class StorageMetadata(BaseModel):
 
 
 class CtmlSuggestion(BaseModel):
-    """One match-node suggestion under ``_llm_curation._ctml_suggestions``.
+    """One match-node suggestion under ``_llm_curation._ctml_suggestions`` (or,
+    when ``suggested_node`` is null, ``_null_ctml_suggestions``).
 
-    Written by ``ctm-llm general``: per criterion, from the title, a ``conditions``
-    record and a ``disease_site`` suggestion. ``extra``
-    is allowed: the body can legitimately grow, and this only guards the fields
-    downstream reads.
+    Written by ``ctm-llm clinical`` and ``ctm-llm genomic``, one per piece of
+    text, tagged ``node_type``. ``node_type`` is None only on legacy entries
+    written before 2.4.0. ``extra`` is allowed: the body can legitimately grow
+    (e.g. ``mapping_source``, ``site_mappings``), and this only guards the
+    fields downstream reads.
     """
     model_config = ConfigDict(extra='allow')
 
@@ -68,35 +70,53 @@ class CtmlSuggestion(BaseModel):
     text: str
     suggested_node: dict | None = None
     transferred_to_match: bool = False
+    node_type: Literal["clinical", "genomic"] | None = None
+    mixed: bool = False
 
 
-class BiomarkerReference(BaseModel):
-    """One hit under ``_llm_curation.biomarker_references``, from ``ctm-llm biomarkers``."""
+class MolecularGenomicRef(BaseModel):
+    """One hit under ``_llm_curation.molecular_genomic_refs``, from ``ctm-llm genomic``.
+
+    A wider net than genomic match nodes: anything molecular the trial asks
+    for, including what genomic CTML can't express yet. ``section`` is the
+    ``source`` of the piece the hit came from; ``origin`` says whether the trial
+    asks for a germline or somatic alteration.
+    """
     model_config = ConfigDict(extra='allow')
 
     trial_nct: str
     reference: str
     biomarker: str
     type: str
-    section: str = "eligibility"
+    section: str
     in_kb: bool = False
+    origin: Literal["germline", "somatic", "unknown"] = "unknown"
+
+
+# Pre-2.4.0 name, kept so existing imports keep working.
+BiomarkerReference = MolecularGenomicRef
 
 
 class LlmCuration(BaseModel):
     """The _llm_curation sub-document the two LLM stages build.
 
-    Each stage owns exactly one key and merges rather than rebuilds, so both are
-    optional: ``general`` writes ``_ctml_suggestions`` before ``biomarkers`` adds
-    ``biomarker_references``, and either may be validated mid-chain.
+    Each stage writes only its own ``node_type`` entries, its own
+    ``parsed_sections`` key and (genomic only) ``molecular_genomic_refs``, and
+    merges rather than rebuilds, so every field is optional and either stage may
+    be validated mid-chain. Legacy keys (``biomarker_references``,
+    ``final_suggested_ctml``) are accepted as stored until the 3.0.0 migration.
 
-    The stored key ``_ctml_suggestions`` has a leading underscore, which Pydantic
-    treats as a private attribute, so the field is named ``ctml_suggestions`` and
-    aliased. ``populate_by_name`` lets it validate from either spelling.
+    Stored keys with a leading underscore are private attributes to Pydantic,
+    so those fields are aliased. ``populate_by_name`` lets them validate from
+    either spelling.
     """
     model_config = ConfigDict(extra='allow', populate_by_name=True)
 
     ctml_suggestions: list[CtmlSuggestion] = Field(default=[], alias="_ctml_suggestions")
-    biomarker_references: list[BiomarkerReference] = []
+    null_ctml_suggestions: list[CtmlSuggestion] = Field(default=[], alias="_null_ctml_suggestions")
+    molecular_genomic_refs: list[MolecularGenomicRef] = []
+    biomarker_references: list[dict] = []   # legacy, unvalidated
+    parsed_sections: dict[str, dict[str, dict]] = {}
 
 
 class CurationProvenance(BaseModel):

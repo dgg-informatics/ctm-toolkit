@@ -158,3 +158,58 @@ def test_stamp_does_not_alter_the_document_it_validates():
 
     # Every original key survives, including the legacy one the model ignores.
     assert stamped["_llm_curation"]["final_suggested_ctml"] == [{"clinical": {}}]
+
+
+# ── 2.4.0 clinical/genomic shape ─────────────────────────────────────────────
+
+def test_llm_curation_accepts_new_shape():
+    from ctm.schemas.storage import LlmCuration
+
+    entry = {"source": "inclusion", "text": "HER2+ breast", "suggested_node": {"clinical": {}},
+             "transferred_to_match": False, "node_type": "clinical", "mixed": True}
+    null = {**entry, "suggested_node": None, "node_type": "genomic", "mixed": False}
+    ref = {"trial_nct": "NCT1", "reference": "HER2+", "biomarker": "ERBB2", "type": "ihc",
+           "section": "inclusion", "in_kb": True, "origin": "somatic"}
+    curation = LlmCuration.model_validate({
+        "_ctml_suggestions": [entry], "_null_ctml_suggestions": [null],
+        "molecular_genomic_refs": [ref],
+        "parsed_sections": {"clinical": {"inclusion": {"found": True, "scanned": True, "pieces": 2}}},
+    })
+    assert curation.ctml_suggestions[0].node_type == "clinical"
+    assert curation.ctml_suggestions[0].mixed is True
+    dumped = curation.model_dump(by_alias=True)
+    assert dumped["_null_ctml_suggestions"][0]["node_type"] == "genomic"
+    assert dumped["molecular_genomic_refs"][0]["origin"] == "somatic"
+    assert dumped["parsed_sections"]["clinical"]["inclusion"]["pieces"] == 2
+
+    with pytest.raises(ValidationError):   # node_type is clinical | genomic only
+        LlmCuration.model_validate({"_ctml_suggestions": [{**entry, "node_type": "other"}]})
+    with pytest.raises(ValidationError):   # null entries are validated like the others
+        LlmCuration.model_validate({"_null_ctml_suggestions": [{"source": "x"}]})
+    with pytest.raises(ValidationError):   # refs require section
+        LlmCuration.model_validate({"molecular_genomic_refs": [
+            {k: v for k, v in ref.items() if k != "section"}]})
+
+
+def test_molecular_ref_origin():
+    from ctm.schemas.storage import MolecularGenomicRef
+
+    base = {"trial_nct": "NCT1", "reference": "r", "biomarker": "B", "type": "snv",
+            "section": "inclusion"}
+    assert MolecularGenomicRef.model_validate(base).origin == "unknown"
+    for origin in ("germline", "somatic"):
+        assert MolecularGenomicRef.model_validate({**base, "origin": origin}).origin == origin
+    with pytest.raises(ValidationError):
+        MolecularGenomicRef.model_validate({**base, "origin": "maybe"})
+
+
+def test_llm_curation_still_accepts_legacy_shape():
+    from ctm.schemas.storage import LlmCuration
+
+    curation = LlmCuration.model_validate({
+        "_ctml_suggestions": [{"source": "inclusion", "text": "Age >= 18",
+                               "suggested_node": {"clinical": {"age_numerical": ">=18"}}}],
+        "biomarker_references": [{"biomarker": "BRCA1", "section": "titles"}],
+        "final_suggested_ctml": [{"clinical": {}}],
+    })
+    assert curation.ctml_suggestions[0].node_type is None
