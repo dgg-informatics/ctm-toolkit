@@ -288,24 +288,80 @@ def title_suggestion(trial: dict, cache: dict, client, valid_oncotree: set[str])
     }
 
 
-def draft_trial(trial: dict, cache: dict, client, valid_oncotree: set[str]) -> dict:
+def _with_suggestions(trial: dict, suggestions: list[dict]) -> dict:
+    drafted = {k: v for k, v in trial.items() if k != "_ctml_suggestions"}
+    curation = dict(drafted.get("_llm_curation") or {})
+    curation["_ctml_suggestions"] = suggestions
+    drafted["_llm_curation"] = curation
+    return drafted
+
+
+def conditions_suggestion(trial: dict) -> dict | None:
+    """Record of the diagnosis the CTGov transform derived from ``_raw.conditions``.
+
+    ``raw_ctgov_to_ctml`` keyword-maps conditions straight into the match tree at
+    build time (Sparrow, West, DDOTS — AMC has no conditions). That node never
+    appeared in the suggestions, so a curator could not see where it came from.
+    This re-runs the same deterministic mapping — no model call — and is marked
+    ``transferred_to_match: True`` because the transform already put it there.
+    """
+    from .oncotree_mapping import ctgov_conditions_to_oncotree, diagnoses_to_match_node
+    conditions = [c for c in (trial.get("_raw") or {}).get("conditions") or [] if c]
+    if not conditions:
+        return None
+    diagnoses = ctgov_conditions_to_oncotree(conditions)
+    return {
+        "source": "conditions",
+        "text": "; ".join(conditions),
+        "suggested_node": diagnoses_to_match_node(diagnoses),
+        "transferred_to_match": bool(diagnoses),
+        "mapping_source": "keyword",
+    }
+
+
+DIAGNOSIS_SOURCES = ("conditions", "disease_site")
+
+
+def draft_diagnosis_only(trial: dict, client, valid_oncotree: set[str],
+                         reviewed: dict, site_drafts: dict) -> dict:
+    """Replace only the ``conditions`` and ``disease_site`` suggestions; keep the rest.
+
+    For back-filling onto trials that were already drafted (and possibly
+    curated): no criterion or title calls are made, and existing
+    ``transferred_to_match`` flags on other suggestions survive.
+    """
+    from .disease_site_to_oncotree import site_suggestion
+    existing = (trial.get("_llm_curation") or {}).get("_ctml_suggestions") or []
+    kept = [s for s in existing if s.get("source") not in DIAGNOSIS_SOURCES]
+    added = [conditions_suggestion(trial),
+             site_suggestion(trial, reviewed, site_drafts, client, valid_oncotree)]
+    return _with_suggestions(trial, kept + [s for s in added if s])
+
+
+def draft_trial(trial: dict, cache: dict, client, valid_oncotree: set[str],
+                reviewed: dict | None = None, site_drafts: dict | None = None) -> dict:
     """Every match-node suggestion for one trial, under ``_llm_curation``.
 
     This is the whole of the `ctm-llm general` job: criterion suggestions plus the
-    title suggestion, which share a prompt and an output shape. Written straight
+    title suggestion, which share a prompt and an output shape, plus one
+    ``conditions`` record and one ``disease_site`` suggestion (see
+    disease_site_to_oncotree). Written straight
     to ``_llm_curation._ctml_suggestions`` rather than to a top-level
     ``_ctml_suggestions`` that a later stage has to relocate.
 
     Merges into any existing ``_llm_curation`` instead of replacing it, so running
     this after the biomarker stage does not discard ``biomarker_references``.
     """
+    from .disease_site_to_oncotree import site_suggestion
     suggestions = criterion_suggestions(trial, cache, client, valid_oncotree)
     title = title_suggestion(trial, cache, client, valid_oncotree)
     if title:
         suggestions.append(title)
-
-    drafted = {k: v for k, v in trial.items() if k != "_ctml_suggestions"}
-    curation = dict(drafted.get("_llm_curation") or {})
-    curation["_ctml_suggestions"] = suggestions
-    drafted["_llm_curation"] = curation
-    return drafted
+    conditions = conditions_suggestion(trial)
+    if conditions:
+        suggestions.append(conditions)
+    site = site_suggestion(trial, reviewed or {}, site_drafts if site_drafts is not None else {},
+                           client, valid_oncotree)
+    if site:
+        suggestions.append(site)
+    return _with_suggestions(trial, suggestions)
