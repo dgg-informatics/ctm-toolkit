@@ -152,6 +152,8 @@ def test_genomic_prompt_documents_the_wildtype_table():
     for term in ('"!Mutation"', "untested", "never \"!\"", "ms_status", "no wildtype"):
         assert term in GENOMIC_SYSTEM_PROMPT, term
     assert "no documented mutation" in GENOMIC_SYSTEM_PROMPT.lower()
+    assert '"Structural Variation", wildtype: true' not in GENOMIC_SYSTEM_PROMPT
+    assert "fusion is absent" in GENOMIC_SYSTEM_PROMPT
     assert '"!Mutation", wildtype: false' in GENOMIC_SYSTEM_PROMPT
 
 

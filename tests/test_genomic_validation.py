@@ -135,3 +135,12 @@ def test_missing_wildtype_defaults_false_on_every_source():
         for category in ("Mutation", "!Mutation", "Copy Number Variation", "Structural Variation"):
             out = validate_genomic_node(g(hugo_symbol="KRAS", variant_category=category), source=source)
             assert out["genomic"]["wildtype"] is False
+
+
+def test_sv_wildtype_true_drops_the_leaf():
+    """Patient SV docs exist only for detected fusions and matchengine's SV query
+    ignores WILDTYPE, so "fusion documented absent" would match fusion-positive patients."""
+    assert validate_genomic_node(g(hugo_symbol="ALK", variant_category="Structural Variation",
+                                   wildtype=True)) is None
+    present = g(hugo_symbol="ALK", variant_category="Structural Variation", wildtype=False)
+    assert validate_genomic_node(present) == present

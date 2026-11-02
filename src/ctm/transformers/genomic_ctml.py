@@ -95,6 +95,12 @@ def _validate_leaf(fields, source: str | None) -> dict | None:
         # leaves (ms_status / mmr_status) never carry it.
         _drop("wildtype without variant_category", field="wildtype")
         return None
+    if fields.get("variant_category") == "Structural Variation" and fields.get("wildtype") is True:
+        # Patient SV docs exist only for detected fusions (to_matchminer skips
+        # wildtype=TRUE SV rows) and matchengine's SV query ignores WILDTYPE, so
+        # "fusion documented absent" would match fusion-positive patients.
+        _drop("Structural Variation with wildtype true", field="wildtype")
+        return None
     kept = dict(fields)
     if "variant_category" in kept and "wildtype" not in kept:
         # Every Mutation / !Mutation / CNV / SV node carries wildtype. false is
@@ -161,7 +167,8 @@ Copy number and fusions have no "!" form — never "!" on "Copy Number Variation
   CNV present            → "Copy Number Variation", wildtype: false (add cnv_call only when the text says which)
   CNV documented absent  → "Copy Number Variation", wildtype: true
   fusion present         → "Structural Variation",  wildtype: false (partner may be unknown)
-  fusion documented absent → "Structural Variation", wildtype: true
+  Fusions only ever take wildtype: false. There is no way to express that a fusion is absent
+  ("no ALK rearrangement"): set "node" to null and log the fusion in refs.
 MSI and MMR are the exception: use ms_status / mmr_status only, with no variant_category and
 no wildtype. Never put "!" on any field other than variant_category "!Mutation".
 If the text mentions no expressible genomic requirement, "node" is null. TMB, HRD, IHC/protein
@@ -222,6 +229,9 @@ Source: exclusion — "Known KRAS mutation"
 "ALK rearrangement"
 → {"node": {"genomic": {"hugo_symbol": "ALK", "variant_category": "Structural Variation", "wildtype": false}},
    "refs": [{"biomarker": "ALK", "type": "fusion", "reference": "ALK rearrangement", "origin": "unknown"}]}
+
+Source: exclusion — "Known ALK rearrangement"
+→ {"node": null, "refs": [{"biomarker": "ALK", "type": "fusion", "reference": "ALK rearrangement", "origin": "unknown"}]}
 
 "Microsatellite instability-high (MSI-H) or mismatch repair deficient (dMMR) tumors"
 → {"node": {"or": [{"genomic": {"ms_status": "MSI-H"}}, {"genomic": {"mmr_status": "MMR-Deficient"}}]},
