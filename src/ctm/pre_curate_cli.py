@@ -1,7 +1,7 @@
 """ctm-pre-curate — the weekly trial refresh, up to the point a human is needed.
 
-Four stages: pull the sources, diff against the master, draft match nodes, scan
-for biomarkers. The output is a file in ``LLM_BIOMARKER_EXPORT_DIR`` for a
+Four stages: pull the sources, diff against the master, draft clinical CTML
+(``ctm-llm clinical``), draft genomic CTML and molecular refs (``ctm-llm genomic``). The output is a file in ``LLM_BIOMARKER_EXPORT_DIR`` for a
 curator to edit; ``ctm-post-curate`` picks up what they publish.
 
 Designed to be the whole cron line:
@@ -44,17 +44,16 @@ def build_stages(args) -> list[Stage]:
 
     def llm(*argv):
         parsed = llm_cli.build_parser().parse_args(argv)
-        handler = {"general": llm_cli._cmd_general,
-                   "biomarkers": llm_cli._cmd_biomarkers}[parsed.command]
+        handler = {"clinical": llm_cli._cmd_clinical,
+                   "genomic": llm_cli._cmd_genomic}[parsed.command]
         return lambda: handler(parsed)
 
     sources = args.sources or ["--amc", "--ddots", "--west"]
     return [
         Stage(f"ctm-mm trials {' '.join(sources)}", mm("trials", *sources)),
         Stage("ctm-mm trials-diff", mm("trials-diff")),
-        Stage("ctm-llm general", llm("general", "--yes") if args.yes else llm("general")),
-        Stage("ctm-llm biomarkers",
-              llm("biomarkers", "--yes") if args.yes else llm("biomarkers")),
+        Stage("ctm-llm clinical", llm("clinical", "--yes") if args.yes else llm("clinical")),
+        Stage("ctm-llm genomic", llm("genomic", "--yes") if args.yes else llm("genomic")),
     ]
 
 

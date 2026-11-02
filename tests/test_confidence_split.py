@@ -153,3 +153,15 @@ def test_split_by_confidence_stays_needs_curation_when_recovery_finds_nothing():
     )
     assert high_confidence == []
     assert needs_curation == [trial]
+
+
+def test_confidence_split_reads_new_and_legacy_refs():
+    from ctm.transformers.confidence_split import is_high_confidence
+
+    match = [{"clinical": {"oncotree_primary_diagnosis": "Breast"}}]
+    new = _trial(match)
+    new["_llm_curation"] = {"molecular_genomic_refs": [{"type": "snv"}]}
+    assert not is_high_confidence(new, {"ihc"})
+    assert is_high_confidence(new, {"snv"})
+    legacy = _trial(match, biomarker_types=["snv"])
+    assert not is_high_confidence(legacy, {"ihc"})

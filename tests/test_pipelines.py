@@ -149,8 +149,8 @@ def test_pre_curate_runs_the_four_stages():
     assert [s.label for s in pre_curate_cli.build_stages(args)] == [
         "ctm-mm trials --amc --ddots --west",
         "ctm-mm trials-diff",
-        "ctm-llm general",
-        "ctm-llm biomarkers",
+        "ctm-llm clinical",
+        "ctm-llm genomic",
     ]
 
 

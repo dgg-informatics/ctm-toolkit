@@ -144,13 +144,15 @@ def extract_diagnoses(trial: dict, client, cache: dict, valid_oncotree: set[str]
 
 def is_high_confidence(trial: dict, allowed_biomarker_types: set[str]) -> bool:
     """A trial is high-confidence if it has a diagnosis in step[0].match and
-    every biomarker_references entry (if any) is of an allowed type."""
+    every molecular_genomic_refs entry (legacy: biomarker_references), if any,
+    is of an allowed type."""
     steps = trial.get("treatment_list", {}).get("step", [])
     match = steps[0].get("match", []) if steps else []
     if not has_oncotree_diagnosis(match):
         return False
 
-    biomarker_refs = trial.get("_llm_curation", {}).get("biomarker_references", [])
+    curation = trial.get("_llm_curation") or {}
+    biomarker_refs = curation.get("molecular_genomic_refs") or curation.get("biomarker_references", [])
     return all(b.get("type") in allowed_biomarker_types for b in biomarker_refs)
 
 

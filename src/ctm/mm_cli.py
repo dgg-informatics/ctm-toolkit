@@ -10,7 +10,7 @@ Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
   ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] [--out PATH]
   ctm-mm trials-diff [--new JSON] [--out-prefix PREFIX] [--master JSON] [--db NAME]
-  ctm-mm trials-curate --trials JSON [--out JSON] --cache JSON
+  ctm-mm trials-curate --trials JSON [--out JSON] --cache JSON   (deprecated → ctm-llm genomic)
   ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
   ctm-mm trials-merge [--out JSON]  (or legacy: --unchanged JSON --changed JSON --out JSON)
 
@@ -846,20 +846,17 @@ def _cmd_trials_diff(args) -> None:
 
 
 def _cmd_trials_curate(args) -> None:
-    """DEPRECATED shim forwarding to `ctm-llm biomarkers`.
+    """DEPRECATED shim forwarding to `ctm-llm genomic`.
 
     Rebuilds the equivalent argv rather than calling the implementation directly,
     so the alias exercises exactly the same code path a real `ctm-llm biomarkers`
-    invocation does and cannot drift from it. Removed in 2.0.0.
+    invocation does and cannot drift from it. Removed in 3.0.0.
     """
     from ctm.llm_cli import main as llm_main
 
-    log.info(
-        "DEPRECATED: `ctm-mm trials-curate` is now `ctm-llm biomarkers` and will be "
-        "removed in 2.0.0. Forwarding..."
-    )
+    log.warning("DEPRECATED: ctm-mm trials-curate is now ctm-llm genomic and will be removed in 3.0.0.")
 
-    argv = ["biomarkers"]
+    argv = ["genomic"]
     for flag, value in (("--trials", args.trials), ("--out", args.out),
                         ("--cache", args.cache), ("--kb", args.kb),
                         ("--db", args.db), ("--run-date", args.run_date)):
