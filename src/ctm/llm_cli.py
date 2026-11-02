@@ -169,13 +169,13 @@ def _resolve_run_date(args, ctm_db, trials: list[dict]) -> str:
 
 def _cmd_clinical(args) -> None:
     from ctm import db as ctm_db
+    from ctm.transformers.clinical_ctml import draft_clinical
     from ctm.transformers.eligibility_to_ctml import (
         build_client,
         fetch_oncotree_names,
         load_cache,
         save_cache,
     )
-    from ctm.transformers.clinical_ctml import draft_clinical
 
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
