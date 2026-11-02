@@ -24,7 +24,7 @@ class QueuedClient:
         item = self._responses.pop(0)
         if isinstance(item, Exception):
             raise item
-        return _response(item)
+        return _response(item)   # None → message.content is None, as some providers send
 
 
 class ContentFilterError(Exception):

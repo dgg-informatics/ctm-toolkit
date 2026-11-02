@@ -76,7 +76,8 @@ def test_genomic_reads_conditions_and_genes_not_disease_site():
 def test_genomic_validates_nodes():
     bad = {"genomic": {"hugo_symbol": "KRAS", "variant_category": "MUTATION", "mmr_status": "bogus"}}
     cur = _cur({"_summary": {"long_title": "t"}}, QueuedClient([_resp(bad)]))
-    assert cur["_ctml_suggestions"][0]["suggested_node"] == {"genomic": {"hugo_symbol": "KRAS"}}
+    assert cur["_ctml_suggestions"] == []
+    assert cur["_null_ctml_suggestions"][0]["node_type"] == "genomic"
 
 
 @pytest.mark.parametrize("raw", ["not json", "[]", '"x"', '{"refs": []}', '{"node": "x"}', '{"node": null, "refs": "x"}'])
@@ -93,7 +94,8 @@ def test_genomic_content_filter_is_cached_null():
     cache = {}
     client = QueuedClient([ContentFilterError("blocked"), _resp(MYCN_NODE)])
     cur = _cur(trial, client, cache)
-    assert cache[_cache_key("genomic:inclusion:first")] == {"node": None, "refs": []}
+    from ctm.transformers.genomic_ctml import PROMPT_VERSION
+    assert cache[_cache_key(f"genomic:{PROMPT_VERSION()}:inclusion:first")] == {"node": None, "refs": []}
     assert [e["text"] for e in cur["_null_ctml_suggestions"]] == ["first"]
     assert [e["text"] for e in cur["_ctml_suggestions"]] == ["MYCN amplified"]
 
@@ -144,3 +146,48 @@ def test_genomic_prompt_pins_vocabulary():
         assert term in GENOMIC_SYSTEM_PROMPT, term
     for term in ("MUTATION", "!Mutation", "(MMR-D / MSI-H)"):
         assert term not in GENOMIC_SYSTEM_PROMPT, term
+
+
+# ── final-review fixes ───────────────────────────────────────────────────────
+
+def test_malformed_ref_fields_are_coerced_so_stamp_never_fails():
+    from ctm.schemas.storage import MolecularGenomicRef
+
+    refs = [{"biomarker": "BRAF", "reference": ["x"], "type": ["snv"]},
+            {"biomarker": "MYCN", "reference": 5, "type": "weird"},
+            {"biomarker": "HRD", "reference": "HRD+", "type": "hrd"}]
+    cur = _cur({"_summary": {"long_title": "t"}}, QueuedClient([_resp(None, refs)]))
+    stored = cur["molecular_genomic_refs"]
+    assert [(r["reference"], r["type"]) for r in stored] == [("", "other"), ("", "other"), ("HRD+", "hrd")]
+    for r in stored:
+        MolecularGenomicRef.model_validate(r)
+
+
+def test_exclusion_piece_missing_wildtype_becomes_null():
+    trial = {"eligibility": {"exclusion": [_crit("Known KRAS mutation")]}}
+    node = {"genomic": {"hugo_symbol": "KRAS", "variant_category": "Mutation"}}
+    cur = _cur(trial, QueuedClient([_resp(node)]))
+    assert cur["_ctml_suggestions"] == []
+    assert cur["_null_ctml_suggestions"][0]["source"] == "exclusion"
+
+
+def test_prompt_change_misses_the_cache(monkeypatch):
+    from ctm.transformers import genomic_ctml
+
+    cache, trial = {}, {"_summary": {"long_title": "t"}}
+    client = QueuedClient([_resp(MYCN_NODE), _resp(MYCN_NODE)])
+    _cur(trial, client, cache)
+    monkeypatch.setattr(genomic_ctml, "GENOMIC_SYSTEM_PROMPT", genomic_ctml.GENOMIC_SYSTEM_PROMPT + " v2")
+    _cur(trial, client, cache)
+    assert client.call_count == 2
+
+
+def test_cached_answers_are_revalidated_on_read():
+    """A validator fix reaches answers cached before it."""
+    cache, trial = {}, {"_summary": {"long_title": "t"}}
+    _cur(trial, QueuedClient([_resp(MYCN_NODE)]), cache)
+    (key,) = cache
+    cache[key] = {"node": {"genomic": {"hugo_symbol": "!KRAS"}}, "refs": [{"biomarker": "KRAS", "type": ["x"]}]}
+    cur = _cur(trial, QueuedClient([]), cache)
+    assert cur["_ctml_suggestions"] == []
+    assert cur["molecular_genomic_refs"][0]["type"] == "other"

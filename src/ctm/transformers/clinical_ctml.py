@@ -11,9 +11,11 @@ Everything is written through :func:`llm_curation.merge_stage` as
 legacy pre-2.4.0 entries are left alone.
 
 Cache: ``<cache_dir>/.ctml_clinical_cache.json``, keyed on
-``clinical:<source>:<text>``. A new file rather than ``.ctml_cache.json``,
+``clinical:<prompt hash>:<source>:<text>``; the value is the model's raw
+answer, validated on every read. A new file rather than ``.ctml_cache.json``,
 because the old file's answers came from the mixed clinical+genomic prompt.
 """
+import hashlib
 import json
 import logging
 import os
@@ -25,6 +27,7 @@ from .eligibility_to_ctml import (
     conditions_suggestion,
     is_content_filter,
 )
+from .genomic_ctml import strip_fences
 from .llm_curation import (
     CLINICAL,
     make_entry,
@@ -130,36 +133,40 @@ def keep_clinical(node: dict | None) -> dict | None:
     return {"clinical": node["clinical"]} if isinstance(node.get("clinical"), dict) else None
 
 
+def PROMPT_VERSION() -> str:
+    """Short hash of the current prompt; part of every cache key."""
+    return hashlib.md5(CLINICAL_SYSTEM_PROMPT.encode()).hexdigest()[:8]
+
+
 def suggest_clinical(text: str, source: str, cache: dict, client,
                      valid_oncotree: set[str]) -> dict | None:
-    key = _cache_key(f"clinical:{source}:{text}")
-    if key in cache:
-        return cache[key]
-    try:
-        response = client.chat.completions.create(
-            model=os.environ.get("UMGPT_MODEL", "gpt-4o"),
-            messages=[
-                {"role": "system", "content": CLINICAL_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Source: {source}\nCriterion: {text}"},
-            ],
-            temperature=0,
-            max_tokens=300,
-        )
-    except Exception as exc:
-        if not is_content_filter(exc):
-            raise
-        log.warning("  content filter — no clinical suggestion for %s piece: %r", source, text[:80],
-                    extra={"event": "llm.content_filter", "criterion_source": source,
-                           "stage": "clinical"})
-        cache[key] = None
-        return None
-    try:
-        result = json.loads(response.choices[0].message.content.strip())
-    except json.JSONDecodeError:
-        result = None
-    result = _validate_node(keep_clinical(result), valid_oncotree)
-    cache[key] = result
-    return result
+    """Validated clinical node or None. The cache holds the model's raw answer,
+    keyed on prompt version + source + text, and is validated on every read."""
+    key = _cache_key(f"clinical:{PROMPT_VERSION()}:{source}:{text}")
+    if key not in cache:
+        try:
+            response = client.chat.completions.create(
+                model=os.environ.get("UMGPT_MODEL", "gpt-4o"),
+                messages=[
+                    {"role": "system", "content": CLINICAL_SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Source: {source}\nCriterion: {text}"},
+                ],
+                temperature=0,
+                max_tokens=300,
+            )
+        except Exception as exc:
+            if not is_content_filter(exc):
+                raise
+            log.warning("  content filter — no clinical suggestion for %s piece: %r", source, text[:80],
+                        extra={"event": "llm.content_filter", "criterion_source": source,
+                               "stage": "clinical"})
+            cache[key] = None
+        else:
+            try:
+                cache[key] = json.loads(strip_fences(response.choices[0].message.content))
+            except json.JSONDecodeError:
+                cache[key] = None
+    return _validate_node(keep_clinical(cache[key]), valid_oncotree)
 
 
 def _as_entry(suggestion: dict) -> dict:

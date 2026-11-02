@@ -15,18 +15,16 @@ def test_valid_mutation_passes():
     assert validate_genomic_node(node) == node
 
 
-def test_patient_side_category_dropped():
-    assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="MUTATION")) == g(hugo_symbol="EGFR")
+def test_patient_side_category_drops_the_leaf():
+    assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="MUTATION")) is None
 
 
-def test_bang_mutation_dropped():
-    assert validate_genomic_node(g(hugo_symbol="KRAS", variant_category="!Mutation", wildtype=True)) == \
-        g(hugo_symbol="KRAS", wildtype=True)
+def test_bang_mutation_drops_the_leaf():
+    assert validate_genomic_node(g(hugo_symbol="KRAS", variant_category="!Mutation", wildtype=True)) is None
 
 
-def test_wildtype_string_dropped():
-    out = validate_genomic_node(g(hugo_symbol="BRAF", variant_category="Mutation", wildtype="false"))
-    assert out == g(hugo_symbol="BRAF", variant_category="Mutation", wildtype=False)  # dropped, then defaulted
+def test_wildtype_string_drops_the_leaf():
+    assert validate_genomic_node(g(hugo_symbol="BRAF", variant_category="Mutation", wildtype="false")) is None
 
 
 def test_wildtype_required_defaults_false(caplog):
@@ -46,13 +44,13 @@ def test_wildtype_defaults_for_cnv_and_sv(category):
 def test_protein_change_needs_p_prefix():
     for key, good in (("protein_change", "p.V600E"), ("wildcard_protein_change", "p.V600")):
         assert validate_genomic_node(g(hugo_symbol="BRAF", **{key: good})) == g(hugo_symbol="BRAF", **{key: good})
-        assert validate_genomic_node(g(hugo_symbol="BRAF", **{key: good[2:]})) == g(hugo_symbol="BRAF")
+        assert validate_genomic_node(g(hugo_symbol="BRAF", **{key: good[2:]})) is None
 
 
 def test_cnv_call_vocabulary():
     base = {"hugo_symbol": "MYCN", "variant_category": "Copy Number Variation", "wildtype": False}
     assert validate_genomic_node(g(**base, cnv_call="High Amplification")) == g(**base, cnv_call="High Amplification")
-    assert validate_genomic_node(g(**base, cnv_call="amp")) == g(**base)
+    assert validate_genomic_node(g(**base, cnv_call="amp")) is None
 
 
 def test_mmr_ms_values_per_key():
@@ -70,13 +68,13 @@ def test_variant_classification_and_exon():
     base = {"hugo_symbol": "EGFR", "variant_category": "Mutation", "wildtype": False}
     assert validate_genomic_node(g(**base, variant_classification="Missense_Mutation", exon=19)) == \
         g(**base, variant_classification="Missense_Mutation", exon=19)
-    assert validate_genomic_node(g(**base, variant_classification="missense")) == g(**base)
-    assert validate_genomic_node(g(**base, exon="19")) == g(**base)
-    assert validate_genomic_node(g(**base, exon=True)) == g(**base)
+    assert validate_genomic_node(g(**base, variant_classification="missense")) is None
+    assert validate_genomic_node(g(**base, exon="19")) is None
+    assert validate_genomic_node(g(**base, exon=True)) is None
 
 
 def test_unknown_keys_and_clinical_leaves_dropped():
-    assert validate_genomic_node(g(hugo_symbol="X", foo=1)) == g(hugo_symbol="X")
+    assert validate_genomic_node(g(hugo_symbol="X", foo=1)) is None
     assert validate_genomic_node({"clinical": {"gender": "Female"}}) is None
     assert validate_genomic_node({"and": [{"clinical": {"gender": "Female"}}, g(hugo_symbol="X")]}) == g(hugo_symbol="X")
 
@@ -94,3 +92,33 @@ def test_invalid_drop_is_logged(caplog):
         validate_genomic_node(g(hugo_symbol="X", mmr_status="bogus"))
     hits = [r for r in caplog.records if getattr(r, "event", None) == "llm.genomic_invalid"]
     assert hits and hits[0].field == "mmr_status"
+
+
+
+# ── final-review fixes ───────────────────────────────────────────────────────
+
+def test_any_invalid_field_drops_the_whole_leaf():
+    """Stripping one field widens the requirement (any gene, any exon) — drop instead."""
+    assert validate_genomic_node(g(hugo_symbol=7, variant_category="Mutation", wildtype=False)) is None
+    assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="Mutation",
+                                   wildtype=True, exon="19")) is None
+
+
+def test_gene_scoped_keys_need_a_gene():
+    assert validate_genomic_node(g(protein_change="p.V600E")) is None
+    assert validate_genomic_node(g(variant_category="Mutation", wildtype=False)) is None
+    assert validate_genomic_node(g(ms_status="MSI-H")) == g(ms_status="MSI-H")
+
+
+def test_hugo_symbol_rejects_negation_and_junk():
+    assert validate_genomic_node(g(hugo_symbol="!KRAS")) is None
+    assert validate_genomic_node(g(hugo_symbol="KRAS G12C")) is None
+    assert validate_genomic_node(g(hugo_symbol="C9orf72")) == g(hugo_symbol="C9orf72")
+
+
+def test_exclusion_without_wildtype_is_dropped_not_defaulted():
+    node = g(hugo_symbol="KRAS", variant_category="Mutation")
+    assert validate_genomic_node(node, source="exclusion") is None
+    assert validate_genomic_node(node, source="inclusion")["genomic"]["wildtype"] is False
+    explicit = g(hugo_symbol="KRAS", variant_category="Mutation", wildtype=True)
+    assert validate_genomic_node(explicit, source="exclusion") == explicit

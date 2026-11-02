@@ -10,7 +10,8 @@ by code from the piece's source, and ``origin`` (germline / somatic /
 unknown) comes from the model, coerced to that set.
 
 Cache: ``<cache_dir>/.ctml_genomic_cache.json``, keyed on
-``genomic:<source>:<text>``; the value is ``{"node", "refs"}``.
+``genomic:<prompt hash>:<source>:<text>``; the value is the model's raw
+``{"node", "refs"}``, validated on every read.
 
 Validation pins every genomic node to the **trial-side** vocabulary matchengine
 maps from (the user's key table, 02Nov2026). A wrong ``mmr_status`` /
@@ -18,9 +19,11 @@ maps from (the user's key table, 02Nov2026). A wrong ``mmr_status`` /
 string ``wildtype`` silently matches nothing, so nothing the model writes reaches
 a curator unchecked.
 """
+import hashlib
 import json
 import logging
 import os
+import re
 
 from .eligibility_to_ctml import _cache_key, is_content_filter
 from .llm_curation import GENOMIC, GENOMIC_SOURCES, make_entry, merge_stage, piece_texts, section_row
@@ -40,9 +43,16 @@ GENOMIC_KEYS = frozenset({"hugo_symbol", "variant_category", "protein_change",
                           "ms_status", "variant_classification", "exon"})
 
 
+_HUGO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
+# Keys that only mean something for a named gene; without one the leaf would
+# ask for "this alteration in any gene".
+_GENE_SCOPED = frozenset({"variant_category", "protein_change", "wildcard_protein_change",
+                          "exon", "cnv_call", "variant_classification", "wildtype"})
+
+
 def _valid_field(key: str, value) -> bool:
     if key == "hugo_symbol":
-        return isinstance(value, str) and bool(value.strip())
+        return isinstance(value, str) and bool(_HUGO.fullmatch(value))
     if key == "variant_category":
         return value in VARIANT_CATEGORIES
     if key == "wildtype":
@@ -62,40 +72,56 @@ def _valid_field(key: str, value) -> bool:
     return False
 
 
-def _validate_leaf(fields) -> dict | None:
-    if not isinstance(fields, dict):
+def _drop(reason: str, **fields) -> None:
+    log.info("  dropped genomic leaf: %s", reason,
+             extra={"event": "llm.genomic_invalid", "reason": reason, "stage": "genomic", **fields})
+
+
+def _validate_leaf(fields, source: str | None) -> dict | None:
+    """The leaf unchanged, or None. Never partially stripped: removing one field
+    (a gene, an exon, a cnv_call) silently widens what the leaf asks for."""
+    if not isinstance(fields, dict) or not fields:
         return None
-    kept = {}
     for key, value in fields.items():
-        if _valid_field(key, value):
-            kept[key] = value
-        else:
-            log.info("  dropped invalid genomic field %s", key,
-                     extra={"event": "llm.genomic_invalid", "field": key,
-                            "value": repr(value)[:80], "stage": "genomic"})
+        if not _valid_field(key, value):
+            _drop("invalid field", field=key, value=repr(value)[:80])
+            return None
+    if "hugo_symbol" not in fields and _GENE_SCOPED & fields.keys():
+        _drop("gene-scoped keys without hugo_symbol", field="hugo_symbol")
+        return None
+    kept = dict(fields)
     if "variant_category" in kept and "wildtype" not in kept:
+        if source == "exclusion":
+            # Defaulting here would invert the requirement ("known KRAS
+            # mutation" excluded → asks FOR it), so leave it to the curator.
+            _drop("exclusion without wildtype", field="wildtype")
+            return None
         # Every Mutation / CNV / SV node carries wildtype. A bare mention
         # ("KRAS mutation") asks for an alteration, so false.
         kept["wildtype"] = False
         log.info("  defaulted wildtype=false on %s", kept["variant_category"],
                  extra={"event": "llm.genomic_wildtype_default",
                         "variant_category": kept["variant_category"], "stage": "genomic"})
-    return {"genomic": kept} if kept else None
+    return {"genomic": kept}
 
 
-def validate_genomic_node(node) -> dict | None:
-    """``node`` with clinical leaves and invalid genomic fields removed; None if empty."""
+def validate_genomic_node(node, source: str | None = None) -> dict | None:
+    """``node`` with clinical and invalid genomic leaves removed; None if empty.
+
+    ``source`` is the piece's source; on ``exclusion`` a leaf missing
+    ``wildtype`` is dropped rather than defaulted.
+    """
     if not isinstance(node, dict):
         return None
     for key in ("and", "or"):
         if key in node:
-            children = [c for c in (validate_genomic_node(c) for c in node.get(key) or [])
+            children = [c for c in (validate_genomic_node(c, source) for c in node.get(key) or [])
                         if c is not None]
             if not children:
                 return None
             return children[0] if len(children) == 1 else {key: children}
     if "genomic" in node:
-        return _validate_leaf(node["genomic"])
+        return _validate_leaf(node["genomic"], source)
     return None
 
 
@@ -200,18 +226,47 @@ Source: exclusion — "Known KRAS mutation"
 → {"node": null, "refs": []}"""
 
 _ORIGINS = ("germline", "somatic")
+_REF_TYPES = frozenset({"snv", "cnv", "fusion", "msi", "mmr", "tmb", "hrd", "ihc", "other"})
+
+
+def PROMPT_VERSION() -> str:
+    """Short hash of the current prompt; part of every cache key, so editing the
+    prompt never serves answers the old prompt produced."""
+    return hashlib.md5(GENOMIC_SYSTEM_PROMPT.encode()).hexdigest()[:8]
+
+
+def strip_fences(raw: str | None) -> str:
+    """Model output without a markdown code fence (models add one despite being told not to)."""
+    text = (raw or "").strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+        text = text.rsplit("```", 1)[0].strip()
+    return text
 
 
 def _clean_refs(refs) -> list[dict]:
+    """Refs whose every field is the type storage requires; junk refs dropped."""
     if not isinstance(refs, list):
         return []
-    return [r for r in refs
-            if isinstance(r, dict) and isinstance(r.get("biomarker"), str) and r["biomarker"].strip()]
+    cleaned = []
+    for r in refs:
+        if not (isinstance(r, dict) and isinstance(r.get("biomarker"), str) and r["biomarker"].strip()):
+            continue
+        ref_type = r.get("type")
+        cleaned.append({**r,
+                        "reference": r["reference"] if isinstance(r.get("reference"), str) else "",
+                        "type": ref_type if isinstance(ref_type, str) and ref_type in _REF_TYPES else "other"})
+    return cleaned
 
 
 def suggest_genomic(text: str, source: str, cache: dict, client) -> tuple[dict | None, list[dict]]:
-    """(validated genomic node or None, raw refs) for one piece; cached per piece."""
-    key = _cache_key(f"genomic:{source}:{text}")
+    """(validated genomic node or None, cleaned refs) for one piece.
+
+    The cache holds the model's raw answer, keyed on prompt version + source +
+    text, and is validated on every read — so a validator fix reaches answers
+    cached before it, and a prompt edit never reuses old answers.
+    """
+    key = _cache_key(f"genomic:{PROMPT_VERSION()}:{source}:{text}")
     if key not in cache:
         try:
             response = client.chat.completions.create(
@@ -232,30 +287,20 @@ def suggest_genomic(text: str, source: str, cache: dict, client) -> tuple[dict |
             cache[key] = {"node": None, "refs": []}
         else:
             try:
-                parsed = json.loads(_strip_fences(response.choices[0].message.content))
+                parsed = json.loads(strip_fences(response.choices[0].message.content))
             except json.JSONDecodeError:
                 parsed = None
-            if not isinstance(parsed, dict):
-                parsed = {}
-            cache[key] = {"node": validate_genomic_node(parsed.get("node")),
-                          "refs": _clean_refs(parsed.get("refs"))}
-    hit = cache[key]
-    return hit.get("node"), list(hit.get("refs") or [])
-
-
-def _strip_fences(raw: str) -> str:
-    text = (raw or "").strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else ""
-        text = text.rsplit("```", 1)[0].strip()
-    return text
+            parsed = parsed if isinstance(parsed, dict) else {}
+            cache[key] = {"node": parsed.get("node"), "refs": parsed.get("refs") or []}
+    hit = cache[key] if isinstance(cache[key], dict) else {}
+    return validate_genomic_node(hit.get("node"), source), _clean_refs(hit.get("refs"))
 
 
 def _ref(trial_nct: str, source: str, raw: dict, known_genes: set[str]) -> dict:
     biomarker = raw["biomarker"].strip()
     origin = str(raw.get("origin") or "").strip().lower()
-    return {"trial_nct": trial_nct, "reference": raw.get("reference") or "",
-            "biomarker": biomarker, "type": raw.get("type") or "other", "section": source,
+    return {"trial_nct": trial_nct, "reference": raw["reference"],
+            "biomarker": biomarker, "type": raw["type"], "section": source,
             "in_kb": biomarker.upper() in known_genes,
             "origin": origin if origin in _ORIGINS else "unknown"}
 
