@@ -381,3 +381,39 @@ def test_cli_resolves_mixed_pieces_with_the_ai(fake_mongo, tmp_path, monkeypatch
     match = json.loads(out.read_text())[0]["treatment_list"]["step"][0]["match"]
     assert {"or": [_auto(_dx("Breast")), _auto(BRCA2)]} in match
     assert json.loads((tmp_path / "c.json").read_text())
+
+
+# ── mixed = same source + same text, from ANY source both stages read ────────
+
+def test_mixed_title_piece_is_resolved_too():
+    title = "Olaparib in breast cancer or in any tumor with a BRCA2 mutation"
+    trial = _trial([_e("_summary.long_title", title, _dx("Breast"), "clinical", mixed=True),
+                    _e("_summary.long_title", title, BRCA2, "genomic", mixed=True),
+                    _e("eligibility.exclusion", "Known KRAS mutation", KRAS_NO, "genomic")])
+    asked = []
+    out, report = autofill_trial(trial, resolve_mixed=lambda t, c, g: asked.append(t) or "or")
+    assert asked == [title]
+    # resolved as an OR item even though a criterion produced a genomic node
+    assert _match(out) == [{"or": [_auto(_dx("Breast")), _auto(BRCA2)]}, _auto(KRAS_NO)]
+    assert report["mixed_logic"] == {"and": 0, "or": 1, "unresolved": 0}
+
+
+def test_mixed_conditions_piece_and_keeps_fallback_rules():
+    text = "EGFR-mutant non-small cell lung cancer"
+    egfr = {"genomic": {"hugo_symbol": "EGFR", "variant_category": "Mutation", "wildtype": False}}
+    trial = _trial([_e("_raw.conditions", text, _dx("Non-Small Cell Lung Cancer"), "clinical", mixed=True),
+                    _e("_raw.conditions", text, egfr, "genomic", mixed=True)])
+    out, report = autofill_trial(trial, resolve_mixed=lambda *a: "and")
+    assert _match(out) == [_auto(_dx("Non-Small Cell Lung Cancer")), _auto(egfr)]
+    assert report["mixed_logic"]["and"] == 1
+
+
+def test_same_text_from_different_sources_is_not_mixed():
+    text = "BRCA2"
+    trial = _trial([_e("_raw.conditions", text, _dx("Breast"), "clinical"),
+                    _e("_summary.long_title", text, BRCA2, "genomic")])
+
+    def boom(*a):
+        raise AssertionError("different sources are not a mixed piece")
+
+    autofill_trial(trial, resolve_mixed=boom)

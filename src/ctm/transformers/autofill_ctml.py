@@ -21,7 +21,8 @@ No model call. ``source`` values are field paths. Rules:
   dropped and its entry marked not transferred.
 * Identical nodes collapse to one. The match is a plain list of nodes — a
   top-level list is already AND-ed, so no ``and`` wrapper.
-* Mixed criterion pieces (one text → a clinical and a genomic node): the stages
+* Mixed pieces (same source + same text → a clinical and a genomic node, from
+  any source both stages read: criteria, long title, conditions): the stages
   can't see each other, so the and/or is decided here — one small AI call per
   piece in the CLI (``ai_mixed_resolver``). "or" → one ``{"or": [clinical,
   genomic]}`` item, keeping that diagnosis out of the shared OR; "and" or
@@ -132,7 +133,8 @@ def autofill_trial(trial: dict, overwrite: bool = False,
 
     ``resolve_mixed(text, clinical_node, genomic_node)`` returns "and", "or" or
     "unresolved" for a criterion piece that produced both a clinical and a
-    genomic node. Without it every such piece is "unresolved" (AND-ed).
+    genomic node from the same source and text. Without it every such piece is
+    "unresolved" (AND-ed).
     """
     out = copy.deepcopy(trial)
     curation = out.setdefault("_llm_curation", {})
@@ -165,14 +167,13 @@ def autofill_trial(trial: dict, overwrite: bool = False,
             nodes.append(node)
         use(entry)
 
-    # Mixed criterion pieces: one clinical + one genomic entry from the same
-    # text. Neither stage can see the other, so the and/or between them is
-    # decided here (by the AI in the CLI). "or" pieces become one OR item and
-    # keep their diagnosis inside it.
+    # Mixed pieces: a clinical and a genomic entry with the same source AND the
+    # same text, from any source both stages read. Neither stage can see the
+    # other, so the and/or between them is decided here (by the AI in the CLI).
+    # "or" pieces become one OR item and keep their diagnosis inside it.
     pieces: dict[tuple, dict] = {}
     for e in entries:
-        if e["source"] in _CRITERIA:
-            pieces.setdefault((e["source"], e["text"]), {})[e["node_type"]] = e
+        pieces.setdefault((e["source"], e["text"]), {})[e["node_type"]] = e
     or_pieces = set()
     for key, by_type in pieces.items():
         if {"clinical", "genomic"} <= by_type.keys():
@@ -221,7 +222,8 @@ def autofill_trial(trial: dict, overwrite: bool = False,
 
     if not any(e["node_type"] == "genomic" for e in criteria):
         for e in entries:
-            if e["node_type"] == "genomic" and e["source"] in _GENOMIC_FALLBACK:
+            if (e["node_type"] == "genomic" and e["source"] in _GENOMIC_FALLBACK
+                    and not in_or_piece(e)):
                 add(e["suggested_node"], e)
 
     if not nodes:
