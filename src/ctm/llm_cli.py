@@ -155,6 +155,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _stage_run(command: str) -> dict:
+    """``_llm_curation.stage_runs`` record for this invocation: UTC start time
+    and the command + toolkit version that wrote the suggestions."""
+    from datetime import UTC, datetime
+
+    from ctm.db import toolkit_version
+    return {"ran_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "processed_with": f"ctm-llm {command} {toolkit_version()}"}
+
+
 def default_export(command: str, run_date: str) -> Path | None:
     """The stage's canonical export: the to-curate handoff file, written by the
     last pre-curate stage (autofill-ctml). Other stages write no file by default."""
@@ -206,6 +216,7 @@ def _resolve_run_date(args, ctm_db, trials: list[dict]) -> str:
 
 
 def _cmd_clinical(args) -> None:
+    stage_run = _stage_run("clinical")
     from ctm import db as ctm_db
     from ctm.transformers.clinical_ctml import draft_clinical
     from ctm.transformers.eligibility_to_ctml import (
@@ -265,7 +276,8 @@ def _cmd_clinical(args) -> None:
         label = trial.get("protocol_no") or trial.get("nct_id") or f"trial-{i}"
         log_event(log, "llm.trial", "[%d/%d] %s", i + 1, len(trials), label,
                   trial=label, index=i + 1, total=len(trials), stage="clinical")
-        drafted = draft_clinical(trial, cache, client, valid_oncotree, reviewed, site_drafts)
+        drafted = draft_clinical(trial, cache, client, valid_oncotree, reviewed, site_drafts,
+                                 stage_run=stage_run)
         save_cache(cache, cache_file)  # after each trial so progress survives interruption
         site_map.save_drafts(site_drafts, site_file)
         results.append(drafted)
@@ -287,6 +299,7 @@ def _cmd_clinical(args) -> None:
 
 
 def _cmd_genomic(args) -> None:
+    stage_run = _stage_run("genomic")
     from ctm import db as ctm_db
     from ctm.transformers.eligibility_to_ctml import build_client
     from ctm.transformers.genomic_ctml import draft_genomic
@@ -326,7 +339,7 @@ def _cmd_genomic(args) -> None:
         label = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
         log_event(log, "llm.trial", "[%d/%d] %s", i, len(trials), label,
                   trial=label, index=i, total=len(trials), stage="genomic")
-        drafted = draft_genomic(trial, cache, client, known_genes)
+        drafted = draft_genomic(trial, cache, client, known_genes, stage_run=stage_run)
         results.append(drafted)
         save_cache(cache, cache_file)  # after each trial so progress survives interruption
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm genomic", run_date),
@@ -346,6 +359,7 @@ def _cmd_genomic(args) -> None:
 
 
 def _cmd_autofill(args) -> None:
+    stage_run = _stage_run("autofill-ctml")
     from ctm import db as ctm_db
     from ctm.transformers import eligibility_to_ctml as e2c
     from ctm.transformers.autofill_ctml import ai_mixed_resolver, autofill_trial
@@ -381,7 +395,8 @@ def _cmd_autofill(args) -> None:
     results, filled, mixed = [], 0, 0
     for trial in trials:
         label = trial.get("protocol_no") or trial.get("nct_id") or "unknown"
-        drafted, report = autofill_trial(trial, overwrite=args.overwrite, resolve_mixed=resolve_mixed)
+        drafted, report = autofill_trial(trial, overwrite=args.overwrite, resolve_mixed=resolve_mixed,
+                                         stage_run=stage_run)
         if cache:
             e2c.save_cache(cache, cache_file)   # after each trial so answers survive interruption
         results.append(drafted)

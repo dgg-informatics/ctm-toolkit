@@ -47,6 +47,7 @@ from .llm_curation import (
     make_entry,
     merge_stage,
     piece_texts,
+    record_stage_run,
     section_row,
 )
 from .structured_ctml import age_sex_suggestions, amc_categories_suggestion
@@ -195,7 +196,7 @@ def _as_entry(suggestion: dict) -> dict:
 
 
 def draft_clinical(trial: dict, cache: dict, client, valid_oncotree: set[str],
-                   reviewed: dict, site_drafts: dict) -> dict:
+                   reviewed: dict, site_drafts: dict, stage_run: dict | None = None) -> dict:
     """New trial with this stage's entries and ``parsed_sections.clinical`` merged in."""
     entries, sections = [], {}
     for source in _PROMPTED_SOURCES:
@@ -225,4 +226,5 @@ def draft_clinical(trial: dict, cache: dict, client, valid_oncotree: set[str],
 
     drafted = {k: v for k, v in trial.items() if k != "_ctml_suggestions"}
     drafted["_llm_curation"] = merge_stage(trial.get("_llm_curation"), CLINICAL, entries, sections)
+    record_stage_run(drafted["_llm_curation"], CLINICAL, stage_run)
     return drafted

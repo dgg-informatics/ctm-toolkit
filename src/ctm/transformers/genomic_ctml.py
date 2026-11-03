@@ -33,6 +33,7 @@ from .llm_curation import (
     make_entry,
     merge_stage,
     piece_texts,
+    record_stage_run,
     section_row,
 )
 from .trials_curate import _trial_id
@@ -339,7 +340,8 @@ def _ref(trial_nct: str, source: str, raw: dict, known_genes: set[str]) -> dict:
             "origin": origin if origin in _ORIGINS else "unknown"}
 
 
-def draft_genomic(trial: dict, cache: dict, client, known_genes: set[str]) -> dict:
+def draft_genomic(trial: dict, cache: dict, client, known_genes: set[str],
+                  stage_run: dict | None = None) -> dict:
     """New trial with genomic entries, ``parsed_sections.genomic`` and
     ``molecular_genomic_refs`` written; everything else left as found."""
     trial_nct = _trial_id(trial)
@@ -355,5 +357,6 @@ def draft_genomic(trial: dict, cache: dict, client, known_genes: set[str]) -> di
     drafted = {k: v for k, v in trial.items() if k != "_ctml_suggestions"}
     curation = merge_stage(trial.get("_llm_curation"), GENOMIC, entries, sections)
     curation["molecular_genomic_refs"] = refs
+    record_stage_run(curation, GENOMIC, stage_run)
     drafted["_llm_curation"] = curation
     return drafted

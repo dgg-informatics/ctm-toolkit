@@ -58,6 +58,7 @@ from .llm_curation import (
     MINIMUM_AGE,
     SEX,
     WEST_DISEASE_SITE,
+    record_stage_run,
 )
 
 log = logging.getLogger(__name__)
@@ -128,7 +129,7 @@ def _mark(node: dict) -> dict:
 
 
 def autofill_trial(trial: dict, overwrite: bool = False,
-                   resolve_mixed=None) -> tuple[dict, dict]:
+                   resolve_mixed=None, stage_run: dict | None = None) -> tuple[dict, dict]:
     """(new trial, report). The report is also stored at ``_llm_curation.autofill``.
 
     ``resolve_mixed(text, clinical_node, genomic_node)`` returns "and", "or" or
@@ -138,6 +139,7 @@ def autofill_trial(trial: dict, overwrite: bool = False,
     """
     out = copy.deepcopy(trial)
     curation = out.setdefault("_llm_curation", {})
+    record_stage_run(curation, "autofill", stage_run)
     entries = [e for e in curation.get("_ctml_suggestions") or []
                if e.get("node_type") and e.get("suggested_node") is not None]
     report = {"method": "auto", "filled": False, "reason": None, "nodes": 0,

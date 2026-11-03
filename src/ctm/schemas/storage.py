@@ -117,6 +117,7 @@ class LlmCuration(BaseModel):
     molecular_genomic_refs: list[MolecularGenomicRef] = []
     biomarker_references: list[dict] = []   # legacy, unvalidated
     parsed_sections: dict[str, dict[str, dict]] = {}
+    stage_runs: dict[str, dict] = {}        # {clinical|genomic|autofill: {ran_at, processed_with}}
 
 
 class CurationProvenance(BaseModel):

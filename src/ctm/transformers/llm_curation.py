@@ -120,3 +120,15 @@ def merge_stage(curation: dict | None, node_type: str, entries: list[dict],
     parsed = out.setdefault(PARSED_SECTIONS, {})
     parsed.setdefault(node_type, {}).update(copy.deepcopy(sections))
     return out
+
+
+def record_stage_run(curation: dict, stage: str, stage_run: dict | None) -> None:
+    """Set ``curation["stage_runs"][stage]`` in place (no-op without a record).
+
+    ``stage_run`` is ``{"ran_at": <UTC ISO>, "processed_with": "<command> <version>"}``.
+    Each stage writes only its own key. Distinct from the document's
+    ``run_date``, which names the weekly run and is inherited, never re-read
+    from the clock.
+    """
+    if stage_run:
+        curation.setdefault("stage_runs", {})[stage] = dict(stage_run)
