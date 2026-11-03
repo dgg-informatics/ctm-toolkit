@@ -146,6 +146,16 @@ def test_existing_match_kept_unless_overwrite():
     assert out["_llm_curation"]["_ctml_suggestions"][0]["transferred_to_match"] is None   # never decided
     out, report = autofill_trial(trial, overwrite=True)
     assert _match(out) == [_auto(AGE)] and report["filled"] is True
+    assert report["reason"] == "overwrote existing match"
+    assert out["_llm_curation"]["autofill"]["reason"] == "overwrote existing match"
+
+
+def test_filling_an_empty_match_says_so_even_with_overwrite():
+    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")])
+    for overwrite in (False, True):
+        out, report = autofill_trial(trial, overwrite=overwrite)
+        assert report["filled"] is True and report["reason"] == "filled empty match"
+        assert out["_llm_curation"]["autofill"]["reason"] == "filled empty match"
 
 
 def test_nothing_to_fill_and_legacy_entries_ignored():
@@ -420,3 +430,23 @@ def test_same_text_from_different_sources_is_not_mixed():
         raise AssertionError("different sources are not a mixed piece")
 
     autofill_trial(trial, resolve_mixed=boom)
+
+
+def test_report_lists_every_source_that_went_into_the_match():
+    """diagnosis_sources is the diagnosis-only subset; match_sources is all of them."""
+    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical"),
+                    _e("_raw.conditions", "Head and Neck SCC", _dx("Head and Neck Squamous Cell Carcinoma"),
+                       "clinical"),
+                    _e("_raw._ddots.disease_site", "Head and Neck", _dx("Head and Neck"), "clinical")],
+                   nulls=[_e("eligibility.inclusion", "Signed consent", None, "clinical")])
+    out, report = autofill_trial(trial)
+    assert report["nodes"] == 2
+    assert report["diagnosis_sources"] == ["_raw.conditions", "_raw._ddots.disease_site"]
+    assert report["match_sources"] == ["_raw.conditions", "_raw._ddots.disease_site", "_raw.minimum_age"]
+    assert out["_llm_curation"]["autofill"]["match_sources"] == report["match_sources"]
+
+
+def test_skipped_trial_has_empty_match_sources():
+    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")], match=[{"clinical": {}}])
+    _, report = autofill_trial(trial)
+    assert report["filled"] is False and report["match_sources"] == []

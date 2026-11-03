@@ -403,9 +403,10 @@ def _cmd_autofill(args) -> None:
         filled += report["filled"]
         mixed += report["mixed_pieces"] > 0
         log_event(log, "llm.autofill", "  %s: %s", label,
-                  "filled" if report["filled"] else f"skipped ({report['reason']})",
+                  f"{'filled' if report['filled'] else 'skipped'} ({report['reason']})",
                   trial=label, stage="autofill", filled=report["filled"],
                   reason=report["reason"], nodes=report["nodes"],
+                  match_sources=report["match_sources"],
                   mixed_pieces=report["mixed_pieces"], mixed_logic=report["mixed_logic"])
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm autofill-ctml", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)

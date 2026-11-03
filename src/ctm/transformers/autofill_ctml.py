@@ -75,6 +75,9 @@ _GENOMIC_EXTRA = (LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
 _DX = "oncotree_primary_diagnosis"
 # Clinical fields suggested but not yet used in match clauses.
 NOT_IN_MATCH = frozenset({"ecog_score"})
+# report["reason"] when the match was written; skips use their own reason.
+FILLED_EMPTY = "filled empty match"
+OVERWROTE = "overwrote existing match"
 
 
 def _leaves(node):
@@ -144,7 +147,7 @@ def autofill_trial(trial: dict, overwrite: bool = False,
     entries = [e for e in curation.get("_ctml_suggestions") or []
                if e.get("node_type") and e.get("suggested_node") is not None]
     report = {"method": "auto", "filled": False, "reason": None, "nodes": 0,
-              "mixed_pieces": 0, "diagnosis_sources": [],
+              "mixed_pieces": 0, "diagnosis_sources": [], "match_sources": [],
               "mixed_logic": dict.fromkeys(MIXED_LOGIC, 0)}
 
     steps = (out.get("treatment_list") or {}).get("step") or []
@@ -232,11 +235,14 @@ def autofill_trial(trial: dict, overwrite: bool = False,
         curation["autofill"] = report
         return out, report
 
+    had_match = bool(steps[0].get("match"))
     steps[0]["match"] = [_mark(n) for n in nodes]
     for e in (curation.get("_ctml_suggestions") or []) + (curation.get("_null_ctml_suggestions") or []):
         if e.get("node_type"):
             e["transferred_to_match"] = any(e is u for u in used)
     report.update(filled=True, nodes=len(nodes),
+                  reason=OVERWROTE if had_match else FILLED_EMPTY,
+                  match_sources=list(dict.fromkeys(e["source"] for e in used)),
                   mixed_pieces=len({(e["source"], e["text"]) for e in used if e.get("mixed")}))
     curation["autofill"] = report
     return out, report
