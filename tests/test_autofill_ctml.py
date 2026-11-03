@@ -102,13 +102,16 @@ def test_duplicate_diagnoses_across_sources_appear_once():
     assert _match(out) == [{"or": [_auto(_dx("Breast")), _auto(_dx("Lung"))]}]
 
 
-def test_genomic_fallback_only_without_criteria_genomic_nodes():
+def test_title_conditions_and_curator_genomic_nodes_are_always_added_once():
     brca = {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "Mutation", "wildtype": False}}
     title = _e("_summary.long_title", "In BRCA1 carriers", brca, "genomic")
     out, _ = autofill_trial(_trial([title]))
     assert _match(out) == [_auto(brca)]
     out, _ = autofill_trial(_trial([title, _e("eligibility.exclusion", "Known KRAS mutation", KRAS_NO, "genomic")]))
-    assert _match(out) == [_auto(KRAS_NO)]
+    assert _match(out) == [_auto(KRAS_NO), _auto(brca)]
+    same = _e("eligibility.inclusion", "BRCA1 mutation", brca, "genomic")
+    out, _ = autofill_trial(_trial([same, title, _e("_raw.octsu_genes_interest", "BRCA1", brca, "genomic")]))
+    assert _match(out) == [_auto(brca)]                       # duplicates collapse to one
 
 
 def test_duplicate_nodes_are_collapsed():

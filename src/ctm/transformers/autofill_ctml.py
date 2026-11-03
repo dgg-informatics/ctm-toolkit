@@ -15,7 +15,8 @@ No model call. ``source`` values are field paths. Rules:
   fields keeps them as its own node. Negated diagnoses (``!Lung``) stay in their
   own nodes, AND-ed with the rest.
 * Genomic: nodes from ``_summary.long_title``, ``_raw.conditions`` and
-  ``_raw.octsu_genes_interest`` are added only when no criterion produced one.
+  ``_raw.octsu_genes_interest`` are always added (after the criteria's),
+  duplicates collapsed.
 * ``ecog_score`` is not used in match clauses yet: it is removed from every
   node before writing (the suggestion itself is kept). A node left empty is
   dropped and its entry marked not transferred.
@@ -70,7 +71,7 @@ _CRITERIA = (INCLUSION, EXCLUSION)
 _AGE_SEX = (MINIMUM_AGE, SEX, AGE_GROUP)
 _DIAGNOSIS_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, CONDITIONS, CATEGORYS, AMC_DISEASE_SITE,
                       DDOTS_DISEASE_SITE, WEST_DISEASE_SITE)
-_GENOMIC_FALLBACK = (LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
+_GENOMIC_EXTRA = (LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
 _DX = "oncotree_primary_diagnosis"
 # Clinical fields suggested but not yet used in match clauses.
 NOT_IN_MATCH = frozenset({"ecog_score"})
@@ -208,7 +209,6 @@ def autofill_trial(trial: dict, overwrite: bool = False,
         nodes.append(leaves[0] if len(leaves) == 1 else {"or": leaves})
     report["diagnosis_sources"] = dx_sources
 
-    criteria = [e for e in entries if e["source"] in _CRITERIA]
     for e in entries:
         if in_or_piece(e):
             if e["node_type"] == "clinical":
@@ -222,11 +222,10 @@ def autofill_trial(trial: dict, overwrite: bool = False,
         elif e["source"] in _CRITERIA or e["source"] in _AGE_SEX:
             add(_match_ready(e["suggested_node"]), e)
 
-    if not any(e["node_type"] == "genomic" for e in criteria):
-        for e in entries:
-            if (e["node_type"] == "genomic" and e["source"] in _GENOMIC_FALLBACK
-                    and not in_or_piece(e)):
-                add(e["suggested_node"], e)
+    for e in entries:
+        if (e["node_type"] == "genomic" and e["source"] in _GENOMIC_EXTRA
+                and not in_or_piece(e)):
+            add(e["suggested_node"], e)
 
     if not nodes:
         report["reason"] = "no suggestions"
