@@ -56,7 +56,8 @@ def build_stages(args) -> list[Stage]:
         Stage("ctm-mm trials-diff", mm("trials-diff")),
         Stage("ctm-llm clinical", llm("clinical", "--yes") if args.yes else llm("clinical")),
         Stage("ctm-llm genomic", llm("genomic", "--yes") if args.yes else llm("genomic")),
-        Stage("ctm-llm autofill-ctml", llm("autofill-ctml")),
+        Stage("ctm-llm autofill-ctml",
+              llm("autofill-ctml", "--yes") if args.yes else llm("autofill-ctml")),
     ]
 
 

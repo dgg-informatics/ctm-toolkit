@@ -3,7 +3,7 @@
 Usage:
   ctm-llm clinical --out JSON [--trials JSON] [--limit N] [--nct ID ...]
   ctm-llm genomic  --out JSON [--trials JSON] [--kb JSON]
-  ctm-llm autofill-ctml [--trials JSON] [--out JSON] [--overwrite]   [BETA]
+  ctm-llm autofill-ctml [--trials JSON] [--out JSON] [--overwrite] [--yes]   [BETA]
 
 Two stages, split by the kind of CTML they draft:
 
@@ -60,6 +60,7 @@ log = logging.getLogger(__name__)
 
 _CLINICAL_CACHE = ".ctml_clinical_cache.json"
 _GENOMIC_CACHE = ".ctml_genomic_cache.json"
+_AUTOFILL_CACHE = ".ctml_autofill_cache.json"   # and/or answers for mixed pieces
 
 # Deprecated subcommand → its replacement. Removed in 3.0.0.
 _ALIASES = {"general": "clinical", "biomarkers": "genomic"}
@@ -142,6 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Override the run_date inherited from the source documents")
     p_auto.add_argument("--overwrite", action="store_true",
                         help="Replace non-empty match clauses too (default: fill only empty ones)")
+    p_auto.add_argument("--cache", default=None, metavar="JSON",
+                        help=f"Cache of and/or answers for mixed pieces "
+                             f"(default: {cache_dir() / _AUTOFILL_CACHE})")
+    p_auto.add_argument("--yes", "-y", action="store_true",
+                        help="Skip the cold-cache confirmation before the first AI call")
     _add_stage_parser(sub, "general", "[deprecated] alias for clinical; removed in 3.0.0",
                       _CLINICAL_CACHE, clinical=True)
     _add_stage_parser(sub, "biomarkers", "[deprecated] alias for genomic; removed in 3.0.0",
@@ -341,7 +347,8 @@ def _cmd_genomic(args) -> None:
 
 def _cmd_autofill(args) -> None:
     from ctm import db as ctm_db
-    from ctm.transformers.autofill_ctml import autofill_trial
+    from ctm.transformers import eligibility_to_ctml as e2c
+    from ctm.transformers.autofill_ctml import ai_mixed_resolver, autofill_trial
 
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
@@ -360,10 +367,23 @@ def _cmd_autofill(args) -> None:
     )
     log.info(f"Target: {target_db}.{ctm_db.LLM_AUTOFILL_COLLECTION} (run_date {run_date})")
 
+    # The AI is only reached for mixed criterion pieces; the client (and the
+    # cold-cache confirmation) are deferred until the first one needs it.
+    cache_file = Path(args.cache) if args.cache else cache_path(_AUTOFILL_CACHE)
+    cache = e2c.load_cache(cache_file)
+
+    def get_client():
+        _confirm_cold_cache(cache, cache_file, args.yes)
+        return e2c.build_client()
+
+    resolve_mixed = ai_mixed_resolver(get_client, cache)
+
     results, filled, mixed = [], 0, 0
     for trial in trials:
         label = trial.get("protocol_no") or trial.get("nct_id") or "unknown"
-        drafted, report = autofill_trial(trial, overwrite=args.overwrite)
+        drafted, report = autofill_trial(trial, overwrite=args.overwrite, resolve_mixed=resolve_mixed)
+        if cache:
+            e2c.save_cache(cache, cache_file)   # after each trial so answers survive interruption
         results.append(drafted)
         filled += report["filled"]
         mixed += report["mixed_pieces"] > 0
@@ -371,7 +391,7 @@ def _cmd_autofill(args) -> None:
                   "filled" if report["filled"] else f"skipped ({report['reason']})",
                   trial=label, stage="autofill", filled=report["filled"],
                   reason=report["reason"], nodes=report["nodes"],
-                  mixed_pieces=report["mixed_pieces"])
+                  mixed_pieces=report["mixed_pieces"], mixed_logic=report["mixed_logic"])
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm autofill-ctml", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)
 

@@ -248,3 +248,136 @@ def test_ecog_is_suggested_but_never_written_to_the_match():
     flags = [e["transferred_to_match"] for e in out["_llm_curation"]["_ctml_suggestions"]]
     assert flags == [False, True]
     assert out["_llm_curation"]["_ctml_suggestions"][0]["suggested_node"] == ecog   # suggestion kept
+
+
+# ── mixed pieces: and/or decided by a resolver (AI in the CLI) ───────────────
+
+BRCA2 = {"genomic": {"hugo_symbol": "BRCA2", "variant_category": "Mutation", "wildtype": False}}
+MIXED_TEXT = "Breast cancer or a germline BRCA2 mutation"
+
+
+def _mixed_trial():
+    return _trial([_e("eligibility.inclusion", MIXED_TEXT, _dx("Breast"), "clinical", mixed=True),
+                   _e("eligibility.inclusion", MIXED_TEXT, BRCA2, "genomic", mixed=True),
+                   _e("_raw._ddots.disease_site", "Breast", _dx("Breast"), "clinical"),
+                   _e("_raw.minimum_age", "18 Years", AGE, "clinical")])
+
+
+def test_mixed_or_piece_becomes_one_or_item_and_keeps_its_diagnosis():
+    asked = []
+
+    def resolver(text, clinical, genomic):
+        asked.append((text, clinical, genomic))
+        return "or"
+
+    out, report = autofill_trial(_mixed_trial(), resolve_mixed=resolver)
+    assert asked == [(MIXED_TEXT, _dx("Breast"), BRCA2)]
+    assert _match(out) == [_auto(_dx("Breast")),                       # disease site's diagnosis
+                           {"or": [_auto(_dx("Breast")), _auto(BRCA2)]},
+                           _auto(AGE)]
+    logic = {e["node_type"]: e.get("mixed_logic") for e in out["_llm_curation"]["_ctml_suggestions"]
+             if e["text"] == MIXED_TEXT}
+    assert logic == {"clinical": "or", "genomic": "or"}
+    assert report["mixed_logic"] == {"and": 0, "or": 1, "unresolved": 0}
+    assert report["diagnosis_sources"] == ["_raw._ddots.disease_site"]
+
+
+def test_mixed_and_piece_is_anded_as_before():
+    out, report = autofill_trial(_mixed_trial(), resolve_mixed=lambda *a: "and")
+    assert _match(out) == [_auto(_dx("Breast")), _auto(BRCA2), _auto(AGE)]
+    assert report["mixed_logic"] == {"and": 1, "or": 0, "unresolved": 0}
+
+
+def test_no_resolver_or_unresolved_falls_back_to_and_and_says_so():
+    for kwargs in ({}, {"resolve_mixed": lambda *a: "unresolved"}):
+        out, report = autofill_trial(_mixed_trial(), **kwargs)
+        assert _match(out) == [_auto(_dx("Breast")), _auto(BRCA2), _auto(AGE)]
+        assert report["mixed_logic"] == {"and": 0, "or": 0, "unresolved": 1}
+        assert {e.get("mixed_logic") for e in out["_llm_curation"]["_ctml_suggestions"]
+                if e["text"] == MIXED_TEXT} == {"unresolved"}
+
+
+def test_resolver_not_called_without_mixed_criteria():
+    def boom(*a):
+        raise AssertionError("no mixed piece — must not call")
+
+    autofill_trial(_trial([_e("eligibility.inclusion", "Breast", _dx("Breast"), "clinical")]), resolve_mixed=boom)
+
+
+def test_ecog_only_clinical_side_of_an_or_piece_leaves_the_genomic_node():
+    trial = _trial([_e("eligibility.inclusion", "ECOG 0-1 or BRCA2", {"clinical": {"ecog_score": "<=1"}},
+                       "clinical", mixed=True),
+                    _e("eligibility.inclusion", "ECOG 0-1 or BRCA2", BRCA2, "genomic", mixed=True)])
+    out, _ = autofill_trial(trial, resolve_mixed=lambda *a: "or")
+    assert _match(out) == [_auto(BRCA2)]
+
+
+# ── the AI resolver ──────────────────────────────────────────────────────────
+
+def test_ai_resolver_asks_once_and_caches():
+    from llm_fakes import QueuedClient
+
+    from ctm.transformers.autofill_ctml import ai_mixed_resolver
+
+    client, cache = QueuedClient(['{"logic": "or"}']), {}
+    resolve = ai_mixed_resolver(lambda: client, cache)
+    assert resolve(MIXED_TEXT, _dx("Breast"), BRCA2) == "or"
+    assert resolve(MIXED_TEXT, _dx("Breast"), BRCA2) == "or"
+    assert client.call_count == 1 and len(cache) == 1
+    assert MIXED_TEXT in client.prompts[0] and "BRCA2" in client.prompts[0]
+
+
+def test_ai_resolver_junk_and_content_filter_are_unresolved():
+    from llm_fakes import ContentFilterError, QueuedClient
+
+    from ctm.transformers.autofill_ctml import ai_mixed_resolver
+
+    for answer in ("not json", '{"logic": "maybe"}', "[]", None):
+        resolve = ai_mixed_resolver(lambda a=answer: QueuedClient([a]), {})
+        assert resolve("t", _dx("Breast"), BRCA2) == "unresolved"
+    cache = {}
+    resolve = ai_mixed_resolver(lambda: QueuedClient([ContentFilterError("blocked")]), cache)
+    assert resolve("t", _dx("Breast"), BRCA2) == "unresolved"
+    assert list(cache.values()) == ["unresolved"]
+
+
+def test_ai_resolver_builds_the_client_lazily():
+    from ctm.transformers.autofill_ctml import ai_mixed_resolver
+
+    def no_client():
+        raise AssertionError("client must not be built until a mixed piece needs it")
+
+    ai_mixed_resolver(no_client, {})   # constructing it must not build a client
+
+
+def test_cli_without_mixed_pieces_never_builds_a_client(fake_mongo, tmp_path, monkeypatch):
+    import json
+
+    from ctm import llm_cli
+
+    monkeypatch.setattr(llm_cli, "load_env", lambda: None)
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client",
+                        lambda: (_ for _ in ()).throw(AssertionError("no client needed")))
+    src = tmp_path / "in.json"
+    src.write_text(json.dumps([_cli_trial()]))
+    llm_cli.main(["autofill-ctml", "--trials", str(src), "--out", str(tmp_path / "o.json"),
+                  "--cache", str(tmp_path / "c.json")])
+
+
+def test_cli_resolves_mixed_pieces_with_the_ai(fake_mongo, tmp_path, monkeypatch):
+    import json
+
+    from llm_fakes import QueuedClient
+
+    from ctm import llm_cli
+
+    monkeypatch.setattr(llm_cli, "load_env", lambda: None)
+    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client",
+                        lambda: QueuedClient(['{"logic": "or"}']))
+    src, out = tmp_path / "in.json", tmp_path / "o.json"
+    src.write_text(json.dumps([_mixed_trial()]))
+    llm_cli.main(["autofill-ctml", "--trials", str(src), "--out", str(out),
+                  "--cache", str(tmp_path / "c.json"), "--yes"])
+    match = json.loads(out.read_text())[0]["treatment_list"]["step"][0]["match"]
+    assert {"or": [_auto(_dx("Breast")), _auto(BRCA2)]} in match
+    assert json.loads((tmp_path / "c.json").read_text())

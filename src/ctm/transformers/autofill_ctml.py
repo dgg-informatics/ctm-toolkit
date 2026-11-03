@@ -20,8 +20,13 @@ No model call. ``source`` values are field paths. Rules:
   node before writing (the suggestion itself is kept). A node left empty is
   dropped and its entry marked not transferred.
 * Identical nodes collapse to one. The match is a plain list of nodes — a
-  top-level list is already AND-ed, so no ``and`` wrapper. A ``mixed`` piece's
-  clinical and genomic nodes are AND-ed that way — counted in the report.
+  top-level list is already AND-ed, so no ``and`` wrapper.
+* Mixed criterion pieces (one text → a clinical and a genomic node): the stages
+  can't see each other, so the and/or is decided here — one small AI call per
+  piece in the CLI (``ai_mixed_resolver``). "or" → one ``{"or": [clinical,
+  genomic]}`` item, keeping that diagnosis out of the shared OR; "and" or
+  "unresolved" (no answer) → AND-ed. Recorded as ``mixed_logic`` on both entries
+  and counted in the report. This is the only AI use in autofill.
 * Every clinical/genomic leaf gets ``_CURATED_METHOD: "auto"``. matchengine
   must list ``_CURATED_METHOD`` with ``"ignore": true`` under both clinical and
   genomic ``trial_key_mappings``, or these clauses match nobody.
@@ -30,9 +35,14 @@ No model call. ``source`` values are field paths. Rules:
   false if not; when it skips, the flags stay None (never decided). A report is
   stored at ``_llm_curation.autofill``.
 
-Pure: no I/O, inputs never mutated. Legacy entries (no ``node_type``) are ignored.
+``autofill_trial`` is pure (no I/O, inputs never mutated); the AI lives behind
+the injected resolver. Legacy entries (no ``node_type``) are ignored.
 """
 import copy
+import hashlib
+import json
+import logging
+import os
 
 from .llm_curation import (
     AGE_GROUP,
@@ -49,7 +59,10 @@ from .llm_curation import (
     WEST_DISEASE_SITE,
 )
 
+log = logging.getLogger(__name__)
+
 CURATED_METHOD_KEY = "_CURATED_METHOD"
+MIXED_LOGIC = ("and", "or", "unresolved")
 
 _CRITERIA = (INCLUSION, EXCLUSION)
 _AGE_SEX = (MINIMUM_AGE, SEX, AGE_GROUP)
@@ -113,14 +126,21 @@ def _mark(node: dict) -> dict:
     return {kind: {**fields, CURATED_METHOD_KEY: "auto"} for kind, fields in node.items()}
 
 
-def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
-    """(new trial, report). The report is also stored at ``_llm_curation.autofill``."""
+def autofill_trial(trial: dict, overwrite: bool = False,
+                   resolve_mixed=None) -> tuple[dict, dict]:
+    """(new trial, report). The report is also stored at ``_llm_curation.autofill``.
+
+    ``resolve_mixed(text, clinical_node, genomic_node)`` returns "and", "or" or
+    "unresolved" for a criterion piece that produced both a clinical and a
+    genomic node. Without it every such piece is "unresolved" (AND-ed).
+    """
     out = copy.deepcopy(trial)
     curation = out.setdefault("_llm_curation", {})
     entries = [e for e in curation.get("_ctml_suggestions") or []
                if e.get("node_type") and e.get("suggested_node") is not None]
     report = {"method": "auto", "filled": False, "reason": None, "nodes": 0,
-              "mixed_pieces": 0, "diagnosis_sources": []}
+              "mixed_pieces": 0, "diagnosis_sources": [],
+              "mixed_logic": dict.fromkeys(MIXED_LOGIC, 0)}
 
     steps = (out.get("treatment_list") or {}).get("step") or []
     if not steps:
@@ -145,11 +165,35 @@ def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
             nodes.append(node)
         use(entry)
 
+    # Mixed criterion pieces: one clinical + one genomic entry from the same
+    # text. Neither stage can see the other, so the and/or between them is
+    # decided here (by the AI in the CLI). "or" pieces become one OR item and
+    # keep their diagnosis inside it.
+    pieces: dict[tuple, dict] = {}
+    for e in entries:
+        if e["source"] in _CRITERIA:
+            pieces.setdefault((e["source"], e["text"]), {})[e["node_type"]] = e
+    or_pieces = set()
+    for key, by_type in pieces.items():
+        if {"clinical", "genomic"} <= by_type.keys():
+            clinical, genomic = by_type["clinical"], by_type["genomic"]
+            logic = (resolve_mixed(key[1], clinical["suggested_node"], genomic["suggested_node"])
+                     if resolve_mixed else "unresolved")
+            logic = logic if logic in MIXED_LOGIC else "unresolved"
+            clinical["mixed_logic"] = genomic["mixed_logic"] = logic
+            report["mixed_logic"][logic] += 1
+            if logic == "or":
+                or_pieces.add(key)
+
+    def in_or_piece(e: dict) -> bool:
+        return (e["source"], e["text"]) in or_pieces
+
     # Diagnosis: every positive oncotree_primary_diagnosis from every clinical
     # source, de-duplicated, as one OR. Negated ones stay in their own nodes.
     names, dx_sources = [], []
     for e in entries:
-        if e["node_type"] == "clinical" and e["source"] in _DIAGNOSIS_SOURCES:
+        if (e["node_type"] == "clinical" and e["source"] in _DIAGNOSIS_SOURCES
+                and not in_or_piece(e)):
             found = _positive_diagnoses(e["suggested_node"])
             if found:
                 use(e)
@@ -163,7 +207,16 @@ def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
 
     criteria = [e for e in entries if e["source"] in _CRITERIA]
     for e in entries:
-        if e["source"] in _CRITERIA or e["source"] in _AGE_SEX:
+        if in_or_piece(e):
+            if e["node_type"] == "clinical":
+                genomic = pieces[(e["source"], e["text"])]["genomic"]
+                clinical_part = _strip(e["suggested_node"], lambda k, v: k in NOT_IN_MATCH)
+                if clinical_part is None:
+                    add(genomic["suggested_node"], genomic)
+                else:
+                    add({"or": [clinical_part, genomic["suggested_node"]]}, e)
+                    use(genomic)
+        elif e["source"] in _CRITERIA or e["source"] in _AGE_SEX:
             add(_match_ready(e["suggested_node"]), e)
 
     if not any(e["node_type"] == "genomic" for e in criteria):
@@ -185,3 +238,69 @@ def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
     curation["autofill"] = report
     return out, report
 
+
+
+MIXED_LOGIC_PROMPT = """You decide how two parts of one clinical trial eligibility criterion combine.
+
+You get the criterion text, a clinical CTML node and a genomic CTML node that were both
+extracted from that same text. Decide whether the text requires BOTH (and) or EITHER (or).
+
+- "and": the patient must satisfy both, e.g. "HER2-amplified breast cancer",
+  "NSCLC with an EGFR exon 19 deletion", "BRCA-mutated ovarian cancer".
+- "or": either one qualifies, e.g. "breast cancer or a germline BRCA2 mutation",
+  "any solid tumor with an NTRK fusion, or a lymphoma".
+If the text does not clearly say "or" between the two parts, answer "and".
+
+Return ONLY a JSON object, no explanation, no code fences: {"logic": "and"} or {"logic": "or"}"""
+
+
+def MIXED_PROMPT_VERSION() -> str:
+    return hashlib.md5(MIXED_LOGIC_PROMPT.encode()).hexdigest()[:8]
+
+
+def ai_mixed_resolver(get_client, cache: dict):
+    """A ``resolve_mixed`` that asks the model, cached per text + both nodes.
+
+    ``get_client`` is called once, on the first uncached piece, so a run with no
+    mixed pieces never needs UMGPT. Junk answers and content-filter refusals are
+    "unresolved" (and cached, so a rerun does not pay for them again).
+    """
+    from .eligibility_to_ctml import _cache_key, is_content_filter
+    from .genomic_ctml import strip_fences
+
+    client = []
+
+    def resolve(text: str, clinical: dict, genomic: dict) -> str:
+        nodes = json.dumps([clinical, genomic], sort_keys=True)
+        key = _cache_key(f"mixed:{MIXED_PROMPT_VERSION()}:{text}:{nodes}")
+        if key not in cache:
+            if not client:
+                client.append(get_client())
+            try:
+                response = client[0].chat.completions.create(
+                    model=os.environ.get("UMGPT_MODEL", "gpt-4o"),
+                    messages=[
+                        {"role": "system", "content": MIXED_LOGIC_PROMPT},
+                        {"role": "user", "content": f"Criterion: {text}\n"
+                                                    f"Clinical node: {json.dumps(clinical)}\n"
+                                                    f"Genomic node: {json.dumps(genomic)}"},
+                    ],
+                    temperature=0,
+                    max_tokens=20,
+                )
+            except Exception as exc:
+                if not is_content_filter(exc):
+                    raise
+                log.warning("  content filter — mixed piece left unresolved: %r", text[:80],
+                            extra={"event": "llm.content_filter", "stage": "autofill"})
+                cache[key] = "unresolved"
+            else:
+                try:
+                    parsed = json.loads(strip_fences(response.choices[0].message.content))
+                except json.JSONDecodeError:
+                    parsed = None
+                logic = parsed.get("logic") if isinstance(parsed, dict) else None
+                cache[key] = logic if logic in ("and", "or") else "unresolved"
+        return cache[key]
+
+    return resolve
