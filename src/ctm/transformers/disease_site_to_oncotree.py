@@ -2,8 +2,8 @@
 
 Some trials state their cancer type only in the registry disease-site field
 ("Colon", "Melanoma, Skin", "Lymphoid Leukemia"), never in the criteria or title.
-This turns that field into one extra ``_ctml_suggestions`` entry with
-``source: "disease_site"``, added alongside the criteria and title suggestions.
+This turns that field into one extra ``_ctml_suggestions`` entry whose
+``source`` is the field path, added alongside the criteria and title suggestions.
 
 Each distinct site value (lowercased, trimmed) is mapped once and remembered:
 
