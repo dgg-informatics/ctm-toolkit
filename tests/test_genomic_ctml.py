@@ -202,3 +202,11 @@ def test_cached_answers_are_revalidated_on_read():
     cur = _cur(trial, QueuedClient([]), cache)
     assert cur["_ctml_suggestions"] == []
     assert cur["molecular_genomic_refs"][0]["type"] == "other"
+
+
+def test_genomic_prompt_treats_tumor_level_tests_as_somatic():
+    """MSI/MMR/TMB/HRD and IHC are tumor tests, so their refs are somatic even
+    without explicit tumor wording; the HER2 IHC example agrees."""
+    assert "MSI/MMR/TMB/HRD and IHC are tumor tests" in GENOMIC_SYSTEM_PROMPT
+    assert ('"reference": "HER2-positive (IHC 3+)", "origin": "somatic"'
+            in GENOMIC_SYSTEM_PROMPT)

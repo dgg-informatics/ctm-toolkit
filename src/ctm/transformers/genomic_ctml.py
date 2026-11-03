@@ -198,6 +198,7 @@ Each ref:
 origin: "germline" when the text asks for an inherited/germline alteration ("germline BRCA1/2",
 "pathogenic germline variant", "hereditary"); "somatic" when it asks for a tumor alteration
 ("somatic", "tumor-based NGS", "detected in tumor tissue", "ctDNA"); otherwise "unknown".
+MSI/MMR/TMB/HRD and IHC are tumor tests → "somatic" even without tumor wording.
 If nothing molecular is mentioned, "refs" is [].
 
 EXAMPLES
@@ -255,7 +256,7 @@ Source: exclusion — "Known ALK rearrangement"
 → {"node": null, "refs": [{"biomarker": "TMB", "type": "tmb", "reference": "TMB >= 10 mut/Mb", "origin": "somatic"}]}
 
 "HER2-positive (IHC 3+) breast cancer"
-→ {"node": null, "refs": [{"biomarker": "HER2", "type": "ihc", "reference": "HER2-positive (IHC 3+)", "origin": "unknown"}]}
+→ {"node": null, "refs": [{"biomarker": "HER2", "type": "ihc", "reference": "HER2-positive (IHC 3+)", "origin": "somatic"}]}
 
 "Age >= 18"
 → {"node": null, "refs": []}"""
