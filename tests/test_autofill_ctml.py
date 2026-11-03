@@ -44,7 +44,7 @@ def test_match_is_a_plain_list_of_nodes_with_the_auto_marker():
     out, report = autofill_trial(trial)
     assert _match(out) == [_auto(_dx("Breast")), _auto(KRAS_NO), _auto(AGE)]
     assert report["filled"] is True and report["nodes"] == 3
-    assert report["diagnosis_from"] == "criteria"
+    assert report["diagnosis_sources"] == ["eligibility.inclusion"]
 
 
 def test_single_node_is_a_one_item_list():
@@ -52,24 +52,48 @@ def test_single_node_is_a_one_item_list():
     assert _match(out) == [_auto(AGE)]
 
 
-def test_criteria_diagnosis_wins_over_fallback_sources():
-    trial = _trial([_e("eligibility.inclusion", "Invasive ductal carcinoma", _dx("Breast Invasive Ductal Carcinoma"), "clinical"),
-                    _e("_raw.conditions", "Breast Cancer", _dx("Breast"), "clinical"),
-                    _e("_raw.disease_site", "Breast", _dx("Breast"), "clinical")])
+def test_every_diagnosis_from_every_source_is_one_or():
+    """Head and neck trial from the 07 sample: the criterion's vague histology, the
+    conditions' specific diagnosis and the disease site all go into one OR."""
+    trial = _trial([_e("eligibility.inclusion", "SCC of the head/neck", _dx("Squamous Cell Carcinoma, NOS"), "clinical"),
+                    _e("eligibility.inclusion", "ECOG 0-1", {"clinical": {"ecog_score": "<=1"}}, "clinical"),
+                    _e("_raw.minimum_age", "18 Years", AGE, "clinical"),
+                    _e("_raw.conditions", "Head and Neck Squamous Cell Carcinoma",
+                       _dx("Head and Neck Squamous Cell Carcinoma"), "clinical"),
+                    _e("_raw._ddots.disease_site", "Head and Neck", _dx("Head and Neck"), "clinical")])
     out, report = autofill_trial(trial)
-    assert _match(out) == [_auto(_dx("Breast Invasive Ductal Carcinoma"))]
-    assert report["diagnosis_from"] == "criteria"
+    assert _match(out) == [
+        {"or": [_auto(_dx("Squamous Cell Carcinoma, NOS")),
+                _auto(_dx("Head and Neck Squamous Cell Carcinoma")),
+                _auto(_dx("Head and Neck"))]},
+        _auto(AGE),
+    ]
+    assert report["diagnosis_sources"] == ["eligibility.inclusion", "_raw.conditions",
+                                           "_raw._ddots.disease_site"]
+    flags = {e["source"]: e["transferred_to_match"] for e in out["_llm_curation"]["_ctml_suggestions"]
+             if e["source"] != "eligibility.inclusion"}
+    assert flags == {"_raw.minimum_age": True, "_raw.conditions": True, "_raw._ddots.disease_site": True}
 
 
-def test_negated_criteria_diagnosis_does_not_count_as_a_diagnosis():
+def test_negated_diagnoses_stay_separate_and_anded():
     trial = _trial([_e("eligibility.exclusion", "No lung cancer", _dx("!Lung"), "clinical"),
                     _e("_raw.disease_site", "Breast", _dx("Breast"), "clinical")])
     out, report = autofill_trial(trial)
-    assert _match(out) == [_auto(_dx("!Lung")), _auto(_dx("Breast"))]
-    assert report["diagnosis_from"] == "fallback"
+    assert _match(out) == [_auto(_dx("Breast")), _auto(_dx("!Lung"))]
+    assert report["diagnosis_sources"] == ["_raw.disease_site"]
 
 
-def test_fallback_diagnoses_are_one_or_of_distinct_names():
+def test_diagnosis_is_lifted_out_of_a_criterion_node_with_other_fields():
+    both = {"clinical": {"oncotree_primary_diagnosis": "Breast", "gender": "Female"}}
+    nested = {"and": [_dx("Ovary"), {"clinical": {"age_numerical": ">=18"}}]}
+    trial = _trial([_e("eligibility.inclusion", "Women with breast cancer", both, "clinical"),
+                    _e("eligibility.inclusion", "Adults with ovarian cancer", nested, "clinical")])
+    out, _ = autofill_trial(trial)
+    assert _match(out) == [{"or": [_auto(_dx("Breast")), _auto(_dx("Ovary"))]},
+                           _auto({"clinical": {"gender": "Female"}}), _auto(AGE)]
+
+
+def test_duplicate_diagnoses_across_sources_appear_once():
     trial = _trial([_e("_summary.long_title", "A Breast and Lung study", {"or": [_dx("Breast"), _dx("Lung")]}, "clinical"),
                     _e("_raw.conditions", "Breast Cancer", _dx("Breast"), "clinical"),
                     _e("_raw.categorys", "Breast", _dx("Breast"), "clinical"),
@@ -102,8 +126,9 @@ def test_used_entries_marked_transferred_and_mixed_counted():
     out, report = autofill_trial(trial)
     flags = {(e["node_type"], e["source"]): e["transferred_to_match"]
              for e in out["_llm_curation"]["_ctml_suggestions"]}
+    # conditions' Breast is the same diagnosis — merged into the OR, so it counts as used.
     assert flags == {("clinical", "eligibility.inclusion"): True, ("genomic", "eligibility.inclusion"): True,
-                     ("clinical", "_raw.conditions"): False}
+                     ("clinical", "_raw.conditions"): True}
     assert [e["transferred_to_match"] for e in out["_llm_curation"]["_null_ctml_suggestions"]] == []
     assert report["mixed_pieces"] == 1
     assert out["_llm_curation"]["autofill"] == report

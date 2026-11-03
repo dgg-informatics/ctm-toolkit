@@ -8,11 +8,12 @@ No model call. ``source`` values are field paths. Rules:
   both node types) and every age/sex node (``_raw.minimum_age``, ``_raw.sex``,
   ``_raw.age_group``) is included. Exclusion nodes already carry their
   negation (``!`` on clinical values, ``!Mutation`` on genomic).
-* Diagnosis: if any criterion node names a (non-negated)
-  ``oncotree_primary_diagnosis``, the criteria's diagnosis stands. Otherwise
-  one ``or`` of the distinct diagnoses from ``_summary.long_title``,
-  ``_raw.conditions``, ``_raw.categorys`` and the disease-site fields is added —
-  never AND-ed together, which would match almost nobody.
+* Diagnosis: every positive ``oncotree_primary_diagnosis`` from every clinical
+  source (criteria, ``_summary.long_title``, ``_raw.conditions``,
+  ``_raw.categorys``, the disease-site fields) goes into **one** ``or`` node,
+  de-duplicated, first in the match. A criterion node that also had other
+  fields keeps them as its own node. Negated diagnoses (``!Lung``) stay in their
+  own nodes, AND-ed with the rest.
 * Genomic: nodes from ``_summary.long_title``, ``_raw.conditions`` and
   ``_raw.octsu_genes_interest`` are added only when no criterion produced one.
 * ``ecog_score`` is not used in match clauses yet: it is removed from every
@@ -52,8 +53,8 @@ CURATED_METHOD_KEY = "_CURATED_METHOD"
 
 _CRITERIA = (INCLUSION, EXCLUSION)
 _AGE_SEX = (MINIMUM_AGE, SEX, AGE_GROUP)
-_DIAGNOSIS_FALLBACK = (LONG_TITLE, CONDITIONS, CATEGORYS, AMC_DISEASE_SITE, DDOTS_DISEASE_SITE,
-                       WEST_DISEASE_SITE)
+_DIAGNOSIS_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, CONDITIONS, CATEGORYS, AMC_DISEASE_SITE,
+                      DDOTS_DISEASE_SITE, WEST_DISEASE_SITE)
 _GENOMIC_FALLBACK = (LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
 _DX = "oncotree_primary_diagnosis"
 # Clinical fields suggested but not yet used in match clauses.
@@ -80,18 +81,28 @@ def _positive_diagnoses(node) -> list[str]:
     return names
 
 
-def _without_unused_fields(node: dict) -> dict | None:
-    """``node`` without NOT_IN_MATCH clinical fields; None if nothing is left."""
+def _is_positive_dx(key: str, value) -> bool:
+    return key == _DX and isinstance(value, str) and bool(value) and not value.startswith("!")
+
+
+def _strip(node: dict, drop) -> dict | None:
+    """``node`` without the clinical fields ``drop(key, value)`` selects; None if empty."""
     for key in ("and", "or"):
         if key in node:
-            children = [c for c in (_without_unused_fields(c) for c in node[key]) if c is not None]
+            children = [c for c in (_strip(c, drop) for c in node[key]) if c is not None]
             if not children:
                 return None
             return children[0] if len(children) == 1 else {key: children}
     if "clinical" in node:
-        fields = {k: v for k, v in node["clinical"].items() if k not in NOT_IN_MATCH}
+        fields = {k: v for k, v in node["clinical"].items() if not drop(k, v)}
         return {"clinical": fields} if fields else None
     return node
+
+
+def _match_ready(node: dict) -> dict | None:
+    """``node`` minus fields not used in matching yet and minus positive diagnoses,
+    which are gathered into the one diagnosis OR instead."""
+    return _strip(node, lambda k, v: k in NOT_IN_MATCH or _is_positive_dx(k, v))
 
 
 def _mark(node: dict) -> dict:
@@ -109,7 +120,7 @@ def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
     entries = [e for e in curation.get("_ctml_suggestions") or []
                if e.get("node_type") and e.get("suggested_node") is not None]
     report = {"method": "auto", "filled": False, "reason": None, "nodes": 0,
-              "mixed_pieces": 0, "diagnosis_from": None}
+              "mixed_pieces": 0, "diagnosis_sources": []}
 
     steps = (out.get("treatment_list") or {}).get("step") or []
     if not steps:
@@ -123,35 +134,37 @@ def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
     used: list[dict] = []
     nodes: list[dict] = []
 
-    def add(node: dict, entry: dict) -> None:
-        node = _without_unused_fields(node)
+    def use(entry: dict) -> None:
+        if not any(entry is u for u in used):
+            used.append(entry)
+
+    def add(node: dict | None, entry: dict) -> None:
         if node is None:
             return
         if node not in nodes:
             nodes.append(node)
-        if not any(entry is u for u in used):
-            used.append(entry)
+        use(entry)
+
+    # Diagnosis: every positive oncotree_primary_diagnosis from every clinical
+    # source, de-duplicated, as one OR. Negated ones stay in their own nodes.
+    names, dx_sources = [], []
+    for e in entries:
+        if e["node_type"] == "clinical" and e["source"] in _DIAGNOSIS_SOURCES:
+            found = _positive_diagnoses(e["suggested_node"])
+            if found:
+                use(e)
+                names += [n for n in found if n not in names]
+                if e["source"] not in dx_sources:
+                    dx_sources.append(e["source"])
+    if names:
+        leaves = [{"clinical": {_DX: n}} for n in names]
+        nodes.append(leaves[0] if len(leaves) == 1 else {"or": leaves})
+    report["diagnosis_sources"] = dx_sources
 
     criteria = [e for e in entries if e["source"] in _CRITERIA]
     for e in entries:
         if e["source"] in _CRITERIA or e["source"] in _AGE_SEX:
-            add(e["suggested_node"], e)
-
-    if any(_positive_diagnoses(e["suggested_node"]) for e in criteria if e["node_type"] == "clinical"):
-        report["diagnosis_from"] = "criteria"
-    else:
-        names, sources = [], []
-        for e in entries:
-            if e["node_type"] == "clinical" and e["source"] in _DIAGNOSIS_FALLBACK:
-                found = _positive_diagnoses(e["suggested_node"])
-                if found:
-                    sources.append(e)
-                    names += [n for n in found if n not in names]
-        if names:
-            leaves = [{"clinical": {_DX: n}} for n in names]
-            for e in sources:
-                add(leaves[0] if len(leaves) == 1 else {"or": leaves}, e)
-            report["diagnosis_from"] = "fallback"
+            add(_match_ready(e["suggested_node"]), e)
 
     if not any(e["node_type"] == "genomic" for e in criteria):
         for e in entries:
