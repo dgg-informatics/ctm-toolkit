@@ -90,7 +90,7 @@ def test_clinical_empty_trial():
     assert cur["_ctml_suggestions"] == [] and cur["_null_ctml_suggestions"] == []
     assert all(r == {"found": False, "scanned": False, "pieces": 0}
                for r in cur["parsed_sections"]["clinical"].values())
-    assert len(cur["parsed_sections"]["clinical"]) == 10
+    assert len(cur["parsed_sections"]["clinical"]) == 11
     assert client.call_count == 0
 
 

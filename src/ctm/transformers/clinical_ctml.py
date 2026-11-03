@@ -20,7 +20,12 @@ import json
 import logging
 import os
 
-from .disease_site_to_oncotree import SITE_FIELDS, site_suggestion, trial_sites
+from .disease_site_to_oncotree import (
+    SITE_FIELDS,
+    notify_missing_site_field,
+    site_suggestion,
+    trial_sites,
+)
 from .eligibility_to_ctml import (
     _cache_key,
     _validate_node,
@@ -204,6 +209,7 @@ def draft_clinical(trial: dict, cache: dict, client, valid_oncotree: set[str],
     for one in (conditions_suggestion(trial), amc_categories_suggestion(trial)):
         if one:
             field_entries.append(one)
+    notify_missing_site_field(trial)
     for field in SITE_FIELDS:
         site = site_suggestion(trial, reviewed, site_drafts, client, valid_oncotree, field=field)
         if site:

@@ -753,7 +753,7 @@ def test_raw_collection_is_stage_owned():
 
     assert ctm_db.RAW_COLLECTION in ctm_db.MACHINE_WRITTEN
     names = [ctm_db.RAW_COLLECTION, ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION,
-             ctm_db.LLM_GENERAL_COLLECTION, ctm_db.LLM_BIOMARKER_COLLECTION, ctm_db.MANUAL_COLLECTION,
+             ctm_db.LLM_CLINICAL_COLLECTION, ctm_db.LLM_GENOMIC_COLLECTION, ctm_db.MANUAL_COLLECTION,
              ctm_db.DEFAULT_MASTER_COLLECTION, ctm_db.DEFAULT_FILTERED_COLLECTION]
     assert names == sorted(names), "prefixes must sort into pipeline order"
     assert [n.split("_")[0] for n in names] == \

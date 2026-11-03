@@ -11,14 +11,14 @@ Two stages, split by the kind of CTML they draft:
   top-level criterion with its sub-criteria, and the long title), plus the
   ``conditions`` record and the ``disease_site`` suggestion. Reads the
   ``02_diff_trials`` documents routed ``diff_status: "changed"``, writes
-  ``03_llm_general_trials``.
+  ``03_clinical_trials``.
 * ``genomic`` — genomic match nodes and ``molecular_genomic_refs``, one model
   call per piece (criteria, title, conditions, curator genes of interest). No
-  OncoTree lookup. Reads ``03_llm_general_trials``, writes
-  ``04_llm_biomarker_trials``.
+  OncoTree lookup. Reads ``03_clinical_trials``, writes
+  ``04_genomic_trials``.
 * ``autofill-ctml`` [BETA] — builds ``treatment_list.step[0].match`` from both
   stages' suggestions, every leaf marked ``_CURATED_METHOD: "auto"``. The only
-  writer of match clauses. Reads ``04_llm_biomarker_trials``, writes
+  writer of match clauses. Reads ``04_genomic_trials``, writes
   ``04b_llm_autofill_trials`` and the to-curate handoff export.
 
 Both write ``node_type``-tagged entries into ``_llm_curation._ctml_suggestions``
@@ -132,7 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
                     "against hand-curated trials.",
     )
     p_auto.add_argument("--trials", metavar="JSON",
-                        help="Read trials from a JSON file instead of 04_llm_biomarker_trials")
+                        help="Read trials from a JSON file instead of 04_genomic_trials")
     p_auto.add_argument("--out", metavar="JSON",
                         help="Write the JSON output to this path (overrides the to-curate export)")
     p_auto.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
@@ -250,9 +250,9 @@ def _cmd_clinical(args) -> None:
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
-        ctm_db.LLM_GENERAL_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+        ctm_db.LLM_CLINICAL_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    log.info(f"Target: {target_db}.{ctm_db.LLM_GENERAL_COLLECTION} (run_date {run_date})")
+    log.info(f"Target: {target_db}.{ctm_db.LLM_CLINICAL_COLLECTION} (run_date {run_date})")
 
     results = []
     for i, trial in enumerate(trials):
@@ -269,9 +269,9 @@ def _cmd_clinical(args) -> None:
                           ctm_db.DIFF_UNIQUE_KEY)
 
     log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
-              len(results), target_db, ctm_db.LLM_GENERAL_COLLECTION,
+              len(results), target_db, ctm_db.LLM_CLINICAL_COLLECTION,
               count=len(results), database=target_db,
-              collection=ctm_db.LLM_GENERAL_COLLECTION, stage="llm.clinical")
+              collection=ctm_db.LLM_CLINICAL_COLLECTION, stage="llm.clinical")
     out = _resolve_out(args, None)   # clinical has no canonical export
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -291,7 +291,7 @@ def _cmd_genomic(args) -> None:
     cache_file = Path(args.cache) if args.cache else cache_path(_GENOMIC_CACHE)
 
     trials, source = _load_trials(
-        args, ctm_db, config, target_db, ctm_db.LLM_GENERAL_COLLECTION, None,
+        args, ctm_db, config, target_db, ctm_db.LLM_CLINICAL_COLLECTION, None,
         "Run ctm-llm clinical first, or pass --trials.",
     )
     log_event(log, "llm.input", "Read %d trial(s) from %s", len(trials), source,
@@ -311,9 +311,9 @@ def _cmd_genomic(args) -> None:
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
-        ctm_db.LLM_BIOMARKER_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+        ctm_db.LLM_GENOMIC_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    log.info(f"Target: {target_db}.{ctm_db.LLM_BIOMARKER_COLLECTION} (run_date {run_date})")
+    log.info(f"Target: {target_db}.{ctm_db.LLM_GENOMIC_COLLECTION} (run_date {run_date})")
 
     results = []
     for i, trial in enumerate(trials, 1):
@@ -328,9 +328,9 @@ def _cmd_genomic(args) -> None:
     trials = results
 
     log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
-              len(trials), target_db, ctm_db.LLM_BIOMARKER_COLLECTION,
+              len(trials), target_db, ctm_db.LLM_GENOMIC_COLLECTION,
               count=len(trials), database=target_db,
-              collection=ctm_db.LLM_BIOMARKER_COLLECTION, stage="llm.genomic")
+              collection=ctm_db.LLM_GENOMIC_COLLECTION, stage="llm.genomic")
     # The to-curate handoff file now comes from autofill-ctml, the last stage.
     out = _resolve_out(args, default_export("genomic", run_date))
     if out:
@@ -346,7 +346,7 @@ def _cmd_autofill(args) -> None:
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
     trials, source = _load_trials(
-        args, ctm_db, config, target_db, ctm_db.LLM_BIOMARKER_COLLECTION, None,
+        args, ctm_db, config, target_db, ctm_db.LLM_GENOMIC_COLLECTION, None,
         "Run ctm-llm genomic first, or pass --trials.",
     )
     log_event(log, "llm.input", "Read %d trial(s) from %s", len(trials), source,

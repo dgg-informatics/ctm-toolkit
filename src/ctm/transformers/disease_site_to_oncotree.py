@@ -21,8 +21,8 @@ reviewed table only, a list of names for a site with no single OncoTree parent
 ("GU", "Lymphoma"); ``type`` is "solid", "liquid" or null. A trial listing :data:`MANY_SITES` or more distinct sites collapses to the
 special values ``_SOLID_`` / ``_LIQUID_`` (all solid / all liquid cancers).
 
-Sources read: AMC ``_raw.disease_site`` and DDOTS ``_raw._ddots.disease_site``,
-each split on ";" and recorded as its own entry (``source`` = the field path).
+Sources read: AMC ``_raw.disease_site``, DDOTS ``_raw._ddots.disease_site`` and
+West ``_raw._west.Disease Site`` (the sheet's column header), each split on ";" and recorded as its own entry (``source`` = the field path).
 ``mapping_source`` is ``reviewed_ref`` when every site came from the reviewed
 table, else ``ai_draft``. DDOTS ``disease_site_list`` is ignored until real multi-site
 data shows its shape.
@@ -40,7 +40,11 @@ REVIEWED_PATH = REFS_DIR / "disease_site_oncotree.json"
 DRAFT_CACHE_NAME = ".disease_site_cache.json"
 AMC_FIELD = "_raw.disease_site"
 DDOTS_FIELD = "_raw._ddots.disease_site"
-SITE_FIELDS = (AMC_FIELD, DDOTS_FIELD)
+WEST_FIELD = "_raw._west.Disease Site"
+SITE_FIELDS = (AMC_FIELD, DDOTS_FIELD, WEST_FIELD)
+# The field each source is expected to carry. A trial from that source without
+# it is reported (llm.field_missing), never an error: the sheets' columns drift.
+EXPECTED_SITE_FIELD = {"amc": AMC_FIELD, "sparrow-api": DDOTS_FIELD, "west": WEST_FIELD}
 REVIEWED_REF = "reviewed_ref"
 AI_DRAFT = "ai_draft"
 MANY_SITES = 10
@@ -91,11 +95,23 @@ def save_drafts(drafts: dict, path: Path | None = None) -> None:
     path.write_text(json.dumps(drafts, indent=2, sort_keys=True))
 
 
+_MISSING = object()
+
+
+def _field_value(trial: dict, field: str):
+    """Value at a dotted path like ``_raw._west.Disease Site``; _MISSING if absent."""
+    value = trial
+    for part in field.split("."):
+        if not isinstance(value, dict) or part not in value:
+            return _MISSING
+        value = value[part]
+    return value
+
+
 def trial_sites(trial: dict, field: str) -> list[str]:
-    """Distinct disease sites in one field (``_raw.disease_site`` or
-    ``_raw._ddots.disease_site``), split on ";", first-seen order."""
-    raw = trial.get("_raw") or {}
-    value = raw.get("disease_site") if field == AMC_FIELD else (raw.get("_ddots") or {}).get("disease_site")
+    """Distinct disease sites in one field (see SITE_FIELDS), split on ";",
+    first-seen order."""
+    value = _field_value(trial, field)
     sites, seen = [], set()
     if not isinstance(value, str):
         return sites
@@ -105,6 +121,16 @@ def trial_sites(trial: dict, field: str) -> list[str]:
             seen.add(_norm(part))
             sites.append(part)
     return sites
+
+
+def notify_missing_site_field(trial: dict) -> None:
+    """Warn (don't fail) when a trial lacks its source's disease-site field."""
+    field = EXPECTED_SITE_FIELD.get(trial.get("entity"))
+    if field and _field_value(trial, field) is _MISSING:
+        label = trial.get("protocol_no") or trial.get("nct_id") or "unknown"
+        log.warning("  %s: no %s field — disease site not read", label, field,
+                    extra={"event": "llm.field_missing", "trial": label, "field": field,
+                           "entity": trial.get("entity"), "stage": "clinical"})
 
 
 def _validate(row: dict | None, site: str, valid: set[str]) -> dict:

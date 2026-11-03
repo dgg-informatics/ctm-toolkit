@@ -195,3 +195,47 @@ def test_clinical_stage_records_conditions_without_a_model_call():
     cur = draft_clinical(trial, {}, client, VALID, {}, {})["_llm_curation"]
     assert [e["source"] for e in cur["_ctml_suggestions"]] == ["_raw.conditions"]
     assert client.asked == []
+
+
+# ── West disease site + missing-field notification ───────────────────────────
+
+def test_west_disease_site_is_read_like_ddots():
+    trial = {"entity": "west", "_raw": {"_west": {"Disease Site": "Breast; Lung"}}}
+    reviewed = {"breast": {"oncotree": "Breast", "type": "solid"}, "lung": {"oncotree": "Lung", "type": "solid"}}
+    assert dsm.trial_sites(trial, "_raw._west.Disease Site") == ["Breast", "Lung"]
+    s = dsm.site_suggestion(trial, reviewed, {}, _Client(), VALID, field="_raw._west.Disease Site")
+    assert s["source"] == "_raw._west.Disease Site"
+    assert s["suggested_node"] == {"or": [_node("Breast"), _node("Lung")]}
+
+
+def test_clinical_stage_writes_the_west_entry():
+    trial = {"entity": "west", "_raw": {"_west": {"Disease Site": "Breast"}}}
+    reviewed = {"breast": {"oncotree": "Breast", "type": "solid"}}
+    cur = draft_clinical(trial, {}, _Client(), VALID, reviewed, {})["_llm_curation"]
+    assert [e["source"] for e in cur["_ctml_suggestions"]] == ["_raw._west.Disease Site"]
+    assert cur["parsed_sections"]["clinical"]["_raw._west.Disease Site"]["pieces"] == 1
+
+
+@pytest.mark.parametrize("entity,raw,field", [
+    ("west", {"_west": {"Status": "Open"}}, "_raw._west.Disease Site"),
+    ("sparrow-api", {"_ddots": {"status": "O"}}, "_raw._ddots.disease_site"),
+    ("amc", {"protocol_no": "1"}, "_raw.disease_site"),
+])
+def test_missing_expected_field_is_notified_not_an_error(caplog, entity, raw, field):
+    import logging
+
+    trial = {"entity": entity, "protocol_no": "P1", "_raw": raw}
+    with caplog.at_level(logging.WARNING):
+        cur = draft_clinical(trial, {}, _Client(), VALID, {}, {})["_llm_curation"]
+    hits = [r for r in caplog.records if getattr(r, "event", None) == "llm.field_missing"]
+    assert [h.field for h in hits] == [field]
+    assert cur["parsed_sections"]["clinical"][field]["found"] is False
+
+
+def test_other_sources_fields_are_not_notified(caplog):
+    import logging
+
+    trial = {"entity": "amc", "_raw": {"disease_site": "Breast"}}
+    with caplog.at_level(logging.WARNING):
+        draft_clinical(trial, {}, _Client(), VALID, {"breast": {"oncotree": "Breast", "type": "solid"}}, {})
+    assert not [r for r in caplog.records if getattr(r, "event", None) == "llm.field_missing"]

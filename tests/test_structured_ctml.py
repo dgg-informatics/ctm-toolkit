@@ -14,7 +14,8 @@ from ctm.transformers.structured_ctml import age_sex_suggestions, amc_categories
 
 CLINICAL_ROWS = {"eligibility.inclusion", "eligibility.exclusion", "_summary.long_title",
                  "_raw.minimum_age", "_raw.sex", "_raw.age_group", "_raw.conditions",
-                 "_raw.categorys", "_raw.disease_site", "_raw._ddots.disease_site"}
+                 "_raw.categorys", "_raw.disease_site", "_raw._ddots.disease_site",
+                 "_raw._west.Disease Site"}
 
 
 def _ctgov_raw(**fields):
