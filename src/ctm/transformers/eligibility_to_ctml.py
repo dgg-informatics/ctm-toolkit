@@ -105,13 +105,11 @@ def _criterion_full_text(criterion: dict, depth: int = 0) -> str:
 
 
 def conditions_suggestion(trial: dict) -> dict | None:
-    """Record of the diagnosis the CTGov transform derived from ``_raw.conditions``.
+    """The ``_raw.conditions`` entry: CTGov conditions keyword-mapped to OncoTree.
 
-    ``raw_ctgov_to_ctml`` keyword-maps conditions straight into the match tree at
-    build time (Sparrow, West, DDOTS — AMC has no conditions). That node never
-    appeared in the suggestions, so a curator could not see where it came from.
-    This re-runs the same deterministic mapping — no model call — and is marked
-    ``transferred_to_match: True`` because the transform already put it there.
+    Sparrow, West and DDOTS only (AMC has no conditions). No model call — the
+    keyword list in oncotree_mapping, which ``ctm-mm trials`` used to write
+    straight into the match tree. Only autofill-ctml writes the match now.
     """
     from .oncotree_mapping import ctgov_conditions_to_oncotree, diagnoses_to_match_node
     conditions = [c for c in (trial.get("_raw") or {}).get("conditions") or [] if c]
@@ -119,10 +117,10 @@ def conditions_suggestion(trial: dict) -> dict | None:
         return None
     diagnoses = ctgov_conditions_to_oncotree(conditions)
     return {
-        "source": "conditions",
+        "source": "_raw.conditions",
         "text": "; ".join(conditions),
         "suggested_node": diagnoses_to_match_node(diagnoses),
-        "transferred_to_match": False,
-        "mapping_source": "keyword",
+        "transferred_to_match": None,
+        "mapping_source": "keyword_oncotree_map",
     }
 

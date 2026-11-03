@@ -64,15 +64,15 @@ def test_clinical_then_genomic_one_view():
     trial = _genomic(_clinical(_trial()))
     suggestions, nulls = _view(trial)
     assert suggestions == sorted([
-        ("clinical", "inclusion", HER2, True),
-        ("genomic", "inclusion", HER2, True),
-        ("clinical", "inclusion", AGE, False),
-        ("clinical", "conditions", "Breast Cancer", False),
-        ("clinical", "disease_site", "Breast", False),
+        ("clinical", "eligibility.inclusion", HER2, True),
+        ("genomic", "eligibility.inclusion", HER2, True),
+        ("clinical", "eligibility.inclusion", AGE, False),
+        ("clinical", "_raw.conditions", "Breast Cancer", False),
+        ("clinical", "_raw._ddots.disease_site", "Breast", False),
     ])
     assert nulls == sorted([
-        ("genomic", "inclusion", AGE, False),
-        ("genomic", "conditions", "Breast Cancer", False),
+        ("genomic", "eligibility.inclusion", AGE, False),
+        ("genomic", "_raw.conditions", "Breast Cancer", False),
     ])
     assert set(trial["_llm_curation"]["parsed_sections"]) == {"clinical", "genomic"}
     assert [r["biomarker"] for r in trial["_llm_curation"]["molecular_genomic_refs"]] == ["HER2"]

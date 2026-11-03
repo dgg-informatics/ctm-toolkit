@@ -511,7 +511,7 @@ def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mon
         "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
         "_summary": {"long_title": "A Study in Patients with a BRCA1 Mutation"},
         "_ctml_suggestions": [
-            {"source": "inclusion", "text": "Age >= 18",
+            {"source": "eligibility.inclusion", "text": "Age >= 18",
              "suggested_node": {"clinical": {"age_numerical": ">=18"}}, "transferred_to_match": False},
         ],
     }]
@@ -549,7 +549,7 @@ def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mon
     # The deprecated alias reaches `ctm-llm genomic`: molecular refs plus
     # genomic entries, one per piece (criterion + title).
     curation = result[0]["_llm_curation"]
-    assert [r["section"] for r in curation["molecular_genomic_refs"]] == ["inclusion", "summary"]
+    assert [r["section"] for r in curation["molecular_genomic_refs"]] == ["eligibility.inclusion", "_summary.long_title"]
     assert {e["node_type"] for e in curation["_ctml_suggestions"]} == {"genomic"}
     assert "biomarker_references" not in curation
     assert "final_suggested_ctml" not in result[0]["_llm_curation"]

@@ -75,14 +75,14 @@ def test_llm_curation_alias_round_trips():
 
     curation = LlmCuration.model_validate({
         "_ctml_suggestions": [
-            {"source": "inclusion", "text": "Age >= 18",
+            {"source": "eligibility.inclusion", "text": "Age >= 18",
              "suggested_node": {"clinical": {"age_numerical": ">=18"}},
              "transferred_to_match": False},
         ],
         "biomarker_references": [],
     })
     assert len(curation.ctml_suggestions) == 1
-    assert curation.ctml_suggestions[0].source == "inclusion"
+    assert curation.ctml_suggestions[0].source == "eligibility.inclusion"
 
 
 def test_llm_curation_validated_through_stamp():
@@ -102,7 +102,7 @@ def test_llm_curation_both_keys_optional():
 
     only_general = _envelope()
     only_general["_llm_curation"] = {"_ctml_suggestions": [
-        {"source": "summary", "text": "A BRCA1 trial"}]}
+        {"source": "_summary.long_title", "text": "A BRCA1 trial"}]}
     validate_storage(only_general)
 
     only_biomarkers = _envelope()
@@ -165,22 +165,22 @@ def test_stamp_does_not_alter_the_document_it_validates():
 def test_llm_curation_accepts_new_shape():
     from ctm.schemas.storage import LlmCuration
 
-    entry = {"source": "inclusion", "text": "HER2+ breast", "suggested_node": {"clinical": {}},
+    entry = {"source": "eligibility.inclusion", "text": "HER2+ breast", "suggested_node": {"clinical": {}},
              "transferred_to_match": False, "node_type": "clinical", "mixed": True}
     null = {**entry, "suggested_node": None, "node_type": "genomic", "mixed": False}
     ref = {"trial_nct": "NCT1", "reference": "HER2+", "biomarker": "ERBB2", "type": "ihc",
-           "section": "inclusion", "in_kb": True, "origin": "somatic"}
+           "section": "eligibility.inclusion", "in_kb": True, "origin": "somatic"}
     curation = LlmCuration.model_validate({
         "_ctml_suggestions": [entry], "_null_ctml_suggestions": [null],
         "molecular_genomic_refs": [ref],
-        "parsed_sections": {"clinical": {"inclusion": {"found": True, "scanned": True, "pieces": 2}}},
+        "parsed_sections": {"clinical": {"eligibility.inclusion": {"found": True, "scanned": True, "pieces": 2}}},
     })
     assert curation.ctml_suggestions[0].node_type == "clinical"
     assert curation.ctml_suggestions[0].mixed is True
     dumped = curation.model_dump(by_alias=True)
     assert dumped["_null_ctml_suggestions"][0]["node_type"] == "genomic"
     assert dumped["molecular_genomic_refs"][0]["origin"] == "somatic"
-    assert dumped["parsed_sections"]["clinical"]["inclusion"]["pieces"] == 2
+    assert dumped["parsed_sections"]["clinical"]["eligibility.inclusion"]["pieces"] == 2
 
     with pytest.raises(ValidationError):   # node_type is clinical | genomic only
         LlmCuration.model_validate({"_ctml_suggestions": [{**entry, "node_type": "other"}]})
@@ -195,7 +195,7 @@ def test_molecular_ref_origin():
     from ctm.schemas.storage import MolecularGenomicRef
 
     base = {"trial_nct": "NCT1", "reference": "r", "biomarker": "B", "type": "snv",
-            "section": "inclusion"}
+            "section": "eligibility.inclusion"}
     assert MolecularGenomicRef.model_validate(base).origin == "unknown"
     for origin in ("germline", "somatic"):
         assert MolecularGenomicRef.model_validate({**base, "origin": origin}).origin == origin
@@ -207,7 +207,7 @@ def test_llm_curation_still_accepts_legacy_shape():
     from ctm.schemas.storage import LlmCuration
 
     curation = LlmCuration.model_validate({
-        "_ctml_suggestions": [{"source": "inclusion", "text": "Age >= 18",
+        "_ctml_suggestions": [{"source": "eligibility.inclusion", "text": "Age >= 18",
                                "suggested_node": {"clinical": {"age_numerical": ">=18"}}}],
         "biomarker_references": [{"biomarker": "BRCA1", "section": "titles"}],
         "final_suggested_ctml": [{"clinical": {}}],

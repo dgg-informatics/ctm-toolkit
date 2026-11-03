@@ -39,7 +39,9 @@ def test_clinical_entries_tagged_and_partitioned():
     assert len(cur["_ctml_suggestions"]) == 1
     assert len(cur["_null_ctml_suggestions"]) == 2
     assert {e["node_type"] for e in _all(cur)} == {"clinical"}
-    assert [e["source"] for e in _all(cur)] == ["inclusion", "exclusion", "summary"]
+    assert {e["mapping_source"] for e in _all(cur)} == {"ai"}
+    assert {e["transferred_to_match"] for e in _all(cur)} == {None}
+    assert [e["source"] for e in _all(cur)] == ["eligibility.inclusion", "eligibility.exclusion", "_summary.long_title"]
 
 
 def test_clinical_strips_genomic_leaves():
@@ -62,10 +64,10 @@ def test_clinical_includes_conditions_and_disease_site():
     client = QueuedClient([])
     cur = _draft(trial, client)["_llm_curation"]
     by_source = {e["source"]: e for e in cur["_ctml_suggestions"]}
-    assert set(by_source) == {"conditions", "disease_site"}
+    assert set(by_source) == {"_raw.conditions", "_raw._ddots.disease_site"}
     assert all(e["node_type"] == "clinical" and e["mixed"] is False for e in by_source.values())
-    assert by_source["conditions"]["transferred_to_match"] is False
-    assert by_source["disease_site"]["mapping_source"] == "reviewed"
+    assert by_source["_raw.conditions"]["transferred_to_match"] is None
+    assert by_source["_raw._ddots.disease_site"]["mapping_source"] == "reviewed_ref"
     assert client.call_count == 0
 
 
@@ -74,11 +76,12 @@ def test_clinical_parsed_sections_rows():
     trial["eligibility"]["inclusion"].append(_crit("ECOG 0-1"))
     client = QueuedClient(["null"] * 4)
     rows = _draft(trial, client)["_llm_curation"]["parsed_sections"]["clinical"]
-    assert set(rows) == {"inclusion", "exclusion", "summary", "structured", "conditions",
-                         "amc_categories", "disease_site"}
-    assert rows["inclusion"] == {"found": True, "scanned": True, "pieces": 2}
-    assert rows["conditions"] == {"found": False, "scanned": False, "pieces": 0}
-    assert rows["disease_site"] == {"found": True, "scanned": True, "pieces": 2}
+    from test_structured_ctml import CLINICAL_ROWS
+    assert set(rows) == CLINICAL_ROWS
+    assert rows["eligibility.inclusion"] == {"found": True, "scanned": True, "pieces": 2}
+    assert rows["_raw.conditions"] == {"found": False, "scanned": False, "pieces": 0}
+    assert rows["_raw._ddots.disease_site"] == {"found": True, "scanned": True, "pieces": 2}
+    assert rows["_raw.disease_site"] == {"found": False, "scanned": False, "pieces": 0}
 
 
 def test_clinical_empty_trial():
@@ -87,12 +90,12 @@ def test_clinical_empty_trial():
     assert cur["_ctml_suggestions"] == [] and cur["_null_ctml_suggestions"] == []
     assert all(r == {"found": False, "scanned": False, "pieces": 0}
                for r in cur["parsed_sections"]["clinical"].values())
-    assert len(cur["parsed_sections"]["clinical"]) == 7
+    assert len(cur["parsed_sections"]["clinical"]) == 10
     assert client.call_count == 0
 
 
 def test_clinical_leaves_legacy_entries_alone():
-    legacy = {"source": "inclusion", "text": "Age >= 18",
+    legacy = {"source": "eligibility.inclusion", "text": "Age >= 18",
               "suggested_node": {"clinical": {"age_numerical": ">=18"}}, "transferred_to_match": True}
     refs = [{"trial_nct": "NCT1", "biomarker": "BRAF", "section": "eligibility"}]
     trial = _trial(_llm_curation={"_ctml_suggestions": [copy.deepcopy(legacy)],
@@ -109,7 +112,7 @@ def test_clinical_cache_key_is_stage_scoped():
     trial = {"eligibility": {"inclusion": [_crit("Age >= 18")]}}
     client = QueuedClient(['{"clinical": {"age_numerical": ">=18"}}'])
     _draft(trial, client, cache)
-    assert _cache_key(f"clinical:{PROMPT_VERSION()}:inclusion:Age >= 18") in cache
+    assert _cache_key(f"clinical:{PROMPT_VERSION()}:eligibility.inclusion:Age >= 18") in cache
     _draft(trial, client, cache)
     assert client.call_count == 1
 
@@ -122,7 +125,7 @@ def test_draft_clinical_does_not_mutate_input():
 
 
 def test_clinical_drops_a_legacy_top_level_suggestions_key():
-    trial = _trial(_ctml_suggestions=[{"source": "inclusion", "suggested_node": None}])
+    trial = _trial(_ctml_suggestions=[{"source": "eligibility.inclusion", "suggested_node": None}])
     drafted = _draft(trial, QueuedClient(["null"] * 3))
     assert "_ctml_suggestions" not in drafted
     assert "_ctml_suggestions" in drafted["_llm_curation"]

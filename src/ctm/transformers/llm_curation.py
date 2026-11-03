@@ -28,9 +28,28 @@ from .eligibility_to_ctml import _criterion_full_text
 CLINICAL = "clinical"
 GENOMIC = "genomic"
 
-CLINICAL_SOURCES = ("inclusion", "exclusion", "summary", "structured", "conditions",
-                    "amc_categories", "disease_site")
-GENOMIC_SOURCES = ("inclusion", "exclusion", "summary", "conditions", "genes_of_interest")
+# ``source`` is the path of the field the text came from, so an entry is
+# self-explanatory: you can look the text up in the trial at that path.
+INCLUSION = "eligibility.inclusion"
+EXCLUSION = "eligibility.exclusion"
+LONG_TITLE = "_summary.long_title"
+MINIMUM_AGE = "_raw.minimum_age"          # CTGov-sourced (Sparrow, West, DDOTS)
+SEX = "_raw.sex"                          # CTGov-sourced
+AGE_GROUP = "_raw.age_group"              # AMC
+CONDITIONS = "_raw.conditions"            # CTGov-sourced
+CATEGORYS = "_raw.categorys"              # AMC (the field's own spelling)
+AMC_DISEASE_SITE = "_raw.disease_site"
+DDOTS_DISEASE_SITE = "_raw._ddots.disease_site"
+GENES_OF_INTEREST = "_raw.octsu_genes_interest"
+
+CLINICAL_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, MINIMUM_AGE, SEX, AGE_GROUP, CONDITIONS,
+                    CATEGORYS, AMC_DISEASE_SITE, DDOTS_DISEASE_SITE)
+GENOMIC_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
+
+# What the model is told the piece is. Plain words: the prompts key negation
+# on "exclusion", and a field path means nothing to the model.
+PROMPT_LABELS = {INCLUSION: "inclusion", EXCLUSION: "exclusion", LONG_TITLE: "summary (trial title)",
+                 CONDITIONS: "conditions", GENES_OF_INTEREST: "genes_of_interest"}
 
 SUGGESTIONS = "_ctml_suggestions"
 NULL_SUGGESTIONS = "_null_ctml_suggestions"
@@ -40,24 +59,25 @@ PARSED_SECTIONS = "parsed_sections"
 def piece_texts(trial: dict, source: str) -> list[str]:
     """The texts one stage sends for ``source``: one per piece, empty if absent."""
     raw = trial.get("_raw") or {}
-    if source in ("inclusion", "exclusion"):
-        criteria = (trial.get("eligibility") or {}).get(source) or []
+    if source in (INCLUSION, EXCLUSION):
+        criteria = (trial.get("eligibility") or {}).get(source.split(".")[1]) or []
         return [_criterion_full_text(c) for c in criteria]
-    if source == "summary":
+    if source == LONG_TITLE:
         title = (trial.get("_summary") or {}).get("long_title")
         return [title] if title else []
-    if source == "conditions":
+    if source == CONDITIONS:
         conditions = [c for c in raw.get("conditions") or [] if c]
         return ["; ".join(conditions)] if conditions else []
-    if source == "genes_of_interest":
+    if source == GENES_OF_INTEREST:
         genes = raw.get("octsu_genes_interest")
         return [genes] if isinstance(genes, str) and genes.strip() else []
-    raise ValueError(f"no generic pieces for source {source!r}")
+    raise ValueError(f"no prompted pieces for source {source!r}")
 
 
 def make_entry(source: str, text: str, node: dict | None, node_type: str, **extra) -> dict:
+    """One entry. ``transferred_to_match`` stays None until autofill-ctml decides."""
     return {"source": source, "text": text, "suggested_node": node,
-            "transferred_to_match": False, "node_type": node_type, "mixed": False, **extra}
+            "transferred_to_match": None, "node_type": node_type, "mixed": False, **extra}
 
 
 def section_row(found: bool, scanned: bool, pieces: int) -> dict:

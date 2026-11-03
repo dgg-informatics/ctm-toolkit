@@ -26,7 +26,15 @@ import os
 import re
 
 from .eligibility_to_ctml import _cache_key, is_content_filter
-from .llm_curation import GENOMIC, GENOMIC_SOURCES, make_entry, merge_stage, piece_texts, section_row
+from .llm_curation import (
+    GENOMIC,
+    GENOMIC_SOURCES,
+    PROMPT_LABELS,
+    make_entry,
+    merge_stage,
+    piece_texts,
+    section_row,
+)
 from .trials_curate import _trial_id
 
 log = logging.getLogger(__name__)
@@ -299,7 +307,7 @@ def suggest_genomic(text: str, source: str, cache: dict, client) -> tuple[dict |
                 model=os.environ.get("UMGPT_MODEL", "gpt-4o"),
                 messages=[
                     {"role": "system", "content": GENOMIC_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Source: {source}\nText: {text}"},
+                    {"role": "user", "content": f"Source: {PROMPT_LABELS[source]}\nText: {text}"},
                 ],
                 temperature=0,
                 max_tokens=800,
@@ -340,7 +348,7 @@ def draft_genomic(trial: dict, cache: dict, client, known_genes: set[str]) -> di
         texts = piece_texts(trial, source)
         for text in texts:
             node, raw_refs = suggest_genomic(text, source, cache, client)
-            entries.append(make_entry(source, text, node, GENOMIC))
+            entries.append(make_entry(source, text, node, GENOMIC, mapping_source="ai"))
             refs.extend(_ref(trial_nct, source, r, known_genes) for r in raw_refs)
         sections[source] = section_row(bool(texts), bool(texts), len(texts))
 

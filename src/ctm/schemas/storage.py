@@ -69,7 +69,7 @@ class CtmlSuggestion(BaseModel):
     source: str
     text: str
     suggested_node: dict | None = None
-    transferred_to_match: bool = False
+    transferred_to_match: bool | None = None   # None until autofill-ctml decides
     node_type: Literal["clinical", "genomic"] | None = None
     mixed: bool = False
 

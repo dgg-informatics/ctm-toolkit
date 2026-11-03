@@ -2,37 +2,60 @@
 
 Builds a trial's match clause from its ``_llm_curation._ctml_suggestions``
 (clinical and genomic, written by ``ctm-llm clinical`` / ``ctm-llm genomic``).
-No model call. Rules:
+No model call. ``source`` values are field paths. Rules:
 
-* Every criterion node (``inclusion`` / ``exclusion``, both node types) and the
-  ``structured`` age/gender node is included. Exclusion nodes already carry
-  their negation (``!`` on clinical values, ``!Mutation`` on genomic).
+* Every criterion node (``eligibility.inclusion`` / ``eligibility.exclusion``,
+  both node types) and every age/sex node (``_raw.minimum_age``, ``_raw.sex``,
+  ``_raw.age_group``) is included. Exclusion nodes already carry their
+  negation (``!`` on clinical values, ``!Mutation`` on genomic).
 * Diagnosis: if any criterion node names a (non-negated)
   ``oncotree_primary_diagnosis``, the criteria's diagnosis stands. Otherwise
-  one ``or`` of the distinct diagnoses from ``summary``, ``conditions``,
-  ``amc_categories`` and ``disease_site`` is added — never AND-ed together,
-  which would match almost nobody.
-* Genomic: nodes from ``summary``, ``conditions`` and ``genes_of_interest`` are
-  added only when no criterion produced a genomic node.
-* Identical nodes collapse to one; two or more are combined under one ``and``.
-  A ``mixed`` piece's clinical and genomic nodes are AND-ed — counted in the
-  report so a curator checks those first.
+  one ``or`` of the distinct diagnoses from ``_summary.long_title``,
+  ``_raw.conditions``, ``_raw.categorys`` and the disease-site fields is added —
+  never AND-ed together, which would match almost nobody.
+* Genomic: nodes from ``_summary.long_title``, ``_raw.conditions`` and
+  ``_raw.octsu_genes_interest`` are added only when no criterion produced one.
+* ``ecog_score`` is not used in match clauses yet: it is removed from every
+  node before writing (the suggestion itself is kept). A node left empty is
+  dropped and its entry marked not transferred.
+* Identical nodes collapse to one. The match is a plain list of nodes — a
+  top-level list is already AND-ed, so no ``and`` wrapper. A ``mixed`` piece's
+  clinical and genomic nodes are AND-ed that way — counted in the report.
 * Every clinical/genomic leaf gets ``_CURATED_METHOD: "auto"``. matchengine
   must list ``_CURATED_METHOD`` with ``"ignore": true`` under both clinical and
   genomic ``trial_key_mappings``, or these clauses match nobody.
-* Only an empty match is filled unless ``overwrite``. Used entries are marked
-  ``transferred_to_match``; a report is stored at ``_llm_curation.autofill``.
+* Only an empty match is filled unless ``overwrite``. When it fills, every
+  non-legacy entry (both lists) gets ``transferred_to_match`` true if used,
+  false if not; when it skips, the flags stay None (never decided). A report is
+  stored at ``_llm_curation.autofill``.
 
 Pure: no I/O, inputs never mutated. Legacy entries (no ``node_type``) are ignored.
 """
 import copy
 
+from .llm_curation import (
+    AGE_GROUP,
+    AMC_DISEASE_SITE,
+    CATEGORYS,
+    CONDITIONS,
+    DDOTS_DISEASE_SITE,
+    EXCLUSION,
+    GENES_OF_INTEREST,
+    INCLUSION,
+    LONG_TITLE,
+    MINIMUM_AGE,
+    SEX,
+)
+
 CURATED_METHOD_KEY = "_CURATED_METHOD"
 
-_CRITERIA = ("inclusion", "exclusion")
-_DIAGNOSIS_FALLBACK = ("summary", "conditions", "amc_categories", "disease_site")
-_GENOMIC_FALLBACK = ("summary", "conditions", "genes_of_interest")
+_CRITERIA = (INCLUSION, EXCLUSION)
+_AGE_SEX = (MINIMUM_AGE, SEX, AGE_GROUP)
+_DIAGNOSIS_FALLBACK = (LONG_TITLE, CONDITIONS, CATEGORYS, AMC_DISEASE_SITE, DDOTS_DISEASE_SITE)
+_GENOMIC_FALLBACK = (LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
 _DX = "oncotree_primary_diagnosis"
+# Clinical fields suggested but not yet used in match clauses.
+NOT_IN_MATCH = frozenset({"ecog_score"})
 
 
 def _leaves(node):
@@ -53,6 +76,20 @@ def _positive_diagnoses(node) -> list[str]:
         if isinstance(value, str) and value and not value.startswith("!") and value not in names:
             names.append(value)
     return names
+
+
+def _without_unused_fields(node: dict) -> dict | None:
+    """``node`` without NOT_IN_MATCH clinical fields; None if nothing is left."""
+    for key in ("and", "or"):
+        if key in node:
+            children = [c for c in (_without_unused_fields(c) for c in node[key]) if c is not None]
+            if not children:
+                return None
+            return children[0] if len(children) == 1 else {key: children}
+    if "clinical" in node:
+        fields = {k: v for k, v in node["clinical"].items() if k not in NOT_IN_MATCH}
+        return {"clinical": fields} if fields else None
+    return node
 
 
 def _mark(node: dict) -> dict:
@@ -85,14 +122,17 @@ def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
     nodes: list[dict] = []
 
     def add(node: dict, entry: dict) -> None:
+        node = _without_unused_fields(node)
+        if node is None:
+            return
         if node not in nodes:
             nodes.append(node)
-        if entry not in used:
+        if not any(entry is u for u in used):
             used.append(entry)
 
     criteria = [e for e in entries if e["source"] in _CRITERIA]
     for e in entries:
-        if e["source"] in _CRITERIA or e["source"] == "structured":
+        if e["source"] in _CRITERIA or e["source"] in _AGE_SEX:
             add(e["suggested_node"], e)
 
     if any(_positive_diagnoses(e["suggested_node"]) for e in criteria if e["node_type"] == "clinical"):
@@ -121,11 +161,10 @@ def autofill_trial(trial: dict, overwrite: bool = False) -> tuple[dict, dict]:
         curation["autofill"] = report
         return out, report
 
-    marked = [_mark(n) for n in nodes]
-    steps[0]["match"] = [marked[0]] if len(marked) == 1 else [{"and": marked}]
-    for e in curation["_ctml_suggestions"]:
-        if any(e is u for u in used):
-            e["transferred_to_match"] = True
+    steps[0]["match"] = [_mark(n) for n in nodes]
+    for e in (curation.get("_ctml_suggestions") or []) + (curation.get("_null_ctml_suggestions") or []):
+        if e.get("node_type"):
+            e["transferred_to_match"] = any(e is u for u in used)
     report.update(filled=True, nodes=len(nodes),
                   mixed_pieces=len({(e["source"], e["text"]) for e in used if e.get("mixed")}))
     curation["autofill"] = report

@@ -5,7 +5,7 @@ from ctm.transformers.autofill_ctml import CURATED_METHOD_KEY, autofill_trial
 
 
 def _e(source, text, node, node_type, **extra):
-    return {"source": source, "text": text, "suggested_node": node, "transferred_to_match": False,
+    return {"source": source, "text": text, "suggested_node": node, "transferred_to_match": None,
             "node_type": node_type, "mixed": False, **extra}
 
 
@@ -37,104 +37,106 @@ def _match(trial):
     return trial["treatment_list"]["step"][0]["match"]
 
 
-def test_criteria_and_structured_nodes_are_anded_with_the_auto_marker():
-    trial = _trial([_e("inclusion", "Breast cancer", _dx("Breast"), "clinical"),
-                    _e("exclusion", "Known KRAS mutation", KRAS_NO, "genomic"),
-                    _e("structured", "minimum_age: 18 Years", AGE, "clinical")])
+def test_match_is_a_plain_list_of_nodes_with_the_auto_marker():
+    trial = _trial([_e("eligibility.inclusion", "Breast cancer", _dx("Breast"), "clinical"),
+                    _e("eligibility.exclusion", "Known KRAS mutation", KRAS_NO, "genomic"),
+                    _e("_raw.minimum_age", "18 Years", AGE, "clinical")])
     out, report = autofill_trial(trial)
-    assert _match(out) == [{"and": [_auto(_dx("Breast")), _auto(KRAS_NO), _auto(AGE)]}]
+    assert _match(out) == [_auto(_dx("Breast")), _auto(KRAS_NO), _auto(AGE)]
     assert report["filled"] is True and report["nodes"] == 3
     assert report["diagnosis_from"] == "criteria"
 
 
-def test_single_node_is_not_wrapped():
-    out, _ = autofill_trial(_trial([_e("structured", "age", AGE, "clinical")]))
+def test_single_node_is_a_one_item_list():
+    out, _ = autofill_trial(_trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")]))
     assert _match(out) == [_auto(AGE)]
 
 
 def test_criteria_diagnosis_wins_over_fallback_sources():
-    trial = _trial([_e("inclusion", "Invasive ductal carcinoma", _dx("Breast Invasive Ductal Carcinoma"), "clinical"),
-                    _e("conditions", "Breast Cancer", _dx("Breast"), "clinical"),
-                    _e("disease_site", "Breast", _dx("Breast"), "clinical")])
+    trial = _trial([_e("eligibility.inclusion", "Invasive ductal carcinoma", _dx("Breast Invasive Ductal Carcinoma"), "clinical"),
+                    _e("_raw.conditions", "Breast Cancer", _dx("Breast"), "clinical"),
+                    _e("_raw.disease_site", "Breast", _dx("Breast"), "clinical")])
     out, report = autofill_trial(trial)
     assert _match(out) == [_auto(_dx("Breast Invasive Ductal Carcinoma"))]
     assert report["diagnosis_from"] == "criteria"
 
 
 def test_negated_criteria_diagnosis_does_not_count_as_a_diagnosis():
-    trial = _trial([_e("exclusion", "No lung cancer", _dx("!Lung"), "clinical"),
-                    _e("disease_site", "Breast", _dx("Breast"), "clinical")])
+    trial = _trial([_e("eligibility.exclusion", "No lung cancer", _dx("!Lung"), "clinical"),
+                    _e("_raw.disease_site", "Breast", _dx("Breast"), "clinical")])
     out, report = autofill_trial(trial)
-    assert _match(out) == [{"and": [_auto(_dx("!Lung")), _auto(_dx("Breast"))]}]
+    assert _match(out) == [_auto(_dx("!Lung")), _auto(_dx("Breast"))]
     assert report["diagnosis_from"] == "fallback"
 
 
 def test_fallback_diagnoses_are_one_or_of_distinct_names():
-    trial = _trial([_e("summary", "A Breast and Lung study", {"or": [_dx("Breast"), _dx("Lung")]}, "clinical"),
-                    _e("conditions", "Breast Cancer", _dx("Breast"), "clinical"),
-                    _e("amc_categories", "Breast", _dx("Breast"), "clinical"),
-                    _e("disease_site", "Lung", _dx("Lung"), "clinical")])
+    trial = _trial([_e("_summary.long_title", "A Breast and Lung study", {"or": [_dx("Breast"), _dx("Lung")]}, "clinical"),
+                    _e("_raw.conditions", "Breast Cancer", _dx("Breast"), "clinical"),
+                    _e("_raw.categorys", "Breast", _dx("Breast"), "clinical"),
+                    _e("_raw.disease_site", "Lung", _dx("Lung"), "clinical")])
     out, _ = autofill_trial(trial)
     assert _match(out) == [{"or": [_auto(_dx("Breast")), _auto(_dx("Lung"))]}]
 
 
 def test_genomic_fallback_only_without_criteria_genomic_nodes():
     brca = {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "Mutation", "wildtype": False}}
-    title = _e("summary", "In BRCA1 carriers", brca, "genomic")
+    title = _e("_summary.long_title", "In BRCA1 carriers", brca, "genomic")
     out, _ = autofill_trial(_trial([title]))
     assert _match(out) == [_auto(brca)]
-    out, _ = autofill_trial(_trial([title, _e("exclusion", "Known KRAS mutation", KRAS_NO, "genomic")]))
+    out, _ = autofill_trial(_trial([title, _e("eligibility.exclusion", "Known KRAS mutation", KRAS_NO, "genomic")]))
     assert _match(out) == [_auto(KRAS_NO)]
 
 
 def test_duplicate_nodes_are_collapsed():
-    trial = _trial([_e("inclusion", "Age >= 18", AGE, "clinical"),
-                    _e("structured", "minimum_age: 18 Years", AGE, "clinical")])
+    trial = _trial([_e("eligibility.inclusion", "Age >= 18", AGE, "clinical"),
+                    _e("_raw.minimum_age", "18 Years", AGE, "clinical")])
     out, _ = autofill_trial(trial)
     assert _match(out) == [_auto(AGE)]
 
 
 def test_used_entries_marked_transferred_and_mixed_counted():
     her2 = {"genomic": {"hugo_symbol": "ERBB2", "variant_category": "Copy Number Variation", "wildtype": False}}
-    trial = _trial([_e("inclusion", "HER2+ breast", _dx("Breast"), "clinical", mixed=True),
-                    _e("inclusion", "HER2+ breast", her2, "genomic", mixed=True),
-                    _e("conditions", "Breast Cancer", _dx("Breast"), "clinical")])
+    trial = _trial([_e("eligibility.inclusion", "HER2+ breast", _dx("Breast"), "clinical", mixed=True),
+                    _e("eligibility.inclusion", "HER2+ breast", her2, "genomic", mixed=True),
+                    _e("_raw.conditions", "Breast Cancer", _dx("Breast"), "clinical")])
     out, report = autofill_trial(trial)
     flags = {(e["node_type"], e["source"]): e["transferred_to_match"]
              for e in out["_llm_curation"]["_ctml_suggestions"]}
-    assert flags == {("clinical", "inclusion"): True, ("genomic", "inclusion"): True,
-                     ("clinical", "conditions"): False}
+    assert flags == {("clinical", "eligibility.inclusion"): True, ("genomic", "eligibility.inclusion"): True,
+                     ("clinical", "_raw.conditions"): False}
+    assert [e["transferred_to_match"] for e in out["_llm_curation"]["_null_ctml_suggestions"]] == []
     assert report["mixed_pieces"] == 1
     assert out["_llm_curation"]["autofill"] == report
 
 
 def test_existing_match_kept_unless_overwrite():
     curated = [{"clinical": {"oncotree_primary_diagnosis": "Melanoma"}}]
-    trial = _trial([_e("structured", "age", AGE, "clinical")], match=copy.deepcopy(curated))
+    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")], match=copy.deepcopy(curated))
     out, report = autofill_trial(trial)
     assert _match(out) == curated
     assert report["filled"] is False and report["reason"] == "match not empty"
+    assert out["_llm_curation"]["_ctml_suggestions"][0]["transferred_to_match"] is None   # never decided
     out, report = autofill_trial(trial, overwrite=True)
     assert _match(out) == [_auto(AGE)] and report["filled"] is True
 
 
 def test_nothing_to_fill_and_legacy_entries_ignored():
-    legacy = {"source": "inclusion", "text": "Age >= 18", "suggested_node": AGE}
-    out, report = autofill_trial(_trial([legacy], nulls=[_e("inclusion", "x", None, "clinical")]))
+    legacy = {"source": "eligibility.inclusion", "text": "Age >= 18", "suggested_node": AGE}
+    out, report = autofill_trial(_trial([legacy], nulls=[_e("eligibility.inclusion", "x", None, "clinical")]))
     assert _match(out) == []
     assert report["filled"] is False and report["reason"] == "no suggestions"
     assert out["_llm_curation"]["_ctml_suggestions"] == [legacy]
 
 
 def test_trial_without_a_step_is_left_alone():
-    trial = {"nct_id": "NCT1", "_llm_curation": {"_ctml_suggestions": [_e("structured", "age", AGE, "clinical")]}}
+    trial = {"nct_id": "NCT1", "_llm_curation": {"_ctml_suggestions": [_e("_raw.minimum_age", "18 Years", AGE, "clinical")]}}
     out, report = autofill_trial(trial)
     assert "treatment_list" not in out
     assert report["filled"] is False and report["reason"] == "no treatment_list step"
 
 
 def test_autofill_does_not_mutate_input():
-    trial = _trial([_e("structured", "age", AGE, "clinical")])
+    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")])
     before = copy.deepcopy(trial)
     autofill_trial(trial)
     assert trial == before
@@ -143,7 +145,7 @@ def test_autofill_does_not_mutate_input():
 # ── CLI: ctm-llm autofill-ctml ───────────────────────────────────────────────
 
 def _cli_trial():
-    return _trial([_e("structured", "minimum_age: 18 Years", AGE, "clinical")])
+    return _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")])
 
 
 def test_cli_reads_the_genomic_collection_and_writes_its_own(fake_mongo, tmp_path, monkeypatch):
@@ -200,3 +202,22 @@ def test_autofill_is_flagged_beta_and_machine_written():
     sub = next(a for a in build_parser()._actions if a.dest == "command")
     assert "[BETA]" in sub.choices["autofill-ctml"].description
     assert ctm_db.LLM_AUTOFILL_COLLECTION in ctm_db.MACHINE_WRITTEN
+
+
+def test_null_entries_are_marked_not_transferred():
+    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")],
+                   nulls=[_e("eligibility.inclusion", "Able to consent", None, "clinical")])
+    out, _ = autofill_trial(trial)
+    assert out["_llm_curation"]["_null_ctml_suggestions"][0]["transferred_to_match"] is False
+
+
+def test_ecog_is_suggested_but_never_written_to_the_match():
+    ecog = {"clinical": {"ecog_score": "<=2"}}
+    age_and_ecog = {"clinical": {"age_numerical": ">=18", "ecog_score": "<=1"}}
+    trial = _trial([_e("eligibility.inclusion", "ECOG 0-2", ecog, "clinical"),
+                    _e("eligibility.inclusion", "Adults with ECOG 0-1", age_and_ecog, "clinical")])
+    out, _ = autofill_trial(trial)
+    assert _match(out) == [_auto(AGE)]
+    flags = [e["transferred_to_match"] for e in out["_llm_curation"]["_ctml_suggestions"]]
+    assert flags == [False, True]
+    assert out["_llm_curation"]["_ctml_suggestions"][0]["suggested_node"] == ecog   # suggestion kept

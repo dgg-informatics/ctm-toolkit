@@ -39,8 +39,8 @@ def test_reviewed_table_wins_and_lookup_ignores_case_and_spacing():
     s = dsm.site_suggestion(_amc("  COLON "), reviewed, {}, client, VALID)
     assert client.asked == []
     assert s["suggested_node"] == _node("Colon")
-    assert s["mapping_source"] == "reviewed"
-    assert s["source"] == "disease_site"
+    assert s["mapping_source"] == "reviewed_ref"
+    assert s["source"] == "_raw.disease_site"
 
 
 def test_unseen_site_is_drafted_once_and_cached():
@@ -94,9 +94,13 @@ def test_many_solid_only_sites_collapse_to_solid():
     assert s["suggested_node"] == _node("_SOLID_")
 
 
-def test_ddots_site_is_read_and_merged_with_amc():
+def test_amc_and_ddots_sites_are_read_per_field():
     trial = {"_raw": {"disease_site": "Colon", "_ddots": {"disease_site": "colon; Breast"}}}
-    assert dsm.trial_sites(trial) == ["Colon", "Breast"]
+    assert dsm.trial_sites(trial, "_raw.disease_site") == ["Colon"]
+    assert dsm.trial_sites(trial, "_raw._ddots.disease_site") == ["colon", "Breast"]
+    reviewed = {"colon": {"oncotree": "Colon", "type": "solid"}, "breast": {"oncotree": "Breast", "type": "solid"}}
+    ddots = dsm.site_suggestion(trial, reviewed, {}, _Client(), VALID, field="_raw._ddots.disease_site")
+    assert ddots["source"] == "_raw._ddots.disease_site" and ddots["text"] == "colon; Breast"
 
 
 def test_no_disease_site_means_no_suggestion():
@@ -128,22 +132,22 @@ def test_reviewed_table_covers_every_known_ddots_site(site):
     """Every current DDOTS value resolves from the repo table — no model call."""
     client = _Client()
     trial = {"_raw": {"_ddots": {"disease_site": site}}}
-    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, client, VALID)
+    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, client, VALID, field="_raw._ddots.disease_site")
     assert client.asked == []
-    assert s["mapping_source"] == "reviewed"
+    assert s["mapping_source"] == "reviewed_ref"
 
 
 @pytest.mark.parametrize("placeholder", ["Multiple Disease Sites ", "Genomic Based Trial",
                                          "Observational study", "Cancer Control "])
 def test_ddots_placeholders_produce_no_diagnosis(placeholder):
     trial = {"_raw": {"_ddots": {"disease_site": placeholder}}}
-    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID)
+    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID, field="_raw._ddots.disease_site")
     assert s["suggested_node"] is None
 
 
 def test_a_reviewed_row_can_list_several_names():
     trial = {"_raw": {"_ddots": {"disease_site": "Lymphoma"}}}
-    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID)
+    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID, field="_raw._ddots.disease_site")
     assert s["suggested_node"] == {"or": [_node("Hodgkin Lymphoma"), _node("Non-Hodgkin Lymphoma")]}
 
 
@@ -157,18 +161,18 @@ def test_conditions_record_mirrors_the_transform_mapping():
     conditions = ["Metastatic Breast Cancer", "Melanoma"]
     s = conditions_suggestion({"_raw": {"conditions": conditions}})
 
-    assert s["source"] == "conditions"
+    assert s["source"] == "_raw.conditions"
     assert s["text"] == "Metastatic Breast Cancer; Melanoma"
     assert s["suggested_node"] == diagnoses_to_match_node(ctgov_conditions_to_oncotree(conditions))
     assert s["suggested_node"] is not None
-    assert s["transferred_to_match"] is False    # only autofill-ctml writes the match clause
+    assert s["transferred_to_match"] is None     # None until autofill-ctml decides
 
 
 def test_conditions_with_no_keyword_hit_are_still_recorded():
     from ctm.transformers.eligibility_to_ctml import conditions_suggestion
     s = conditions_suggestion({"_raw": {"conditions": ["Healthy Volunteers"]}})
     assert s["suggested_node"] is None
-    assert s["transferred_to_match"] is False
+    assert s["transferred_to_match"] is None
 
 
 def test_no_conditions_means_no_record():
@@ -180,7 +184,7 @@ def test_no_conditions_means_no_record():
 def test_clinical_stage_adds_the_site_entry():
     client = _Client({"Colon": '{"oncotree": "Colon", "type": "solid"}'})
     cur = draft_clinical(_amc("Colon"), {}, client, VALID, {}, {})["_llm_curation"]
-    site = [e for e in cur["_ctml_suggestions"] if e["source"] == "disease_site"]
+    site = [e for e in cur["_ctml_suggestions"] if e["source"] == "_raw.disease_site"]
     assert len(site) == 1 and site[0]["node_type"] == "clinical"
     assert site[0]["suggested_node"] == _node("Colon")
 
@@ -189,5 +193,5 @@ def test_clinical_stage_records_conditions_without_a_model_call():
     client = _Client()
     trial = {"eligibility": {}, "_summary": {}, "_raw": {"conditions": ["Breast Cancer"]}}
     cur = draft_clinical(trial, {}, client, VALID, {}, {})["_llm_curation"]
-    assert [e["source"] for e in cur["_ctml_suggestions"]] == ["conditions"]
+    assert [e["source"] for e in cur["_ctml_suggestions"]] == ["_raw.conditions"]
     assert client.asked == []

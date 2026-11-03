@@ -30,11 +30,13 @@ def test_genomic_entries_and_refs_per_piece():
     ref = {"biomarker": "MYCN", "type": "cnv", "reference": "MYCN amplification", "origin": "somatic"}
     cur = _cur(trial, QueuedClient([_resp(MYCN_NODE, [ref])] * 2))
     assert [e["node_type"] for e in cur["_ctml_suggestions"]] == ["genomic", "genomic"]
+    assert {e["mapping_source"] for e in cur["_ctml_suggestions"]} == {"ai"}
+    assert {e["transferred_to_match"] for e in cur["_ctml_suggestions"]} == {None}
     assert cur["_ctml_suggestions"][0]["suggested_node"] == MYCN_NODE
     refs = cur["molecular_genomic_refs"]
     assert len(refs) == 2
     assert all(r == {"trial_nct": "NCT9", "reference": "MYCN amplification", "biomarker": "MYCN",
-                     "type": "cnv", "section": "inclusion", "in_kb": True, "origin": "somatic"}
+                     "type": "cnv", "section": "eligibility.inclusion", "in_kb": True, "origin": "somatic"}
                for r in refs)
 
 
@@ -42,7 +44,7 @@ def test_ref_section_set_by_code():
     trial = {"_summary": {"long_title": "A BRAF trial"}}
     ref = {"biomarker": "BRAF", "type": "snv", "reference": "BRAF", "section": "titles"}
     cur = _cur(trial, QueuedClient([_resp(None, [ref])]))
-    assert cur["molecular_genomic_refs"][0]["section"] == "summary"
+    assert cur["molecular_genomic_refs"][0]["section"] == "_summary.long_title"
 
 
 def test_ref_origin_from_model_and_coerced():
@@ -68,9 +70,9 @@ def test_genomic_reads_conditions_and_genes_not_disease_site():
     assert "EGFR-Mutant NSCLC" in client.prompts[0] and "IDH1 (R132)" in client.prompts[1]
     assert not any("Lung- Non-Small" in p for p in client.prompts)
     rows = cur["parsed_sections"]["genomic"]
-    assert set(rows) == {"inclusion", "exclusion", "summary", "conditions", "genes_of_interest"}
-    assert rows["genes_of_interest"] == {"found": True, "scanned": True, "pieces": 1}
-    assert rows["inclusion"] == {"found": False, "scanned": False, "pieces": 0}
+    assert set(rows) == {"eligibility.inclusion", "eligibility.exclusion", "_summary.long_title", "_raw.conditions", "_raw.octsu_genes_interest"}
+    assert rows["_raw.octsu_genes_interest"] == {"found": True, "scanned": True, "pieces": 1}
+    assert rows["eligibility.inclusion"] == {"found": False, "scanned": False, "pieces": 0}
 
 
 def test_genomic_validates_nodes():
@@ -95,7 +97,7 @@ def test_genomic_content_filter_is_cached_null():
     client = QueuedClient([ContentFilterError("blocked"), _resp(MYCN_NODE)])
     cur = _cur(trial, client, cache)
     from ctm.transformers.genomic_ctml import PROMPT_VERSION
-    assert cache[_cache_key(f"genomic:{PROMPT_VERSION()}:inclusion:first")] == {"node": None, "refs": []}
+    assert cache[_cache_key(f"genomic:{PROMPT_VERSION()}:eligibility.inclusion:first")] == {"node": None, "refs": []}
     assert [e["text"] for e in cur["_null_ctml_suggestions"]] == ["first"]
     assert [e["text"] for e in cur["_ctml_suggestions"]] == ["MYCN amplified"]
 
@@ -120,7 +122,7 @@ def test_genomic_empty_trial():
 
 def test_genomic_keeps_legacy_biomarker_references_and_clinical_entries():
     legacy = [{"trial_nct": "NCT1", "biomarker": "BRCA1", "section": "eligibility"}]
-    clinical = {"source": "summary", "text": "t", "suggested_node": {"clinical": {"gender": "Female"}},
+    clinical = {"source": "_summary.long_title", "text": "t", "suggested_node": {"clinical": {"gender": "Female"}},
                 "transferred_to_match": False, "node_type": "clinical", "mixed": False}
     trial = {"_summary": {"long_title": "t"},
              "_llm_curation": {"biomarker_references": copy.deepcopy(legacy),

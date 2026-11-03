@@ -20,7 +20,7 @@ import json
 import logging
 import os
 
-from .disease_site_to_oncotree import site_suggestion, trial_sites
+from .disease_site_to_oncotree import SITE_FIELDS, site_suggestion, trial_sites
 from .eligibility_to_ctml import (
     _cache_key,
     _validate_node,
@@ -29,13 +29,22 @@ from .eligibility_to_ctml import (
 )
 from .genomic_ctml import strip_fences
 from .llm_curation import (
+    AGE_GROUP,
+    CATEGORYS,
     CLINICAL,
+    CONDITIONS,
+    EXCLUSION,
+    INCLUSION,
+    LONG_TITLE,
+    MINIMUM_AGE,
+    PROMPT_LABELS,
+    SEX,
     make_entry,
     merge_stage,
     piece_texts,
     section_row,
 )
-from .structured_ctml import amc_categories_suggestion, structured_suggestion
+from .structured_ctml import age_sex_suggestions, amc_categories_suggestion
 
 log = logging.getLogger(__name__)
 
@@ -118,7 +127,7 @@ Examples:
   "Able to speak English"
   → null"""
 
-_PROMPTED_SOURCES = ("inclusion", "exclusion", "summary")
+_PROMPTED_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE)
 
 
 def keep_clinical(node: dict | None) -> dict | None:
@@ -150,7 +159,7 @@ def suggest_clinical(text: str, source: str, cache: dict, client,
                 model=os.environ.get("UMGPT_MODEL", "gpt-4o"),
                 messages=[
                     {"role": "system", "content": CLINICAL_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Source: {source}\nCriterion: {text}"},
+                    {"role": "user", "content": f"Source: {PROMPT_LABELS[source]}\nCriterion: {text}"},
                 ],
                 temperature=0,
                 max_tokens=300,
@@ -171,7 +180,7 @@ def suggest_clinical(text: str, source: str, cache: dict, client,
 
 
 def _as_entry(suggestion: dict) -> dict:
-    """A conditions / disease_site suggestion as a clinical entry, keeping its extras."""
+    """A field-derived suggestion as a clinical entry, keeping its extras."""
     return make_entry(**{
         "source": suggestion["source"], "text": suggestion["text"],
         "node": suggestion.get("suggested_node"), "node_type": CLINICAL,
@@ -188,22 +197,25 @@ def draft_clinical(trial: dict, cache: dict, client, valid_oncotree: set[str],
         texts = piece_texts(trial, source)
         for text in texts:
             node = suggest_clinical(text, source, cache, client, valid_oncotree)
-            entries.append(make_entry(source, text, node, CLINICAL))
+            entries.append(make_entry(source, text, node, CLINICAL, mapping_source="ai"))
         sections[source] = section_row(bool(texts), bool(texts), len(texts))
 
-    for source, suggest in (("structured", structured_suggestion),
-                            ("conditions", conditions_suggestion),
-                            ("amc_categories", amc_categories_suggestion)):
-        suggestion = suggest(trial)
-        if suggestion:
-            entries.append(_as_entry(suggestion))
-        sections[source] = section_row(bool(suggestion), bool(suggestion), 1 if suggestion else 0)
+    field_entries = age_sex_suggestions(trial)
+    for one in (conditions_suggestion(trial), amc_categories_suggestion(trial)):
+        if one:
+            field_entries.append(one)
+    for field in SITE_FIELDS:
+        site = site_suggestion(trial, reviewed, site_drafts, client, valid_oncotree, field=field)
+        if site:
+            field_entries.append(site)
+    entries += [_as_entry(e) for e in field_entries]
 
-    site = site_suggestion(trial, reviewed, site_drafts, client, valid_oncotree)
-    if site:
-        entries.append(_as_entry(site))
-    n_sites = len(trial_sites(trial))
-    sections["disease_site"] = section_row(bool(n_sites), bool(n_sites), n_sites)
+    found = {e["source"] for e in field_entries}
+    for source in (MINIMUM_AGE, SEX, AGE_GROUP, CONDITIONS, CATEGORYS):
+        sections[source] = section_row(source in found, source in found, int(source in found))
+    for field in SITE_FIELDS:
+        n_sites = len(trial_sites(trial, field))
+        sections[field] = section_row(bool(n_sites), bool(n_sites), n_sites)
 
     drafted = {k: v for k, v in trial.items() if k != "_ctml_suggestions"}
     drafted["_llm_curation"] = merge_stage(trial.get("_llm_curation"), CLINICAL, entries, sections)
