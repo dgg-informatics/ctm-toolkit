@@ -198,9 +198,13 @@ def to_genomic_docs(
         # SIGNATURE. It must be TRUE / FALSE / INDETERMINATE — blank counts as
         # FALSE (detected). Two states suppress the genomic doc (recorded only):
         #   * INDETERMINATE — tested but inconclusive.
-        #   * TRUE on an SV — a tested-negative fusion. matchengine has no
-        #     "negative SV" (its structured-SV query keys on the partner genes and
-        #     ignores WILDTYPE), so an SV doc would falsely match a fusion trial.
+        #   * TRUE on an SV — a tested-negative fusion. A hand-curated SV leaf
+        #     without wildtype would match it as if the fusion were present, and
+        #     trial SV leaves never ask for wildtype true, so it gets no doc.
+        # Every doc written carries WILDTYPE: matchengine renders the trial's
+        # wildtype as a {WILDTYPE: <bool>} query part on SV nodes too (only the gene
+        # parts are swapped for the partner-gene query), and a missing field never
+        # matches false.
         # Any other non-blank value is invalid: warned and skipped.
         if category in ("MUTATION", "CNV", "SV"):
             wt = f.wildtype
@@ -211,8 +215,7 @@ def to_genomic_docs(
                 continue
             if category == "SV" and wt == "true":
                 continue
-            if category in ("MUTATION", "CNV"):
-                doc["WILDTYPE"] = wt == "true"
+            doc["WILDTYPE"] = wt == "true"   # always False for SV (TRUE skipped above)
 
         if category == "CNV" and f.cnv_call:
             doc["CNV_CALL"] = _remap(_CNV_CALL_MAP, f.cnv_call)

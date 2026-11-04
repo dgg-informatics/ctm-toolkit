@@ -184,7 +184,8 @@ def test_signature_no_result_sentinel_produces_no_doc(sentinel):
 @pytest.mark.parametrize("wildtype", [False, None])
 def test_detected_sv_splits_partner_genes(wildtype):
     """A detected fusion (wildtype FALSE or blank) emits an SV doc with partner
-    genes and carries no WILDTYPE field (wildtype is meaningful only structurally)."""
+    genes and WILDTYPE false. matchengine queries WILDTYPE on SV nodes too, so a trial
+    SV leaf with wildtype: false must find it (a missing field never matches false)."""
     docs = to_genomic_docs(_patient(), [
         _finding(biomarker="EML4::ALK", variant_category="SV", wildtype=wildtype),
     ])
@@ -193,13 +194,13 @@ def test_detected_sv_splits_partner_genes(wildtype):
     assert doc["LEFT_PARTNER_GENE"] == "EML4"
     assert doc["RIGHT_PARTNER_GENE"] == "ALK"
     assert doc["VARIANT_CATEGORY"] == "SV"
-    assert "WILDTYPE" not in doc
+    assert doc["WILDTYPE"] is False
 
 
 def test_wildtype_sv_produces_no_doc():
     """A wildtype (tested-negative) fusion is recorded in patient_data but emits no
-    genomic doc — an SV doc would falsely match a trial requiring that fusion,
-    since matchengine's SV query ignores WILDTYPE."""
+    genomic doc. A hand-curated SV leaf without wildtype would otherwise match it as
+    if the fusion were present; trial SV leaves never ask for wildtype true."""
     docs = to_genomic_docs(_patient(), [
         _finding(biomarker="RET::ALK", variant_category="SV", wildtype=True),
     ])
