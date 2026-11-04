@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import urllib.request
 from pathlib import Path
 
@@ -26,6 +27,17 @@ def fetch_oncotree_names() -> set[str]:
         return {t["name"] for t in json.loads(r.read())}
 
 
+# matchengine's age_range_to_date_int_query: years (decimals are months), one of
+# these operators, no "!" (it has no negated form and would KeyError).
+_AGE = re.compile(r"^(>=|<=|==|>|<)(\d+(?:\.\d+)?)$")
+MAX_AGE_YEARS = 120
+
+
+def _valid_age(value) -> bool:
+    m = _AGE.match(str(value).strip())
+    return bool(m) and float(m.group(2)) <= MAX_AGE_YEARS
+
+
 def _validate_node(node: dict | None, valid: set[str]) -> dict | None:
     """Recursively walk a CTML node and fix/drop invalid oncotree names."""
     from .oncotree_mapping import fix_oncotree_name
@@ -40,6 +52,8 @@ def _validate_node(node: dict | None, valid: set[str]) -> dict | None:
     # clinical leaf
     if "clinical" in node:
         clinical = dict(node["clinical"])
+        if "age_numerical" in clinical and not _valid_age(clinical["age_numerical"]):
+            del clinical["age_numerical"]
         if "oncotree_primary_diagnosis" in clinical:
             fixed = fix_oncotree_name(clinical["oncotree_primary_diagnosis"], valid)
             if fixed is None:

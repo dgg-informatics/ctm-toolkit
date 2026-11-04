@@ -150,3 +150,36 @@ def test_clinical_handles_fenced_and_empty_responses():
     cur = _draft(trial, client)["_llm_curation"]
     assert [e["text"] for e in cur["_ctml_suggestions"]] == ["Age >= 18"]
     assert [e["text"] for e in cur["_null_ctml_suggestions"]] == ["Female"]
+
+
+def test_age_must_be_years_with_a_plain_operator():
+    """matchengine reads age_numerical as years (decimals = months) and has no '!'
+    for age: '>547' (days) matches nobody and '!>=18' crashes its transformer."""
+    from ctm.transformers.eligibility_to_ctml import _validate_node
+    for bad in (">547", "!>=18", "18", ">=abc", "=>18"):
+        assert _validate_node({"clinical": {"age_numerical": bad}}, VALID) is None, bad
+    for good in (">=18", "<25", ">1.5", "<=0.5", "==21"):
+        assert _validate_node({"clinical": {"age_numerical": good}}, VALID) == \
+            {"clinical": {"age_numerical": good}}, good
+    # Only the bad field goes; the rest of the leaf stays.
+    assert _validate_node({"clinical": {"age_numerical": ">547", "gender": "Female"}}, VALID) == \
+        {"clinical": {"gender": "Female"}}
+
+
+def test_clinical_prompt_rules_from_real_trials():
+    """2026-11-04 neuroblastoma trial: pregnancy became gender !Female, a stage/MYCN
+    subgroup exclusion became !Neuroblastoma, and '> 547 days' became '>547'."""
+    p = CLINICAL_SYSTEM_PROMPT
+    assert '"gender": "!Female"' not in p
+    assert "Pregnancy, lactation" in p
+    assert "always in YEARS" in p
+    assert "subgroup" in p
+
+
+def test_clinical_prompt_never_negates_a_broader_diagnosis():
+    """2026-11-04: exclusion "AML arising from myelodysplasia" became
+    !Acute Myeloid Leukemia, excluding every AML patient."""
+    p = CLINICAL_SYSTEM_PROMPT
+    assert "arising from" in p
+    assert "Never negate a broader diagnosis" in p
+    assert '"Acute myeloid leukemia arising from myelodysplasia"' in p

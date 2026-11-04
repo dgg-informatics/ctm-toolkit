@@ -68,14 +68,27 @@ expressed, but the diagnosis can: output {"clinical": {"oncotree_primary_diagnos
 
 Available fields:
   clinical:
-    age_numerical       - numeric comparison string: ">=18", "<11", ">=11"
+    age_numerical       - age always in YEARS, operator + number: ">=18", "<11", ">1.5"
+                          (convert months/days to years: 18 months = 1.5; never "!")
     oncotree_primary_diagnosis - OncoTree cancer type name (parent matches all children)
     gender              - "Male" or "Female"
     ecog_score          - numeric comparison string: "<=2", "<=3"
 
 If the source is "exclusion", prefix clinical field values with "!" to negate the match.
   e.g. exclusion diagnosis → {"clinical": {"oncotree_primary_diagnosis": "!Lung"}}
-  e.g. exclusion gender    → {"clinical": {"gender": "!Female"}}
+
+Only output what applies to EVERY patient on the trial:
+- Pregnancy, lactation, breastfeeding, childbearing potential and contraception are never
+  gender. Women can enroll; only pregnant/nursing ones can't → null.
+- A criterion that only describes one subgroup of the trial's disease (a stage, risk group,
+  histology feature or biomarker, e.g. "INRG stage L2 tumors without MYCN amplification"),
+  or a feature that is one of several alternative ways to qualify, is not a diagnosis or
+  age for the whole trial → null. Never negate the trial's own cancer type in an exclusion;
+  negate a diagnosis only when the exclusion rules out a different cancer type entirely.
+- Never negate a broader diagnosis than the text excludes. A diagnosis qualified by its origin
+  or course ("arising from", "secondary to", "therapy-related", "transformed from", "relapsed",
+  "refractory") is not the whole cancer type: "AML arising from myelodysplasia" excludes some
+  AML patients, not all of them. Without a field for the qualifier → null.
   e.g. exclusion list      → {"and": [{"clinical": {"oncotree_primary_diagnosis": "!Dysgerminoma"}},
                                        {"clinical": {"oncotree_primary_diagnosis": "!Seminoma"}}]}
 
@@ -131,6 +144,25 @@ Examples:
   → null
 
   "Able to speak English"
+  → null
+
+  Source: exclusion
+  "Female patients who are pregnant or breastfeeding"
+  → null
+
+  Source: exclusion
+  "Patients with INRG stage L2 tumors without MYCN amplification"
+  → null
+
+  "Age > 547 days regardless of biologic features
+    Patients with INRG stage MS disease with MYCN amplification"
+  → null
+
+  "Age >= 18 months"
+  → {"clinical": {"age_numerical": ">=1.5"}}
+
+  Source: exclusion
+  "Acute myeloid leukemia arising from myelodysplasia"
   → null"""
 
 _PROMPTED_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE)
