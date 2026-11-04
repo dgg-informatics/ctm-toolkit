@@ -22,7 +22,8 @@ def _crit(text):
 
 
 def _cur(trial, client, cache=None):
-    return draft_genomic(trial, {} if cache is None else cache, client, KNOWN)["_llm_curation"]
+    return draft_genomic(trial, {} if cache is None else cache, client, KNOWN,
+                         prefilter=False)["_llm_curation"]
 
 
 def test_genomic_entries_and_refs_per_piece():
@@ -71,8 +72,8 @@ def test_genomic_reads_conditions_and_genes_not_disease_site():
     assert not any("Lung- Non-Small" in p for p in client.prompts)
     rows = cur["parsed_sections"]["genomic"]
     assert set(rows) == {"eligibility.inclusion", "eligibility.exclusion", "_summary.long_title", "_raw.conditions", "_raw.octsu_genes_interest"}
-    assert rows["_raw.octsu_genes_interest"] == {"found": True, "scanned": True, "pieces": 1}
-    assert rows["eligibility.inclusion"] == {"found": False, "scanned": False, "pieces": 0}
+    assert rows["_raw.octsu_genes_interest"] == {"found": True, "scanned": True, "pieces": 1, "skipped": 0}
+    assert rows["eligibility.inclusion"] == {"found": False, "scanned": False, "pieces": 0, "skipped": 0}
 
 
 def test_genomic_validates_nodes():
@@ -137,7 +138,7 @@ def test_genomic_keeps_legacy_biomarker_references_and_clinical_entries():
 def test_draft_genomic_does_not_mutate_input():
     trial = {"_summary": {"long_title": "t"}, "_llm_curation": {}}
     before = copy.deepcopy(trial)
-    draft_genomic(trial, {}, QueuedClient([_resp()]), KNOWN)
+    draft_genomic(trial, {}, QueuedClient([_resp()]), KNOWN, prefilter=False)
     assert trial == before
 
 

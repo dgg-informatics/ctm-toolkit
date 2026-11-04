@@ -489,7 +489,7 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
 3. Run the LLM + manual curation, same as the first-time flow, but only on the changed file:
    1. `$ ctm-llm clinical --trials 2026-07-14-changed.json --out 2026-07-14-changed-draft.json`  # or omit --trials to read the 02_diff_trials `changed` documents straight from Mongo
    2. `--nct`/`--limit` aren't needed here — the file is already scoped to just the changed trials.
-   3. `$ ctm-llm genomic --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json`  # drafts genomic CTML per piece of text, logs every molecular mention (cross-checked against the known-gene KB) to `_llm_curation.molecular_genomic_refs`. Caches to `~/.cache/ctm/` and uses the gene/variant KB shipped inside the package, so neither `--cache` nor `--kb` needs setting.
+   3. `$ ctm-llm genomic --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json`  # drafts genomic CTML per piece of text, logs every molecular mention (cross-checked against the known-gene KB) to `_llm_curation.molecular_genomic_refs`. Caches to `~/.cache/ctm/` and uses the gene/variant KB shipped inside the package, so neither `--cache` nor `--kb` needs setting. Pieces with nothing molecular in them (no gene or molecular keyword) skip the AI call and are recorded with `mapping_source: "keyword_prefilter"`; pass `--all-pieces` to send every piece.
    4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
 
 > [!WARNING]

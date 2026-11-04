@@ -549,7 +549,9 @@ def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mon
     # The deprecated alias reaches `ctm-llm genomic`: molecular refs plus
     # genomic entries, one per piece (criterion + title).
     curation = result[0]["_llm_curation"]
-    assert [r["section"] for r in curation["molecular_genomic_refs"]] == ["eligibility.inclusion", "_summary.long_title"]
+    # "Age >= 18" has nothing molecular in it, so the keyword prefilter skips its
+    # call; only the BRCA1 title is sent (and the fake answers BRCA1 for it).
+    assert [r["section"] for r in curation["molecular_genomic_refs"]] == ["_summary.long_title"]
     assert {e["node_type"] for e in curation["_ctml_suggestions"]} == {"genomic"}
     assert "biomarker_references" not in curation
     assert "final_suggested_ctml" not in result[0]["_llm_curation"]

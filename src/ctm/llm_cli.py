@@ -112,6 +112,10 @@ def _add_stage_parser(sub, name: str, help: str, cache_default: str, clinical: b
     else:
         p.add_argument("--kb", default=None, metavar="JSON",
                        help="Known gene/variant knowledge base (default: the packaged copy)")
+        p.add_argument("--all-pieces", action="store_true",
+                       help="Send every piece to the AI. By default, pieces with nothing "
+                            "molecular in them (no gene or molecular keyword) are skipped "
+                            "and recorded with mapping_source keyword_prefilter")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -339,7 +343,8 @@ def _cmd_genomic(args) -> None:
         label = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
         log_event(log, "llm.trial", "[%d/%d] %s", i, len(trials), label,
                   trial=label, index=i, total=len(trials), stage="genomic")
-        drafted = draft_genomic(trial, cache, client, known_genes, stage_run=stage_run)
+        drafted = draft_genomic(trial, cache, client, known_genes, stage_run=stage_run,
+                                prefilter=not getattr(args, "all_pieces", False))
         results.append(drafted)
         save_cache(cache, cache_file)  # after each trial so progress survives interruption
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm genomic", run_date),
