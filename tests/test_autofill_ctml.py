@@ -450,3 +450,67 @@ def test_skipped_trial_has_empty_match_sources():
     trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")], match=[{"clinical": {}}])
     _, report = autofill_trial(trial)
     assert report["filled"] is False and report["match_sources"] == []
+
+
+def test_negated_diagnosis_that_cancels_a_positive_one_is_dropped():
+    """2026-11-04 neuroblastoma trial: a subgroup exclusion came back as !Neuroblastoma,
+    AND-ed with the Neuroblastoma OR it matched nobody. Unrelated negations stay."""
+    excl = {"and": [{"clinical": {"oncotree_primary_diagnosis": "!Neuroblastoma"}},
+                    {"clinical": {"oncotree_primary_diagnosis": "!Lung"}}]}
+    trial = _trial([_e("_summary.long_title", "High-Risk Neuroblastoma", _dx("Neuroblastoma"), "clinical"),
+                    _e("eligibility.exclusion", "L2 without MYCN amp", excl, "clinical"),
+                    _e("eligibility.exclusion", "Stage L2 only", _dx("!Neuroblastoma"), "clinical")])
+    out, report = autofill_trial(trial)
+    assert _match(out) == [_auto(_dx("Neuroblastoma")), _auto(_dx("!Lung"))]
+    assert report["dropped_negated_diagnoses"] == ["!Neuroblastoma"]
+    by_text = {e["text"]: e for e in out["_llm_curation"]["_ctml_suggestions"]}
+    assert by_text["Stage L2 only"]["transferred_to_match"] is False
+    assert by_text["L2 without MYCN amp"]["transferred_to_match"] is True
+
+
+def _age(value):
+    return {"clinical": {"age_numerical": value}}
+
+
+def test_structured_age_wins_over_criteria_ages():
+    """2026-11-04: age_group Children plus 'participants under 16' / 'over 16'
+    criteria became <16 AND >=16 AND <18. A structured age field is the age."""
+    trial = _trial([_e("_raw.age_group", "Children", _age("<18"), "clinical"),
+                    _e("eligibility.inclusion", "For participants under 16", _age("<16"), "clinical"),
+                    _e("eligibility.inclusion", "For participants over 16", _age(">=16"), "clinical"),
+                    _e("eligibility.inclusion", "Females over 16",
+                       {"clinical": {"age_numerical": ">=16", "gender": "Female"}}, "clinical")])
+    out, report = autofill_trial(trial)
+    assert _match(out) == [_auto(_age("<18")), _auto({"clinical": {"gender": "Female"}})]
+    assert report["age_source"] == "_raw.age_group"
+    assert report["dropped_ages"] == ["<16", ">=16"]
+    assert report["age_conflict"] is False
+    by_text = {e["text"]: e for e in out["_llm_curation"]["_ctml_suggestions"]}
+    assert by_text["For participants under 16"]["transferred_to_match"] is False
+    assert by_text["Females over 16"]["transferred_to_match"] is True
+
+
+def test_criteria_age_used_when_no_structured_age():
+    trial = _trial([_e("_raw.age_group", "Both", None, "clinical"),
+                    _e("eligibility.inclusion", "Age >= 12", _age(">=12"), "clinical"),
+                    _e("eligibility.inclusion", "Age < 30", _age("<30"), "clinical")])
+    out, report = autofill_trial(trial)
+    assert _match(out) == [_auto(_age(">=12")), _auto(_age("<30"))]
+    assert report["age_source"] == "criteria"
+    assert report["dropped_ages"] == [] and report["age_conflict"] is False
+
+
+def test_contradictory_ages_are_all_dropped():
+    """AND-ed ages no one can satisfy (>=18 and <18) are dropped, not written."""
+    for a, b in ((">=18", "<18"), (">16", "<=16"), ("==21", ">30")):
+        trial = _trial([_e("eligibility.inclusion", "A", _age(a), "clinical"),
+                        _e("eligibility.inclusion", "B", _age(b), "clinical"),
+                        _e("_raw.sex", "FEMALE", {"clinical": {"gender": "Female"}}, "clinical")])
+        out, report = autofill_trial(trial)
+        assert _match(out) == [_auto({"clinical": {"gender": "Female"}})], (a, b)
+        assert report["age_conflict"] is True and report["age_source"] is None
+        assert sorted(report["dropped_ages"]) == sorted([a, b])
+    # Ages inside an OR are alternatives, not a conflict.
+    either = {"or": [_age("<16"), _age(">=65")]}
+    out, report = autofill_trial(_trial([_e("eligibility.inclusion", "Kids or seniors", either, "clinical")]))
+    assert _match(out) == [_auto(either)] and report["age_conflict"] is False

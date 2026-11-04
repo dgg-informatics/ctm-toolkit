@@ -14,6 +14,13 @@ No model call. ``source`` values are field paths. Rules:
   de-duplicated, first in the match. A criterion node that also had other
   fields keeps them as its own node. Negated diagnoses (``!Lung``) stay in their
   own nodes, AND-ed with the rest.
+* Age: a structured age field (``_raw.minimum_age`` / ``_raw.age_group``) is
+  the trial's age; criteria ages are used only when it has none, and are
+  stripped otherwise. If the ages left can't all hold at once (``>=18`` AND
+  ``<18``; ages under an ``or`` are alternatives) every age is dropped. Report:
+  ``age_source``, ``dropped_ages``, ``age_conflict``.
+* A negated diagnosis that cancels a required one (``!X`` with X in the OR)
+  is dropped and listed in ``dropped_negated_diagnoses``.
 * Genomic: nodes from ``_summary.long_title``, ``_raw.conditions`` and
   ``_raw.octsu_genes_interest`` are always added (after the criteria's),
   duplicates collapsed.
@@ -45,6 +52,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 
 from .llm_curation import (
     AGE_GROUP,
@@ -72,7 +80,10 @@ _AGE_SEX = (MINIMUM_AGE, SEX, AGE_GROUP)
 _DIAGNOSIS_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, CONDITIONS, CATEGORYS, AMC_DISEASE_SITE,
                       DDOTS_DISEASE_SITE, WEST_DISEASE_SITE)
 _GENOMIC_EXTRA = (LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
+_STRUCTURED_AGE = (MINIMUM_AGE, AGE_GROUP)
 _DX = "oncotree_primary_diagnosis"
+_AGE_KEY = "age_numerical"
+_AGE_RE = re.compile(r"^(>=|<=|==|>|<)(\d+(?:\.\d+)?)$")
 # Clinical fields suggested but not yet used in match clauses.
 NOT_IN_MATCH = frozenset({"ecog_score"})
 # report["reason"] when the match was written; skips use their own reason.
@@ -118,10 +129,78 @@ def _strip(node: dict, drop) -> dict | None:
     return node
 
 
-def _match_ready(node: dict) -> dict | None:
-    """``node`` minus fields not used in matching yet and minus positive diagnoses,
-    which are gathered into the one diagnosis OR instead."""
-    return _strip(node, lambda k, v: k in NOT_IN_MATCH or _is_positive_dx(k, v))
+def _and_ages(node) -> list[str]:
+    """Age values that must ALL hold for ``node``: leaves reached through ``and``
+    only (ages under an ``or`` are alternatives)."""
+    if not isinstance(node, dict) or "or" in node:
+        return []
+    if "and" in node:
+        return [a for child in node["and"] for a in _and_ages(child)]
+    value = (node.get("clinical") or {}).get(_AGE_KEY)
+    return [value] if isinstance(value, str) else []
+
+
+def _ages_satisfiable(values: list[str]) -> bool:
+    """False when no age meets every value (">=18" with "<18")."""
+    lo, lo_open, hi, hi_open = float("-inf"), False, float("inf"), False
+    for value in values:
+        m = _AGE_RE.match(value.strip())
+        if not m:
+            continue
+        op, n = m.group(1), float(m.group(2))
+        if op in (">", ">=", "==") and (n > lo or (n == lo and op == ">")):
+            lo, lo_open = n, op == ">"
+        if op in ("<", "<=", "==") and (n < hi or (n == hi and op == "<")):
+            hi, hi_open = n, op == "<"
+    return lo < hi or (lo == hi and not lo_open and not hi_open)
+
+
+def _plan_ages(entries: list[dict], report: dict) -> set:
+    """Decide which entries keep their age; returns the ids of those that lose it.
+
+    A structured age field (``_raw.minimum_age`` / ``_raw.age_group``) is the
+    trial's age when it has one; criteria ages are used only without it. If the
+    ages left can't all hold at once, every age is dropped (none is written).
+    """
+    def has_age(e):
+        return any(_AGE_KEY in (leaf.get("clinical") or {}) for leaf in _leaves(e["suggested_node"]))
+
+    with_age = [e for e in entries if e["node_type"] == "clinical" and has_age(e)]
+    structured = [e for e in with_age if e["source"] in _STRUCTURED_AGE]
+    criteria = [e for e in with_age if e["source"] in _CRITERIA]
+    keep, lose = (structured, criteria) if structured else (criteria, [])
+    if not _ages_satisfiable([a for e in keep for a in _and_ages(e["suggested_node"])]):
+        keep, lose = [], structured + criteria
+        report["age_conflict"] = True
+    report["age_source"] = (keep[0]["source"] if structured and keep else
+                            "criteria" if keep else None)
+    for e in lose:
+        for leaf in _leaves(e["suggested_node"]):
+            value = (leaf.get("clinical") or {}).get(_AGE_KEY)
+            if value is not None and value not in report["dropped_ages"]:
+                report["dropped_ages"].append(value)
+    return {id(e) for e in lose}
+
+
+def _cancels(key: str, value, positives) -> bool:
+    """A negated diagnosis (``!X``) whose X is also required: AND-ed with the
+    diagnosis OR it would match nobody."""
+    return (key == _DX and isinstance(value, str) and value.startswith("!")
+            and value[1:] in positives)
+
+
+def _match_ready(node: dict, positives=(), dropped: list | None = None,
+                 drop_age: bool = False) -> dict | None:
+    """``node`` minus fields not used in matching yet, minus positive diagnoses
+    (gathered into the one diagnosis OR instead) and minus negated diagnoses that
+    cancel one of ``positives`` (recorded in ``dropped``)."""
+    def drop(k, v):
+        if _cancels(k, v, positives):
+            if dropped is not None and v not in dropped:
+                dropped.append(v)
+            return True
+        return k in NOT_IN_MATCH or _is_positive_dx(k, v) or (drop_age and k == _AGE_KEY)
+    return _strip(node, drop)
 
 
 def _mark(node: dict) -> dict:
@@ -148,6 +227,8 @@ def autofill_trial(trial: dict, overwrite: bool = False,
                if e.get("node_type") and e.get("suggested_node") is not None]
     report = {"method": "auto", "filled": False, "reason": None, "nodes": 0,
               "mixed_pieces": 0, "diagnosis_sources": [], "match_sources": [],
+              "dropped_negated_diagnoses": [],
+              "age_source": None, "dropped_ages": [], "age_conflict": False,
               "mixed_logic": dict.fromkeys(MIXED_LOGIC, 0)}
 
     steps = (out.get("treatment_list") or {}).get("step") or []
@@ -159,6 +240,7 @@ def autofill_trial(trial: dict, overwrite: bool = False,
         curation["autofill"] = report
         return out, report
 
+    no_age = _plan_ages(entries, report)
     used: list[dict] = []
     nodes: list[dict] = []
 
@@ -216,14 +298,17 @@ def autofill_trial(trial: dict, overwrite: bool = False,
         if in_or_piece(e):
             if e["node_type"] == "clinical":
                 genomic = pieces[(e["source"], e["text"])]["genomic"]
-                clinical_part = _strip(e["suggested_node"], lambda k, v: k in NOT_IN_MATCH)
+                strip_age = id(e) in no_age
+                clinical_part = _strip(e["suggested_node"], lambda k, v, strip_age=strip_age:
+                                       k in NOT_IN_MATCH or (strip_age and k == _AGE_KEY))
                 if clinical_part is None:
                     add(genomic["suggested_node"], genomic)
                 else:
                     add({"or": [clinical_part, genomic["suggested_node"]]}, e)
                     use(genomic)
         elif e["source"] in _CRITERIA or e["source"] in _AGE_SEX:
-            add(_match_ready(e["suggested_node"]), e)
+            add(_match_ready(e["suggested_node"], names, report["dropped_negated_diagnoses"],
+                             drop_age=id(e) in no_age), e)
 
     for e in entries:
         if (e["node_type"] == "genomic" and e["source"] in _GENOMIC_EXTRA
