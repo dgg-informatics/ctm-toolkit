@@ -78,13 +78,18 @@ def test_mmr_ms_values_per_key():
     assert validate_genomic_node(g(ms_status="Deficient (MMR-D / MSI-H)")) is None
 
 
-def test_variant_classification_and_exon():
+def test_exon_and_variant_classification_are_stripped_for_now(caplog):
+    """Patient docs carry no TRUE_TRANSCRIPT_EXON / TRUE_VARIANT_CLASSIFICATION yet,
+    so a leaf with either matches nobody. Decided 2026-11-04: strip them, leaving the
+    broader gene-level node ("EGFR exon 19 deletion" -> any EGFR mutation)."""
     base = {"hugo_symbol": "EGFR", "variant_category": "Mutation", "wildtype": False}
-    assert validate_genomic_node(g(**base, variant_classification="Missense_Mutation", exon=19)) == \
-        g(**base, variant_classification="Missense_Mutation", exon=19)
-    assert validate_genomic_node(g(**base, variant_classification="missense")) is None
-    assert validate_genomic_node(g(**base, exon="19")) is None
-    assert validate_genomic_node(g(**base, exon=True)) is None
+    with caplog.at_level(logging.INFO):
+        for extra in ({"exon": 19, "variant_classification": "In_Frame_Del"},
+                      {"exon": "19"}, {"variant_classification": "missense"}):
+            assert validate_genomic_node(g(**base, **extra)) == g(**base), extra
+    assert any(getattr(r, "event", None) == "llm.genomic_unsupported_key" for r in caplog.records)
+    # Nothing left but the stripped keys → no leaf.
+    assert validate_genomic_node(g(exon=19)) is None
 
 
 def test_unknown_keys_and_clinical_leaves_dropped():
@@ -114,8 +119,8 @@ def test_invalid_drop_is_logged(caplog):
 def test_any_invalid_field_drops_the_whole_leaf():
     """Stripping one field widens the requirement (any gene, any exon) — drop instead."""
     assert validate_genomic_node(g(hugo_symbol=7, variant_category="Mutation", wildtype=False)) is None
-    assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="Mutation",
-                                   wildtype=True, exon="19")) is None
+    assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="Copy Number Variation",
+                                   wildtype=False, cnv_call="amplified")) is None
 
 
 def test_gene_scoped_keys_need_a_gene():
@@ -144,3 +149,24 @@ def test_sv_wildtype_true_drops_the_leaf():
                                    wildtype=True)) is None
     present = g(hugo_symbol="ALK", variant_category="Structural Variation", wildtype=False)
     assert validate_genomic_node(present) == present
+
+
+def test_wildtype_null_means_status_known_either_result():
+    """2026-11-04: "TP53 gene mutation analysis performed at any CLIA-approved lab".
+    No WILDTYPE in the query matches tested patients with either result (a wildtype
+    result is a doc with WILDTYPE true); untested patients still don't match."""
+    from ctm.transformers.genomic_ctml import validate_genomic_node
+    for category in ("Mutation", "Copy Number Variation"):
+        node = {"genomic": {"hugo_symbol": "TP53", "variant_category": category, "wildtype": None}}
+        assert validate_genomic_node(node) == \
+            {"genomic": {"hugo_symbol": "TP53", "variant_category": category}}
+    # Only where tested-negative patient docs exist, and only gene-level.
+    for bad in ({"hugo_symbol": "TP53", "variant_category": "!Mutation", "wildtype": None},
+                {"hugo_symbol": "ALK", "variant_category": "Structural Variation", "wildtype": None},
+                {"hugo_symbol": "TP53", "variant_category": "Mutation", "protein_change": "p.R175H",
+                 "wildtype": None},
+                {"hugo_symbol": "TP53", "wildtype": None}):
+        assert validate_genomic_node({"genomic": bad}) is None, bad
+    # A forgotten wildtype is still the WT trap and still defaults to false.
+    assert validate_genomic_node({"genomic": {"hugo_symbol": "TP53", "variant_category": "Mutation"}}) == \
+        {"genomic": {"hugo_symbol": "TP53", "variant_category": "Mutation", "wildtype": False}}

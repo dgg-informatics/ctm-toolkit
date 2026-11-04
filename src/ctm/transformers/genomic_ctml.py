@@ -53,11 +53,19 @@ GENOMIC_KEYS = frozenset({"hugo_symbol", "variant_category", "protein_change",
                           "ms_status", "variant_classification", "exon"})
 
 
+# Valid CTML, but our patient docs carry no TRUE_TRANSCRIPT_EXON /
+# TRUE_VARIANT_CLASSIFICATION yet, so a leaf using them matches nobody. Stripped
+# (deliberately widening to the gene-level node) until patient data has them.
+UNSUPPORTED_KEYS = frozenset({"exon", "variant_classification"})
+
 _HUGO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
 # Keys that only mean something for a named gene; without one the leaf would
 # ask for "this alteration in any gene".
 _GENE_SCOPED = frozenset({"variant_category", "protein_change", "wildcard_protein_change",
                           "exon", "cnv_call", "variant_classification", "wildtype"})
+
+
+_STATUS_KNOWN_CATEGORIES = ("Mutation", "Copy Number Variation")
 
 
 def _valid_field(key: str, value) -> bool:
@@ -92,6 +100,25 @@ def _validate_leaf(fields, source: str | None) -> dict | None:
     (a gene, an exon, a cnv_call) silently widens what the leaf asks for."""
     if not isinstance(fields, dict) or not fields:
         return None
+    unsupported = UNSUPPORTED_KEYS & fields.keys()
+    if unsupported:
+        log.info("  stripped %s (no patient data for it yet)", ", ".join(sorted(unsupported)),
+                 extra={"event": "llm.genomic_unsupported_key", "fields": sorted(unsupported),
+                        "stage": "genomic"})
+        fields = {k: v for k, v in fields.items() if k not in UNSUPPORTED_KEYS}
+        if not fields:
+            return None
+    if "wildtype" in fields and fields["wildtype"] is None:
+        # "Status must be known, either result": no WILDTYPE in the query matches a
+        # tested patient whether mutated (false) or wildtype (true). Only Mutation /
+        # CNV have tested-negative patient docs, and only gene-level (a protein
+        # change etc. would only ever match the mutated ones).
+        if (fields.get("variant_category") not in _STATUS_KNOWN_CATEGORIES
+                or fields.keys() - {"hugo_symbol", "variant_category", "wildtype"}
+                or not _valid_field("hugo_symbol", fields.get("hugo_symbol"))):
+            _drop("wildtype null outside a gene-level Mutation/CNV leaf", field="wildtype")
+            return None
+        return {"genomic": {k: v for k, v in fields.items() if k != "wildtype"}}
     for key, value in fields.items():
         if not _valid_field(key, value):
             _drop("invalid field", field=key, value=repr(value)[:80])
@@ -106,8 +133,8 @@ def _validate_leaf(fields, source: str | None) -> dict | None:
         return None
     if fields.get("variant_category") == "Structural Variation" and fields.get("wildtype") is True:
         # Patient SV docs exist only for detected fusions (to_matchminer skips
-        # wildtype=TRUE SV rows) and matchengine's SV query ignores WILDTYPE, so
-        # "fusion documented absent" would match fusion-positive patients.
+        # wildtype=TRUE SV rows and writes WILDTYPE false on the rest), so
+        # "fusion documented absent" would match nobody.
         _drop("Structural Variation with wildtype true", field="wildtype")
         return None
     kept = dict(fields)
@@ -156,18 +183,23 @@ Allowed keys and values (use these exact spellings):
   wildtype                JSON true or false (never a string)
   protein_change          HGVS protein change with the p. prefix, exact: "p.V600E", "p.G12C"
   wildcard_protein_change p. + codon, matches any substitution there: "p.V600", "p.G12"
-  variant_classification  "Missense_Mutation" | "Nonsense_Mutation" | "In_Frame_Del" | "Frame_Shift_Del" | "Splice_Site"
-  exon                    integer, e.g. 19
+Do not use exon or variant_classification: patient data has no exon or classification yet, so a
+node with them matches nobody. "EGFR exon 19 deletion" → an EGFR "Mutation" node (the exon detail
+stays in the ref).
   cnv_call                "High Amplification" | "Low Amplification" | "Homozygous Deletion" | "Heterozygous Deletion"
   mmr_status              "MMR-Deficient" | "MMR-Proficient"
   ms_status               "MSI-H" | "MSI-L" | "MSS"
 
-WILDTYPE — every node with a variant_category MUST carry wildtype (true or false).
+WILDTYPE — every node with a variant_category MUST carry wildtype (true, false, or null — see below).
 A wildtype test result is stored as a mutation record with wildtype true, so leaving wildtype
 out changes what matches. Mutations:
   must HAVE a documented mutation          → "Mutation",  wildtype: false
   must be documented/confirmed wildtype    → "Mutation",  wildtype: true   (untested patients do NOT match)
   must have NO documented mutation         → "!Mutation", wildtype: false  (wildtype and untested patients match)
+  status must be KNOWN, either result      → "Mutation",  "wildtype": null (mutated and wildtype match; untested do NOT)
+    ("TP53 gene mutation analysis performed", "KRAS status must be known"). Gene + category only;
+    also works for "Copy Number Variation". A test the trial itself performs ("with TP53
+    sequencing" in a title) is not an eligibility requirement → node null.
 This last row is the standard way to write a mutation exclusion ("no known KRAS mutation",
 exclusion source "known KRAS mutation", "KRAS wild-type or untested"). Never write "!Mutation"
 without wildtype: false — that also drops patients with a documented wildtype result.
@@ -180,6 +212,20 @@ Copy number and fusions have no "!" form — never "!" on "Copy Number Variation
   ("no ALK rearrangement"): set "node" to null and log the fusion in refs.
 MSI and MMR are the exception: use ms_status / mmr_status only, with no variant_category and
 no wildtype. Never put "!" on any field other than variant_category "!Mutation".
+EXCLUSIONS — exclusion text describes who is kept OUT. The node must describe who may still enroll,
+which is the opposite of the text. Never copy the excluded group as written:
+  excluded if mutation present ("known KRAS mutation")      → "!Mutation", wildtype: false
+  excluded if no mutation ("KRAS wild-type", "without KRAS mutation") → "Mutation", wildtype: false
+  excluded if CNV present ("MYCN amplification")            → node null (no "!" for CNV), log in refs
+  excluded if CNV absent ("without MYCN amplification")     → "Copy Number Variation", wildtype: false
+                                                              (+ cnv_call when the text says which)
+  excluded if fusion present                                → node null, log in refs
+  excluded if fusion absent ("without ALK fusion")          → "Structural Variation", wildtype: false
+  excluded MSI/MMR status                                   → node null, log in refs
+If the exclusion only covers one subgroup of the trial's patients (a stage, risk group or histology,
+e.g. "INRG stage L2 tumors without amplification of MYCN"), the flipped node would wrongly apply to
+everyone → node null, log in refs. The same holds for inclusion text that is one of several
+alternative ways to qualify.
 If the text mentions no expressible genomic requirement, "node" is null. TMB, HRD, IHC/protein
 expression (HER2 IHC 3+, PD-L1, ER/PR) and anything else without a key above → node null, but log it in refs.
 
@@ -228,8 +274,12 @@ Source: exclusion — "Known KRAS mutation"
    "refs": [{"biomarker": "BRCA1", "type": "snv", "reference": "germline BRCA1", "origin": "germline"},
             {"biomarker": "BRCA2", "type": "snv", "reference": "BRCA2 mutation", "origin": "germline"}]}
 
+"TP53 gene mutation analysis performed at any CLIA-approved laboratory"
+→ {"node": {"genomic": {"hugo_symbol": "TP53", "variant_category": "Mutation", "wildtype": null}},
+   "refs": [{"biomarker": "TP53", "type": "snv", "reference": "TP53 gene mutation analysis", "origin": "unknown"}]}
+
 "EGFR exon 19 deletion"
-→ {"node": {"genomic": {"hugo_symbol": "EGFR", "variant_category": "Mutation", "exon": 19, "variant_classification": "In_Frame_Del", "wildtype": false}},
+→ {"node": {"genomic": {"hugo_symbol": "EGFR", "variant_category": "Mutation", "wildtype": false}},
    "refs": [{"biomarker": "EGFR", "type": "snv", "reference": "EGFR exon 19 deletion", "origin": "unknown"}]}
 
 "MYCN amplification"
@@ -239,6 +289,13 @@ Source: exclusion — "Known KRAS mutation"
 "ALK rearrangement"
 → {"node": {"genomic": {"hugo_symbol": "ALK", "variant_category": "Structural Variation", "wildtype": false}},
    "refs": [{"biomarker": "ALK", "type": "fusion", "reference": "ALK rearrangement", "origin": "unknown"}]}
+
+Source: exclusion — "Without MYCN amplification"
+→ {"node": {"genomic": {"hugo_symbol": "MYCN", "variant_category": "Copy Number Variation", "cnv_call": "High Amplification", "wildtype": false}},
+   "refs": [{"biomarker": "MYCN", "type": "cnv", "reference": "without MYCN amplification", "origin": "unknown"}]}
+
+Source: exclusion — "Patients with INRG stage L2 tumors without amplification of MYCN"
+→ {"node": null, "refs": [{"biomarker": "MYCN", "type": "cnv", "reference": "without amplification of MYCN", "origin": "unknown"}]}
 
 Source: exclusion — "Known ALK rearrangement"
 → {"node": null, "refs": [{"biomarker": "ALK", "type": "fusion", "reference": "ALK rearrangement", "origin": "unknown"}]}

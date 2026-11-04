@@ -210,3 +210,26 @@ def test_genomic_prompt_treats_tumor_level_tests_as_somatic():
     assert "MSI/MMR/TMB/HRD and IHC are tumor tests" in GENOMIC_SYSTEM_PROMPT
     assert ('"reference": "HER2-positive (IHC 3+)", "origin": "somatic"'
             in GENOMIC_SYSTEM_PROMPT)
+
+
+def test_genomic_prompt_flips_exclusions():
+    """2026-11-04 neuroblastoma trial: exclusion "L2 tumors without amplification of MYCN"
+    came back as MYCN CNV wildtype true, the excluded group itself, not who is left."""
+    p = GENOMIC_SYSTEM_PROMPT
+    assert "EXCLUSIONS" in p
+    assert "describe who may still enroll" in p
+    assert "without amplification of MYCN" in p      # the worked example
+    assert "subgroup" in p
+
+
+def test_genomic_prompt_has_status_known_rule():
+    p = GENOMIC_SYSTEM_PROMPT
+    assert '"wildtype": null' in p
+    assert "TP53 gene mutation analysis performed" in p
+
+
+def test_genomic_prompt_does_not_offer_exon_or_variant_classification():
+    p = GENOMIC_SYSTEM_PROMPT
+    assert "exon                    integer" not in p
+    assert '"In_Frame_Del"' not in p
+    assert "Do not use exon or variant_classification" in p
