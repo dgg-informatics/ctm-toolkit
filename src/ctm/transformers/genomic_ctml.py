@@ -415,13 +415,17 @@ _MOLECULAR_WORDS = re.compile(
     r"pd-?l1|her2|her-2|hormone receptor|p16|hpv|ebv|ki-?67|methylat\w*|"
     r"karyotype|cytogenetic\w*|philadelphia|bcr-?abl|flt3|npm1|idh[12]?|"
     r"chromosom\w*|isochromosome|trisomy|monosomy|kinase|lynch|li-?fraumeni|syndrome|"
-    r"deficien\w*|proficien\w*|dehydrogenase|hereditary|inherited|carrier)\b"
+    r"deficien\w*|proficien\w*|dehydrogenase|hereditary|inherited|carrier|"
+    r"co-?delet\w*|heterozygosity|loh|claudin\w*|cldn18\w*|trop-?2|folate receptor|c-?kit)\b"
     r"|\b(?:t|del|inv|dup)\(\d"           # t(15;17), del(5q)
     r"|\b(?:er|pr|her2|her-2)\s*[+-]"      # ER+, PR-, HER2+
     r"|\bp\d{2,3}",                        # p53, p53wt, p16
     re.IGNORECASE)
-# Gene-shaped tokens: KRAS, TP53, NTRK1, BRAFV600E.
-_GENE_TOKEN = re.compile(r"\b[A-Z][A-Z0-9]{1,11}(?:-[A-Z0-9]+)?\b")
+# Gene-shaped tokens: KRAS, TP53, NTRK1, BRAFV600E, and genes with a lowercase
+# prefix or suffix glued on (gBRCAm, sBRCA, BRCAness, EGFRvIII). The upper-case
+# core plus any upper-case hyphen part (HLA-A) is what's checked against the stop
+# list, so eGFR → GFR is still a lab while HLA-A is not HLA.
+_GENE_TOKEN = re.compile(r"\b[a-z]?([A-Z][A-Z0-9]{1,11})(?:[a-z]+[A-Z0-9]*)?(-[A-Z0-9]+)?\b")
 # Upper-case clinical acronyms that are not genes.
 _NOT_GENES = frozenset({
     "ECOG", "ULN", "AST", "ALT", "ANC", "CNS", "HIV", "HBV", "HCV", "QTC", "QTCF", "LVEF", "CT",
@@ -439,8 +443,9 @@ def looks_molecular(text: str, known_genes: set[str] = frozenset()) -> bool:
     """True when ``text`` may mention a molecular alteration or biomarker."""
     if _MOLECULAR_WORDS.search(text):
         return True
-    for token in _GENE_TOKEN.findall(text):
-        if token in known_genes:
+    for core, hyphen_part in _GENE_TOKEN.findall(text):
+        token = core + hyphen_part
+        if core in known_genes or token in known_genes:
             return True
         if token not in _NOT_GENES and (len(token) >= 3 or any(c.isdigit() for c in token)):
             return True

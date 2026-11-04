@@ -35,6 +35,20 @@ MOLECULAR = [
     "no isochromosome 17q",
     # A known gene shorter than the generic gene pattern allows:
     "AR-positive disease",
+    # Missed by the first build, found probing tricky phrasing (2026-11-04):
+    "Patients with gBRCAm",
+    "sBRCA",
+    "BRCAness",
+    "EGFRvIII",
+    "1p/19q codeleted oligodendroglioma",
+    "1p/19q co-deletion",
+    "claudin 18.2",
+    "Trop-2 directed therapy",
+    "folate receptor alpha",
+    "c-Kit",
+    "loss of heterozygosity",
+    "HLA-A*02:01 positive by genotyping",
+    "HLA-A*02:01",
 ]
 
 NOT_MOLECULAR = [
@@ -48,6 +62,8 @@ NOT_MOLECULAR = [
     "Prior treatment with cisplatin required",
     "Serum creatinine <= 1.5 x ULN and AST/ALT <= 3 x ULN",
     "Lung Non-Small Cell Carcinoma",
+    # A lab value: the lowercase-prefix rule must not turn eGFR into a gene.
+    "eGFR >= 60 mL/min/1.73 m2",
 ]
 
 
