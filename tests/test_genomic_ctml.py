@@ -236,3 +236,24 @@ def test_genomic_prompt_offers_exon_and_variant_classification():
     assert '"In_Frame_Del"' in p
     assert "Do not use exon or variant_classification" not in p
     assert '"exon": 19' in p
+
+
+def test_genomic_prompt_flips_without_inside_an_inclusion():
+    """2026-11-05: inclusion "LGG without a BRAFV600E or IDH1 mutation" came back as
+    BRAF p.V600E/IDH1 wildtype true (matches nobody)."""
+    p = GENOMIC_SYSTEM_PROMPT
+    assert "without a BRAFV600E or IDH1 mutation" in p
+    assert 'never "wildtype": true with protein_change' in p
+
+
+def test_genes_of_interest_keeps_refs_but_never_a_node():
+    """_raw.octsu_genes_interest is a gene buzzword column (2026-11-05): the AI's refs
+    are kept for molecular_genomic_refs, its node is dropped."""
+    braf = {"genomic": {"hugo_symbol": "BRAF", "variant_category": "Mutation",
+                        "protein_change": "p.V600E", "wildtype": False}}
+    refs = [{"biomarker": "BRAF", "type": "snv", "reference": "BRAF V600E", "origin": "unknown"}]
+    cur = _cur({"_raw": {"octsu_genes_interest": "BRAF V600E"}}, QueuedClient([_resp(braf, refs)]))
+    entry, = [e for e in cur["_ctml_suggestions"] + cur["_null_ctml_suggestions"]
+              if e["source"] == "_raw.octsu_genes_interest"]
+    assert entry["suggested_node"] is None and entry["mapping_source"] == "ai"
+    assert [r["biomarker"] for r in cur["molecular_genomic_refs"]] == ["BRAF"]

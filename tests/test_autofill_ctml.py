@@ -102,7 +102,7 @@ def test_duplicate_diagnoses_across_sources_appear_once():
     assert _match(out) == [{"or": [_auto(_dx("Breast")), _auto(_dx("Lung"))]}]
 
 
-def test_title_conditions_and_curator_genomic_nodes_are_always_added_once():
+def test_title_and_conditions_genomic_nodes_are_always_added_once():
     brca = {"genomic": {"hugo_symbol": "BRCA1", "variant_category": "Mutation", "wildtype": False}}
     title = _e("_summary.long_title", "In BRCA1 carriers", brca, "genomic")
     out, _ = autofill_trial(_trial([title]))
@@ -110,7 +110,7 @@ def test_title_conditions_and_curator_genomic_nodes_are_always_added_once():
     out, _ = autofill_trial(_trial([title, _e("eligibility.exclusion", "Known KRAS mutation", KRAS_NO, "genomic")]))
     assert _match(out) == [_auto(KRAS_NO), _auto(brca)]
     same = _e("eligibility.inclusion", "BRCA1 mutation", brca, "genomic")
-    out, _ = autofill_trial(_trial([same, title, _e("_raw.octsu_genes_interest", "BRCA1", brca, "genomic")]))
+    out, _ = autofill_trial(_trial([same, title, _e("_raw.conditions", "BRCA1 carrier", brca, "genomic")]))
     assert _match(out) == [_auto(brca)]                       # duplicates collapse to one
 
 
@@ -514,3 +514,54 @@ def test_contradictory_ages_are_all_dropped():
     either = {"or": [_age("<16"), _age(">=65")]}
     out, report = autofill_trial(_trial([_e("eligibility.inclusion", "Kids or seniors", either, "clinical")]))
     assert _match(out) == [_auto(either)] and report["age_conflict"] is False
+
+
+def _gen(gene, category="Mutation", wildtype=False, **extra):
+    return {"genomic": {"hugo_symbol": gene, "variant_category": category, "wildtype": wildtype, **extra}}
+
+
+def test_contradictory_genomic_nodes_are_all_dropped():
+    """2026-11-05 (pediatric LGG): one node said IDH1 mutated, another IDH1 wildtype, AND-ed
+    into a match nobody can satisfy. Drop every top-level node holding a contradiction."""
+    mutated = {"and": [_gen("BRAF", protein_change="p.V600E"), _gen("IDH1")]}
+    wildtype = _gen("IDH1", wildtype=True)
+    trial = _trial([_e("eligibility.inclusion", "LGG", _dx("Low-Grade Glioma, NOS"), "clinical"),
+                    _e("eligibility.inclusion", "without BRAF/IDH1", wildtype, "genomic"),
+                    _e("_summary.long_title", "BRAF V600E, IDH1", mutated, "genomic")])
+    out, report = autofill_trial(trial)
+    assert _match(out) == [_auto(_dx("Low-Grade Glioma, NOS"))]
+    assert report["genomic_conflicts"] == ["IDH1 Mutation"]
+    assert report["match_sources"] == ["eligibility.inclusion"]
+    flags = {e["text"]: e["transferred_to_match"] for e in out["_llm_curation"]["_ctml_suggestions"]}
+    assert flags == {"LGG": True, "without BRAF/IDH1": False, "BRAF V600E, IDH1": False}
+
+
+def test_genes_of_interest_never_goes_into_the_match():
+    """2026-11-05: _raw.octsu_genes_interest is a gene buzzword list, not a requirement.
+    Its node (from trials drafted before the genomic stage nulled it) is ignored."""
+    braf = _gen("BRAF", protein_change="p.V600E")
+    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical"),
+                    _e("_raw.octsu_genes_interest", "BRAF V600E", braf, "genomic")])
+    out, report = autofill_trial(trial)
+    assert _match(out) == [_auto(AGE)] and report["match_sources"] == ["_raw.minimum_age"]
+    genes = [e for e in out["_llm_curation"]["_ctml_suggestions"] if e["source"] == "_raw.octsu_genes_interest"]
+    assert genes[0]["transferred_to_match"] is False
+
+
+def test_mutated_and_no_documented_mutation_conflict_too():
+    trial = _trial([_e("eligibility.inclusion", "A", _gen("KRAS"), "genomic"),
+                    _e("eligibility.exclusion", "B", KRAS_NO, "genomic"),
+                    _e("_raw.minimum_age", "18 Years", AGE, "clinical")])
+    out, report = autofill_trial(trial)
+    assert _match(out) == [_auto(AGE)] and report["genomic_conflicts"] == ["KRAS Mutation"]
+
+
+def test_compatible_genomic_nodes_are_kept():
+    """Different protein changes, wildtype vs no documented mutation, and alternatives
+    under an OR are not contradictions."""
+    for a, b in ((_gen("BRAF", protein_change="p.V600E"), _gen("BRAF", protein_change="p.V600K")),
+                 (_gen("KRAS", wildtype=True), KRAS_NO),
+                 ({"or": [_gen("EGFR"), _gen("ALK", "Structural Variation")]}, _gen("EGFR", wildtype=True))):
+        out, report = autofill_trial(_trial([_e("eligibility.inclusion", "A", a, "genomic"),
+                                             _e("eligibility.inclusion", "B", b, "genomic")]))
+        assert _match(out) == [_auto(a), _auto(b)] and report["genomic_conflicts"] == []

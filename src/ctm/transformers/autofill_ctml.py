@@ -21,9 +21,15 @@ No model call. ``source`` values are field paths. Rules:
   ``age_source``, ``dropped_ages``, ``age_conflict``.
 * A negated diagnosis that cancels a required one (``!X`` with X in the OR)
   is dropped and listed in ``dropped_negated_diagnoses``.
-* Genomic: nodes from ``_summary.long_title``, ``_raw.conditions`` and
-  ``_raw.octsu_genes_interest`` are always added (after the criteria's),
-  duplicates collapsed.
+* Genomic contradictions: AND-ed genomic leaves for the same gene, category and
+  protein change where one says "present" (``wildtype: false``) and another
+  says confirmed wildtype (``wildtype: true``) or "no documented" (``!``) can't
+  all hold. Every top-level node holding one is dropped (we can't tell which
+  side is right); listed in ``genomic_conflicts``.
+* Genomic: nodes from ``_summary.long_title`` and ``_raw.conditions`` are
+  always added (after the criteria's), duplicates collapsed.
+  ``_raw.octsu_genes_interest`` is a gene buzzword column, never a requirement:
+  its node is ignored (the genomic stage no longer writes one).
 * ``ecog_score`` is not used in match clauses yet: it is removed from every
   node before writing (the suggestion itself is kept). A node left empty is
   dropped and its entry marked not transferred.
@@ -61,7 +67,6 @@ from .llm_curation import (
     CONDITIONS,
     DDOTS_DISEASE_SITE,
     EXCLUSION,
-    GENES_OF_INTEREST,
     INCLUSION,
     LONG_TITLE,
     MINIMUM_AGE,
@@ -79,7 +84,7 @@ _CRITERIA = (INCLUSION, EXCLUSION)
 _AGE_SEX = (MINIMUM_AGE, SEX, AGE_GROUP)
 _DIAGNOSIS_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, CONDITIONS, CATEGORYS, AMC_DISEASE_SITE,
                       DDOTS_DISEASE_SITE, WEST_DISEASE_SITE)
-_GENOMIC_EXTRA = (LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
+_GENOMIC_EXTRA = (LONG_TITLE, CONDITIONS)   # not GENES_OF_INTEREST: buzzwords only
 _STRUCTURED_AGE = (MINIMUM_AGE, AGE_GROUP)
 _DX = "oncotree_primary_diagnosis"
 _AGE_KEY = "age_numerical"
@@ -203,6 +208,40 @@ def _match_ready(node: dict, positives=(), dropped: list | None = None,
     return _strip(node, drop)
 
 
+def _and_genomic(node):
+    """Genomic leaves that must ALL hold for ``node`` (through ``and`` only)."""
+    if not isinstance(node, dict) or "or" in node:
+        return []
+    if "and" in node:
+        return [g for child in node["and"] for g in _and_genomic(child)]
+    g = node.get("genomic")
+    return [g] if isinstance(g, dict) else []
+
+
+def _genomic_conflicts(nodes: list[dict]) -> tuple[list[str], set[int]]:
+    """(labels, indexes of nodes to drop) for AND-ed genomic leaves that contradict:
+    same gene + category + protein change, "present" (no ``!``, wildtype false)
+    against confirmed wildtype (wildtype true) or "no documented" (``!``)."""
+    states: dict[tuple, dict[str, set[int]]] = {}
+    for i, node in enumerate(nodes):
+        for g in _and_genomic(node):
+            category = g.get("variant_category")
+            if not isinstance(category, str) or not g.get("hugo_symbol"):
+                continue
+            negated = category.startswith("!")
+            key = (g["hugo_symbol"], category.lstrip("!"), g.get("protein_change"),
+                   g.get("wildcard_protein_change"))
+            state = "absent" if negated or g.get("wildtype") is True else "present"
+            states.setdefault(key, {}).setdefault(state, set()).add(i)
+    labels, drop = [], set()
+    for key, by_state in states.items():
+        if len(by_state) > 1:
+            gene, category, protein, wildcard = key
+            labels.append(" ".join(x for x in (gene, protein or wildcard, category) if x))
+            drop |= by_state["present"] | by_state["absent"]
+    return labels, drop
+
+
 def _mark(node: dict) -> dict:
     """Deep copy of ``node`` with the auto marker on every clinical/genomic leaf."""
     for key in ("and", "or"):
@@ -229,6 +268,7 @@ def autofill_trial(trial: dict, overwrite: bool = False,
               "mixed_pieces": 0, "diagnosis_sources": [], "match_sources": [],
               "dropped_negated_diagnoses": [],
               "age_source": None, "dropped_ages": [], "age_conflict": False,
+              "genomic_conflicts": [],
               "mixed_logic": dict.fromkeys(MIXED_LOGIC, 0)}
 
     steps = (out.get("treatment_list") or {}).get("step") or []
@@ -243,6 +283,7 @@ def autofill_trial(trial: dict, overwrite: bool = False,
     no_age = _plan_ages(entries, report)
     used: list[dict] = []
     nodes: list[dict] = []
+    owners: list[tuple[dict, dict]] = []   # (node, entry) for every add()
 
     def use(entry: dict) -> None:
         if not any(entry is u for u in used):
@@ -253,6 +294,7 @@ def autofill_trial(trial: dict, overwrite: bool = False,
             return
         if node not in nodes:
             nodes.append(node)
+        owners.append((node, entry))
         use(entry)
 
     # Mixed pieces: a clinical and a genomic entry with the same source AND the
@@ -314,6 +356,19 @@ def autofill_trial(trial: dict, overwrite: bool = False,
         if (e["node_type"] == "genomic" and e["source"] in _GENOMIC_EXTRA
                 and not in_or_piece(e)):
             add(e["suggested_node"], e)
+
+    labels, drop = _genomic_conflicts(nodes)
+    if drop:
+        report["genomic_conflicts"] = labels
+        dropped = [nodes[i] for i in drop]
+        nodes = [n for i, n in enumerate(nodes) if i not in drop]
+        # An entry stays used only if some node it produced survived (or it fed
+        # the diagnosis OR, which never goes through add()).
+        lost = [e for n, e in owners if n in dropped]
+        kept = [e for n, e in owners if n not in dropped]
+        used = [u for u in used if not any(u is e for e in lost) or any(u is e for e in kept)]
+        log.info("  dropped %d contradictory genomic node(s): %s", len(drop), ", ".join(labels),
+                 extra={"event": "autofill.genomic_conflict", "conflicts": labels})
 
     if not nodes:
         report["reason"] = "no suggestions"

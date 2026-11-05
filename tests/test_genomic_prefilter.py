@@ -115,6 +115,8 @@ def test_curator_genes_field_is_always_sent():
     genes = [e for e in cur["_ctml_suggestions"] + cur["_null_ctml_suggestions"]
              if e["source"] == "_raw.octsu_genes_interest"]
     assert genes and genes[0]["mapping_source"] == "ai"
+    # A buzzword list, not a requirement: refs only, never a node (2026-11-05).
+    assert genes[0]["suggested_node"] is None
     assert cur["parsed_sections"]["genomic"]["_raw.octsu_genes_interest"]["skipped"] == 0
 
 

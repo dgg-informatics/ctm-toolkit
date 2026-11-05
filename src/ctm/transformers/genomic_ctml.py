@@ -141,6 +141,12 @@ def _validate_leaf(fields, source: str | None) -> dict | None:
         # "fusion documented absent" would match nobody.
         _drop("Structural Variation with wildtype true", field="wildtype")
         return None
+    if fields.get("wildtype") is True and fields.keys() & {"protein_change", "wildcard_protein_change"}:
+        # A documented-wildtype patient doc is gene-level (no protein change), so
+        # "BRAF p.V600E, wildtype true" would match nobody. "No documented V600E"
+        # is "!Mutation" + protein_change + wildtype false.
+        _drop("wildtype true with a protein change", field="wildtype")
+        return None
     kept = dict(fields)
     if "variant_category" in kept and "wildtype" not in kept:
         # Every Mutation / !Mutation / CNV / SV node carries wildtype. false is
@@ -206,6 +212,10 @@ out changes what matches. Mutations:
 This last row is the standard way to write a mutation exclusion ("no known KRAS mutation",
 exclusion source "known KRAS mutation", "KRAS wild-type or untested"). Never write "!Mutation"
 without wildtype: false — that also drops patients with a documented wildtype result.
+"Without X mutation", "no X mutation" and "X-negative" in INCLUSION text mean the same thing:
+NO documented mutation → "!Mutation", wildtype: false. Use wildtype: true only when the text asks
+for a confirmed/tested wildtype result, and never "wildtype": true with protein_change or
+wildcard_protein_change (a wildtype result has no protein change, so it would match nobody).
 Copy number and fusions have no "!" form — never "!" on "Copy Number Variation" or
 "Structural Variation". They still carry wildtype:
   CNV present            → "Copy Number Variation", wildtype: false (add cnv_call only when the text says which)
@@ -266,6 +276,12 @@ Source: exclusion — "Known KRAS mutation"
 "No documented KRAS mutation (wild-type or not tested)"
 → {"node": {"genomic": {"hugo_symbol": "KRAS", "variant_category": "!Mutation", "wildtype": false}},
    "refs": [{"biomarker": "KRAS", "type": "snv", "reference": "No documented KRAS mutation", "origin": "unknown"}]}
+
+"Non-NF1, non-TSC low-grade glioma (LGG) without a BRAFV600E or IDH1 mutation"
+→ {"node": {"and": [{"genomic": {"hugo_symbol": "BRAF", "variant_category": "!Mutation", "protein_change": "p.V600E", "wildtype": false}},
+                    {"genomic": {"hugo_symbol": "IDH1", "variant_category": "!Mutation", "wildtype": false}}]},
+   "refs": [{"biomarker": "BRAF", "type": "snv", "reference": "without a BRAFV600E mutation", "origin": "unknown"},
+            {"biomarker": "IDH1", "type": "snv", "reference": "without an IDH1 mutation", "origin": "unknown"}]}
 
 "Tumor must be confirmed KRAS wild-type by NGS"
 → {"node": {"genomic": {"hugo_symbol": "KRAS", "variant_category": "Mutation", "wildtype": true}},
@@ -456,6 +472,9 @@ def looks_molecular(text: str, known_genes: set[str] = frozenset()) -> bool:
 
 # Sources the prefilter never skips: the curator genes field exists to name genes.
 _ALWAYS_SEND = frozenset({GENES_OF_INTEREST})
+# A curator's gene buzzword column, not a requirement ("BRAF V600E, IDH1" on a trial
+# that EXCLUDES them): its refs are kept, its node never (2026-11-05).
+_REFS_ONLY = frozenset({GENES_OF_INTEREST})
 
 
 def draft_genomic(trial: dict, cache: dict, client, known_genes: set[str],
@@ -477,6 +496,8 @@ def draft_genomic(trial: dict, cache: dict, client, known_genes: set[str],
                 entries.append(make_entry(source, text, None, GENOMIC, mapping_source=KEYWORD_PREFILTER))
                 continue
             node, raw_refs = suggest_genomic(text, source, cache, client)
+            if source in _REFS_ONLY:
+                node = None
             entries.append(make_entry(source, text, node, GENOMIC, mapping_source="ai"))
             refs.extend(_ref(trial_nct, source, r, known_genes) for r in raw_refs)
         sections[source] = {**section_row(bool(texts), bool(texts), len(texts)), "skipped": skipped}

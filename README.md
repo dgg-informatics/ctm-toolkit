@@ -16,7 +16,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-mm trials-merge` | Merge carried-forward and freshly-curated trials into a new dated master |
 | `ctm-mm trials-filter` | Derive one deduplicated trial per NCT/protocol from the master, for matching |
 | `ctm-llm clinical` | LLM pass drafting **clinical** CTML per criterion and from the title, plus `conditions` and `disease_site` diagnosis entries |
-| `ctm-llm genomic` | LLM pass drafting **genomic** CTML per criterion, title, conditions and curator genes, plus `molecular_genomic_refs` (incl. germline/somatic `origin`) |
+| `ctm-llm genomic` | LLM pass drafting **genomic** CTML per criterion, title and conditions, plus `molecular_genomic_refs` (also from curator genes, refs only) (incl. germline/somatic `origin`) |
 | `ctm-llm autofill-ctml` | **[beta]** Builds `treatment_list.step[0].match` from the clinical + genomic suggestions, every leaf marked `_CURATED_METHOD: "auto"` — the only command that writes match clauses (`ctm-mm trials` no longer pre-fills them). Fills empty clauses only unless `--overwrite`. Requires matchengine's `dfci_config.json` to list `_CURATED_METHOD` with `"ignore": true` under both clinical and genomic `trial_key_mappings` |
 | `ctm-llm general` | **[deprecated]** Alias for `ctm-llm clinical`; removed in 3.0.0 |
 | `ctm-llm biomarkers` | **[deprecated]** Alias for `ctm-llm genomic`; removed in 3.0.0 |

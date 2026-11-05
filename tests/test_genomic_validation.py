@@ -184,3 +184,16 @@ def test_wildtype_null_means_status_known_either_result():
     # A forgotten wildtype is still the WT trap and still defaults to false.
     assert validate_genomic_node({"genomic": {"hugo_symbol": "TP53", "variant_category": "Mutation"}}) == \
         {"genomic": {"hugo_symbol": "TP53", "variant_category": "Mutation", "wildtype": False}}
+
+
+def test_wildtype_true_with_a_protein_change_drops_the_leaf():
+    """2026-11-05 (pediatric LGG trial): a documented-wildtype result is a gene-level doc
+    with no protein change, so "BRAF p.V600E + wildtype true" matches nobody."""
+    for key, value in (("protein_change", "p.V600E"), ("wildcard_protein_change", "p.V600")):
+        leaf = g(hugo_symbol="BRAF", variant_category="Mutation", wildtype=True, **{key: value})
+        assert validate_genomic_node(leaf) is None, key
+    # Gene-level confirmed wildtype and "no documented V600E" stay valid.
+    for ok in (g(hugo_symbol="BRAF", variant_category="Mutation", wildtype=True),
+               g(hugo_symbol="BRAF", variant_category="!Mutation", protein_change="p.V600E",
+                 wildtype=False)):
+        assert validate_genomic_node(ok) == ok
