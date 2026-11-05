@@ -282,14 +282,25 @@ def _render_report(ctx: dict, sample_id: str) -> str:
     return template.render(css=css, **ctx)
 
 
+def _has_leaf(node, test) -> bool:
+    """True if any leaf of a match node (or list of nodes), through and/or, passes ``test``."""
+    if isinstance(node, list):
+        return any(_has_leaf(n, test) for n in node)
+    if not isinstance(node, dict):
+        return False
+    if "and" in node or "or" in node:
+        return any(_has_leaf(c, test) for c in node.get("and", []) + node.get("or", []))
+    return test(node)
+
+
 def _trial_is_meaningful(trial: dict) -> bool:
     """A trial is 'meaningful' if its step[0].match has an oncotree diagnosis
     or a genomic clause — i.e. not an age/gender/ecog-only or empty match that
     matches nearly everyone."""
-    from ..transformers.confidence_split import has_genomic, has_oncotree_diagnosis
     steps = trial.get("treatment_list", {}).get("step", [])
     match = steps[0].get("match", []) if steps else []
-    return has_oncotree_diagnosis(match) or has_genomic(match)
+    return _has_leaf(match, lambda leaf: "genomic" in leaf
+                     or "oncotree_primary_diagnosis" in (leaf.get("clinical") or {}))
 
 
 def render_html_from_pt_trials_matches(

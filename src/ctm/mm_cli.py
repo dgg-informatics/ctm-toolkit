@@ -3,7 +3,7 @@
 v2: the trial stages store to MongoDB only by default. Pass --out (or --out-prefix
 for trials-diff) to also write a file. Two stages additionally drop a dated JSON
 into a canonical directory: `ctm-mm trials-merge` writes the master backup to
-MASTER_TRIAL_EXPORT_DIR, and `ctm-llm biomarkers` the to-curate file to
+MASTER_TRIAL_EXPORT_DIR, and `ctm-llm genomic` the to-curate file to
 LLM_BIOMARKER_EXPORT_DIR (both overridable with --out, suppress with --no-disk).
 
 Usage:
@@ -11,7 +11,6 @@ Usage:
   ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] [--out PATH]
   ctm-mm trials-diff [--new JSON] [--out-prefix PREFIX] [--master JSON] [--db NAME]
   ctm-mm trials-curate --trials JSON [--out JSON] --cache JSON   (deprecated → ctm-llm genomic)
-  ctm-mm trials-confidence-split --trials JSON --high-confidence-out JSON --needs-curation-out JSON  [BETA]
   ctm-mm trials-merge [--out JSON]  (or legacy: --unchanged JSON --changed JSON --out JSON)
 
 Options:
@@ -36,7 +35,6 @@ from ctm.logging_config import (
 )
 from ctm.paths import (
     cache_dir,
-    cache_path,
     load_env,
     master_trial_export_dir,
     patient_export_dir,
@@ -47,7 +45,6 @@ from ctm.paths import (
 log = logging.getLogger(__name__)
 
 _CURATE_CACHE = ".trials_curate_cache.json"
-_DIAGNOSIS_CACHE = ".diagnosis_extraction_cache.json"
 
 # Sentinels for a bare `--ddots` / `--amc` (no path): pull from the source rather
 # than read a file. Omitting the flag entirely still means "skip this source", so a
@@ -169,7 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_trials_curate = sub.add_parser(
         "trials-curate",
-        help="[DEPRECATED] Use `ctm-llm biomarkers`. Forwards there; removed in 2.0.0",
+        help="[DEPRECATED] Use `ctm-llm genomic`. Forwards there; removed in 3.0.0",
     )
     p_trials_curate.add_argument("--trials", metavar="JSON",
                                  help="Drafted trials JSON. Omit to read the "
@@ -188,28 +185,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_trials_curate.add_argument("--kb", default=None, metavar="JSON",
                                  help="Known gene/variant knowledge base (default: the copy shipped "
                                       "with the package)")
-
-    p_trials_confidence_split = sub.add_parser(
-        "trials-confidence-split",
-        help="[BETA] Split a trials-curate output into high-confidence / needs-curation buckets "
-             "— experimental, thresholds still being tuned; likely to be folded into trials-curate later",
-    )
-    p_trials_confidence_split.add_argument("--trials", required=True, metavar="JSON",
-                                           help="trials-curate output JSON (has _llm_curation.biomarker_references)")
-    p_trials_confidence_split.add_argument("--high-confidence-out", required=True, metavar="JSON",
-                                           help="Output path for trials safe to auto-pass")
-    p_trials_confidence_split.add_argument("--needs-curation-out", required=True, metavar="JSON",
-                                           help="Output path for trials still needing a human curator")
-    p_trials_confidence_split.add_argument("--allowed-biomarker-types", default="", metavar="TYPES",
-                                           help="Comma-separated biomarker_references types considered safe to "
-                                                "auto-pass (e.g. ihc,other). A trial with no biomarker_references "
-                                                "always passes this check; one is still needed for a diagnosis.")
-    p_trials_confidence_split.add_argument("--recover-diagnosis", action="store_true",
-                                           help="For trials missing an oncotree diagnosis in match, attempt LLM "
-                                                "extraction from _raw.full_title/_raw.summary_obj")
-    p_trials_confidence_split.add_argument("--cache", default=None, metavar="JSON",
-                                           help="Cache file for diagnosis-recovery LLM calls (only used with "
-                                                f"--recover-diagnosis; default: {cache_dir() / _DIAGNOSIS_CACHE})")
 
     p_add_manual = sub.add_parser(
         "add-manual",
@@ -348,7 +323,6 @@ def command_handlers() -> dict:
         "trials": _cmd_trials,
         "trials-diff": _cmd_trials_diff,
         "trials-curate": _cmd_trials_curate,
-        "trials-confidence-split": _cmd_trials_confidence_split,
         "add-manual": _cmd_add_manual,
         "trials-merge": _cmd_trials_merge,
         "trials-filter": _cmd_trials_filter,
@@ -358,7 +332,7 @@ def command_handlers() -> dict:
 
 
 def main() -> None:
-    # trials-curate and trials-confidence-split reach UMGPT via build_client();
+    # trials-curate reaches UMGPT via build_client();
     # load_env() first so .env can also carry the CTM_LOG_* settings.
     load_env()
     args = build_parser().parse_args()
@@ -867,36 +841,6 @@ def _cmd_trials_curate(args) -> None:
     if getattr(args, "yes", False):
         argv.append("--yes")
     llm_main(argv)
-
-
-def _cmd_trials_confidence_split(args) -> None:
-    from ctm.transformers.confidence_split import load_cache, save_cache, split_by_confidence
-
-    trials = json.loads(Path(args.trials).read_text())
-    allowed_types = {t.strip() for t in args.allowed_biomarker_types.split(",") if t.strip()}
-
-    client = cache = valid_oncotree = None
-    cache_file = Path(args.cache) if args.cache else cache_path(_DIAGNOSIS_CACHE)
-
-    if args.recover_diagnosis:
-        from ctm.transformers.eligibility_to_ctml import build_client, fetch_oncotree_names
-        client = build_client()
-        valid_oncotree = fetch_oncotree_names()
-        cache = load_cache(cache_file)
-
-    high_confidence, needs_curation = split_by_confidence(
-        trials, allowed_types,
-        recover_diagnosis=args.recover_diagnosis,
-        client=client, cache=cache, valid_oncotree=valid_oncotree,
-    )
-
-    if args.recover_diagnosis:
-        save_cache(cache, cache_file)
-
-    Path(args.high_confidence_out).write_text(json.dumps(high_confidence, indent=2, default=str))
-    Path(args.needs_curation_out).write_text(json.dumps(needs_curation, indent=2, default=str))
-    log.info(f"{len(high_confidence)} high-confidence, {len(needs_curation)} needs curation")
-    log.info(f"Saved → {args.high_confidence_out}, {args.needs_curation_out}")
 
 
 def _validate_curation_structure(trial: dict, label: str) -> None:

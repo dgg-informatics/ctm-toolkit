@@ -3,29 +3,6 @@ scan became ctm-llm genomic (see test_genomic_ctml.py)."""
 import json
 
 
-def test_parse_json_array_valid_json():
-    from ctm.transformers.trials_curate import _parse_json_array
-    result = _parse_json_array('[{"biomarker": "BRCA1"}]')
-    assert result == [{"biomarker": "BRCA1"}]
-
-
-def test_parse_json_array_strips_markdown_fence():
-    from ctm.transformers.trials_curate import _parse_json_array
-    raw = '```json\n[{"biomarker": "BRCA1"}]\n```'
-    result = _parse_json_array(raw)
-    assert result == [{"biomarker": "BRCA1"}]
-
-
-def test_parse_json_array_invalid_json_returns_empty():
-    from ctm.transformers.trials_curate import _parse_json_array
-    assert _parse_json_array("not json at all") == []
-
-
-def test_parse_json_array_non_list_returns_empty():
-    from ctm.transformers.trials_curate import _parse_json_array
-    assert _parse_json_array('{"not": "a list"}') == []
-
-
 def test_trial_id_prefers_nct_id():
     from ctm.transformers.trials_curate import _trial_id
     trial = {"nct_id": "NCT04858334", "protocol_no": "2021.070"}

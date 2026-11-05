@@ -43,8 +43,6 @@ DDOTS_DISEASE_SITE = "_raw._ddots.disease_site"
 WEST_DISEASE_SITE = "_raw._west.Disease Site"   # the West sheet's own column header
 GENES_OF_INTEREST = "_raw.octsu_genes_interest"
 
-CLINICAL_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, MINIMUM_AGE, SEX, AGE_GROUP, CONDITIONS,
-                    CATEGORYS, AMC_DISEASE_SITE, DDOTS_DISEASE_SITE, WEST_DISEASE_SITE)
 GENOMIC_SOURCES = (INCLUSION, EXCLUSION, LONG_TITLE, CONDITIONS, GENES_OF_INTEREST)
 
 # What the model is told the piece is. Plain words: the prompts key negation

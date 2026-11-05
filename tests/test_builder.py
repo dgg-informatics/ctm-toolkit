@@ -365,6 +365,11 @@ def test_trial_is_meaningful():
     assert _trial_is_meaningful(gen) is True
     assert _trial_is_meaningful(age_only) is False
     assert _trial_is_meaningful(empty) is False
+    nested_dx = {"treatment_list": {"step": [{"match": [{"and": [
+        {"clinical": {"age_numerical": ">=18"}},
+        {"or": [{"clinical": {"oncotree_primary_diagnosis": "Lung"}}]}]}]}]}}
+    assert _trial_is_meaningful(nested_dx) is True
+    assert _trial_is_meaningful({}) is False
 
 
 def test_render_meaningful_only_drops_age_only_trial_matches(tmp_path):

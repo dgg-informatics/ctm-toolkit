@@ -49,9 +49,6 @@ MMR_VALUES = frozenset({"MMR-Deficient", "MMR-Proficient"})
 MS_VALUES = frozenset({"MSI-H", "MSI-L", "MSS"})
 VARIANT_CLASSIFICATIONS = frozenset({"Missense_Mutation", "Nonsense_Mutation", "In_Frame_Del",
                                      "Frame_Shift_Del", "Splice_Site"})
-GENOMIC_KEYS = frozenset({"hugo_symbol", "variant_category", "protein_change",
-                          "wildcard_protein_change", "wildtype", "cnv_call", "mmr_status",
-                          "ms_status", "variant_classification", "exon"})
 
 
 # Kept in the trial but skipped at match time: patient docs don't carry

@@ -12,11 +12,10 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-mm trials` | AMC feed or XML / DDOTS API / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
 | `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm genomic`; removed in 3.0.0 |
-| `ctm-mm trials-confidence-split` | **[beta]** Bucket curated trials into auto-pass / needs-a-human |
 | `ctm-mm trials-merge` | Merge carried-forward and freshly-curated trials into a new dated master |
 | `ctm-mm trials-filter` | Derive one deduplicated trial per NCT/protocol from the master, for matching |
 | `ctm-llm clinical` | LLM pass drafting **clinical** CTML per criterion and from the title, plus `conditions` and `disease_site` diagnosis entries |
-| `ctm-llm genomic` | LLM pass drafting **genomic** CTML per criterion, title and conditions, plus `molecular_genomic_refs` (also from curator genes, refs only) (incl. germline/somatic `origin`) |
+| `ctm-llm genomic` | LLM pass drafting **genomic** CTML per criterion, title and conditions, plus `molecular_genomic_refs` (incl. germline/somatic `origin`; curator genes give refs only) |
 | `ctm-llm autofill-ctml` | **[beta]** Builds `treatment_list.step[0].match` from the clinical + genomic suggestions, every leaf marked `_CURATED_METHOD: "auto"` — the only command that writes match clauses (`ctm-mm trials` no longer pre-fills them). Fills empty clauses only unless `--overwrite`. Requires matchengine's `dfci_config.json` to list `_CURATED_METHOD` with `"ignore": true` under both clinical and genomic `trial_key_mappings` |
 | `ctm-llm general` | **[deprecated]** Alias for `ctm-llm clinical`; removed in 3.0.0 |
 | `ctm-llm biomarkers` | **[deprecated]** Alias for `ctm-llm genomic`; removed in 3.0.0 |
@@ -491,9 +490,6 @@ Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
    2. `--nct`/`--limit` aren't needed here — the file is already scoped to just the changed trials.
    3. `$ ctm-llm genomic --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json`  # drafts genomic CTML per piece of text, logs every molecular mention (cross-checked against the known-gene KB) to `_llm_curation.molecular_genomic_refs`. Caches to `~/.cache/ctm/` and uses the gene/variant KB shipped inside the package, so neither `--cache` nor `--kb` needs setting. Pieces with nothing molecular in them (no gene or molecular keyword) skip the AI call and are recorded with `mapping_source: "keyword_prefilter"`; pass `--all-pieces` to send every piece.
    4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
-
-> [!WARNING]
-> **`ctm-mm trials-confidence-split` is a beta/experimental command.** It tries to split a `ctm-llm genomic` output into a "safe to auto-pass" bucket and a "needs a human curator" bucket, based on whether the trial already has a diagnosis in its match clause and whether its `molecular_genomic_refs` (legacy: `biomarker_references`) are all of caller-specified low-actionability types (`--allowed-biomarker-types`). The optional `--recover-diagnosis` flag makes a further LLM pass over `_raw.full_title`/`_raw.summary_obj` for trials missing a diagnosis. The thresholds and prompt are still being tuned by hand against real trial batches — don't treat its output as a substitute for the manual review step above yet. The intent is to eventually fold this logic directly into `ctm-llm` (likely as a third subcommand) rather than keep it a separate pass.
 
 4. Merge the carried-forward and freshly-curated trials into the new master:
    1. `$ ctm-mm trials-merge --unchanged 2026-07-14-unchanged.json --changed 2026-07-14-changed-curated.json --out 2026-07-14-trials.json`
