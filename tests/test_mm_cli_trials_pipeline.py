@@ -755,11 +755,12 @@ def test_raw_collection_is_stage_owned():
 
     assert ctm_db.RAW_COLLECTION in ctm_db.MACHINE_WRITTEN
     names = [ctm_db.RAW_COLLECTION, ctm_db.NORMALIZED_COLLECTION, ctm_db.DIFF_COLLECTION,
-             ctm_db.LLM_CLINICAL_COLLECTION, ctm_db.LLM_GENOMIC_COLLECTION, ctm_db.MANUAL_COLLECTION,
+             ctm_db.LLM_CLINICAL_COLLECTION, ctm_db.LLM_GENOMIC_COLLECTION,
+             ctm_db.LLM_AUTOFILL_COLLECTION, ctm_db.MANUAL_COLLECTION,
              ctm_db.DEFAULT_MASTER_COLLECTION, ctm_db.DEFAULT_FILTERED_COLLECTION]
     assert names == sorted(names), "prefixes must sort into pipeline order"
     assert [n.split("_")[0] for n in names] == \
-        ["00", "01", "02", "03", "04", "05", "06", "07"]
+        ["00", "01", "02", "03c", "03g", "04", "05", "06", "07"]
 
 
 def _filter_args(**overrides):
