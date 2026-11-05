@@ -229,8 +229,10 @@ def test_genomic_prompt_has_status_known_rule():
     assert "TP53 gene mutation analysis performed" in p
 
 
-def test_genomic_prompt_does_not_offer_exon_or_variant_classification():
+def test_genomic_prompt_offers_exon_and_variant_classification():
+    """2026-11-05: keep the curated detail; matchengine config ignores it for now."""
     p = GENOMIC_SYSTEM_PROMPT
-    assert "exon                    integer" not in p
-    assert '"In_Frame_Del"' not in p
-    assert "Do not use exon or variant_classification" in p
+    assert "exon                    integer" in p
+    assert '"In_Frame_Del"' in p
+    assert "Do not use exon or variant_classification" not in p
+    assert '"exon": 19' in p

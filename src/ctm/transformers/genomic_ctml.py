@@ -54,10 +54,12 @@ GENOMIC_KEYS = frozenset({"hugo_symbol", "variant_category", "protein_change",
                           "ms_status", "variant_classification", "exon"})
 
 
-# Valid CTML, but our patient docs carry no TRUE_TRANSCRIPT_EXON /
-# TRUE_VARIANT_CLASSIFICATION yet, so a leaf using them matches nobody. Stripped
-# (deliberately widening to the gene-level node) until patient data has them.
-UNSUPPORTED_KEYS = frozenset({"exon", "variant_classification"})
+# Kept in the trial but skipped at match time: patient docs don't carry
+# TRUE_TRANSCRIPT_EXON / TRUE_VARIANT_CLASSIFICATION, and rarely CNV_CALL, so these
+# carry "ignore": true in matchengine's dfci_config.json. Mirror that list here.
+# Because matching ignores them, an invalid value is stripped (losing only that
+# detail) rather than dropping the leaf. Un-ignore: remove from both places.
+MATCH_IGNORED_KEYS = frozenset({"exon", "variant_classification", "cnv_call"})
 
 _HUGO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
 # Keys that only mean something for a named gene; without one the leaf would
@@ -101,12 +103,13 @@ def _validate_leaf(fields, source: str | None) -> dict | None:
     (a gene, an exon, a cnv_call) silently widens what the leaf asks for."""
     if not isinstance(fields, dict) or not fields:
         return None
-    unsupported = UNSUPPORTED_KEYS & fields.keys()
-    if unsupported:
-        log.info("  stripped %s (no patient data for it yet)", ", ".join(sorted(unsupported)),
-                 extra={"event": "llm.genomic_unsupported_key", "fields": sorted(unsupported),
-                        "stage": "genomic"})
-        fields = {k: v for k, v in fields.items() if k not in UNSUPPORTED_KEYS}
+    bad = [k for k in fields if k in MATCH_IGNORED_KEYS and not _valid_field(k, fields[k])]
+    for key in bad:
+        log.info("  stripped invalid %s (ignored at match time)", key,
+                 extra={"event": "llm.genomic_invalid_ignored_key", "field": key,
+                        "value": repr(fields[key])[:80], "stage": "genomic"})
+    if bad:
+        fields = {k: v for k, v in fields.items() if k not in bad}
         if not fields:
             return None
     if "wildtype" in fields and fields["wildtype"] is None:
@@ -184,9 +187,8 @@ Allowed keys and values (use these exact spellings):
   wildtype                JSON true or false (never a string)
   protein_change          HGVS protein change with the p. prefix, exact: "p.V600E", "p.G12C"
   wildcard_protein_change p. + codon, matches any substitution there: "p.V600", "p.G12"
-Do not use exon or variant_classification: patient data has no exon or classification yet, so a
-node with them matches nobody. "EGFR exon 19 deletion" → an EGFR "Mutation" node (the exon detail
-stays in the ref).
+  variant_classification  "Missense_Mutation" | "Nonsense_Mutation" | "In_Frame_Del" | "Frame_Shift_Del" | "Splice_Site"
+  exon                    integer, e.g. 19
   cnv_call                "High Amplification" | "Low Amplification" | "Homozygous Deletion" | "Heterozygous Deletion"
   mmr_status              "MMR-Deficient" | "MMR-Proficient"
   ms_status               "MSI-H" | "MSI-L" | "MSS"
@@ -280,7 +282,7 @@ Source: exclusion — "Known KRAS mutation"
    "refs": [{"biomarker": "TP53", "type": "snv", "reference": "TP53 gene mutation analysis", "origin": "unknown"}]}
 
 "EGFR exon 19 deletion"
-→ {"node": {"genomic": {"hugo_symbol": "EGFR", "variant_category": "Mutation", "wildtype": false}},
+→ {"node": {"genomic": {"hugo_symbol": "EGFR", "variant_category": "Mutation", "exon": 19, "variant_classification": "In_Frame_Del", "wildtype": false}},
    "refs": [{"biomarker": "EGFR", "type": "snv", "reference": "EGFR exon 19 deletion", "origin": "unknown"}]}
 
 "MYCN amplification"

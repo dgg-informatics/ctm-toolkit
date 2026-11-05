@@ -64,7 +64,8 @@ def test_protein_change_needs_p_prefix():
 def test_cnv_call_vocabulary():
     base = {"hugo_symbol": "MYCN", "variant_category": "Copy Number Variation", "wildtype": False}
     assert validate_genomic_node(g(**base, cnv_call="High Amplification")) == g(**base, cnv_call="High Amplification")
-    assert validate_genomic_node(g(**base, cnv_call="amp")) is None
+    from ctm.transformers.genomic_ctml import _valid_field
+    assert not _valid_field("cnv_call", "amp")   # stripped, not the leaf (see below)
 
 
 def test_mmr_ms_values_per_key():
@@ -78,17 +79,30 @@ def test_mmr_ms_values_per_key():
     assert validate_genomic_node(g(ms_status="Deficient (MMR-D / MSI-H)")) is None
 
 
-def test_exon_and_variant_classification_are_stripped_for_now(caplog):
-    """Patient docs carry no TRUE_TRANSCRIPT_EXON / TRUE_VARIANT_CLASSIFICATION yet,
-    so a leaf with either matches nobody. Decided 2026-11-04: strip them, leaving the
-    broader gene-level node ("EGFR exon 19 deletion" -> any EGFR mutation)."""
+def test_match_ignored_keys_are_kept_when_valid():
+    """2026-11-05: exon, variant_classification and cnv_call stay in the trial even though
+    patient docs can't match them yet; matchengine skips them via "ignore": true in
+    dfci_config.json. Un-ignoring is then a config change, no AI re-run."""
+    base = {"hugo_symbol": "EGFR", "variant_category": "Mutation", "wildtype": False}
+    full = g(**base, exon=19, variant_classification="In_Frame_Del")
+    assert validate_genomic_node(full) == full
+    cnv = g(hugo_symbol="MYCN", variant_category="Copy Number Variation", wildtype=False,
+            cnv_call="High Amplification")
+    assert validate_genomic_node(cnv) == cnv
+
+
+def test_invalid_match_ignored_value_is_stripped_not_the_leaf(caplog):
+    """Matching ignores these keys, so a bad value only loses that detail; the rest of
+    the leaf is still a correct requirement."""
     base = {"hugo_symbol": "EGFR", "variant_category": "Mutation", "wildtype": False}
     with caplog.at_level(logging.INFO):
-        for extra in ({"exon": 19, "variant_classification": "In_Frame_Del"},
-                      {"exon": "19"}, {"variant_classification": "missense"}):
+        for extra in ({"exon": "19"}, {"variant_classification": "missense"}):
             assert validate_genomic_node(g(**base, **extra)) == g(**base), extra
-    assert any(getattr(r, "event", None) == "llm.genomic_unsupported_key" for r in caplog.records)
-    # Nothing left but the stripped keys → no leaf.
+        mycn = {"hugo_symbol": "MYCN", "variant_category": "Copy Number Variation", "wildtype": False}
+        assert validate_genomic_node(g(**mycn, cnv_call="amplified")) == g(**mycn)
+    hits = [r for r in caplog.records if getattr(r, "event", None) == "llm.genomic_invalid_ignored_key"]
+    assert [h.field for h in hits] == ["exon", "variant_classification", "cnv_call"]
+    # The gene-scoped rule still applies: no gene, no leaf.
     assert validate_genomic_node(g(exon=19)) is None
 
 
@@ -119,8 +133,8 @@ def test_invalid_drop_is_logged(caplog):
 def test_any_invalid_field_drops_the_whole_leaf():
     """Stripping one field widens the requirement (any gene, any exon) — drop instead."""
     assert validate_genomic_node(g(hugo_symbol=7, variant_category="Mutation", wildtype=False)) is None
-    assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="Copy Number Variation",
-                                   wildtype=False, cnv_call="amplified")) is None
+    assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="Mutation",
+                                   wildtype=False, protein_change="L858R")) is None
 
 
 def test_gene_scoped_keys_need_a_gene():
