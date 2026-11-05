@@ -11,15 +11,15 @@ Two stages, split by the kind of CTML they draft:
   top-level criterion with its sub-criteria, and the long title), plus the
   ``conditions`` record and the ``disease_site`` suggestion. Reads the
   ``02_diff_trials`` documents routed ``diff_status: "changed"``, writes
-  ``03_clinical_trials``.
+  ``03c_clinical_trials``.
 * ``genomic`` — genomic match nodes and ``molecular_genomic_refs``, one model
   call per piece (criteria, title, conditions, curator genes of interest). No
-  OncoTree lookup. Reads ``03_clinical_trials``, writes
-  ``04_genomic_trials``.
+  OncoTree lookup. Reads ``03c_clinical_trials``, writes
+  ``03g_genomic_trials``.
 * ``autofill-ctml`` [BETA] — builds ``treatment_list.step[0].match`` from both
   stages' suggestions, every leaf marked ``_CURATED_METHOD: "auto"``. The only
-  writer of match clauses. Reads ``04_genomic_trials``, writes
-  ``04b_llm_autofill_trials`` and the to-curate handoff export.
+  writer of match clauses. Reads ``03g_genomic_trials``, writes
+  ``04_autofill_trials`` and the to-curate handoff export.
 
 Both write ``node_type``-tagged entries into ``_llm_curation._ctml_suggestions``
 (nulls in ``_null_ctml_suggestions``) and their own ``parsed_sections`` key,
@@ -137,7 +137,7 @@ def build_parser() -> argparse.ArgumentParser:
                     "against hand-curated trials.",
     )
     p_auto.add_argument("--trials", metavar="JSON",
-                        help="Read trials from a JSON file instead of 04_genomic_trials")
+                        help="Read trials from a JSON file instead of 03g_genomic_trials")
     p_auto.add_argument("--out", metavar="JSON",
                         help="Write the JSON output to this path (overrides the to-curate export)")
     p_auto.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,

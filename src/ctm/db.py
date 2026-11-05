@@ -29,9 +29,9 @@ from importlib.metadata import version
 #   00_raw_trials         ctm-mm trials — verbatim source records
 #   01_normalized_trials  ctm-mm trials
 #   02_diff_trials        ctm-mm trials-diff
-#   03_clinical_trials    ctm-llm clinical (was 03_llm_general_trials before 2.4.0)
-#   04_genomic_trials     ctm-llm genomic (was 04_llm_biomarker_trials before 2.4.0)
-#   04b_llm_autofill_trials ctm-llm autofill-ctml [beta] — the only match-clause writer
+#   03c_clinical_trials   ctm-llm clinical (was 03_llm_general_trials before 2.4.0)
+#   03g_genomic_trials    ctm-llm genomic, reads 03c (was 04_llm_biomarker_trials before 2.4.0)
+#   04_autofill_trials    ctm-llm autofill-ctml [beta], reads 03g — the only match-clause writer
 #   05_manual_curated_trials  human curation — see MACHINE_WRITTEN below
 #   06_master_trials      ctm-mm trials-merge
 #   07_filtered_trials    ctm-mm trials-filter
@@ -47,9 +47,9 @@ from importlib.metadata import version
 RAW_COLLECTION = "00_raw_trials"
 NORMALIZED_COLLECTION = "01_normalized_trials"
 DIFF_COLLECTION = "02_diff_trials"
-LLM_CLINICAL_COLLECTION = "03_clinical_trials"
-LLM_GENOMIC_COLLECTION = "04_genomic_trials"
-LLM_AUTOFILL_COLLECTION = "04b_llm_autofill_trials"
+LLM_CLINICAL_COLLECTION = "03c_clinical_trials"
+LLM_GENOMIC_COLLECTION = "03g_genomic_trials"
+LLM_AUTOFILL_COLLECTION = "04_autofill_trials"
 MANUAL_COLLECTION = "05_manual_curated_trials"
 DEFAULT_MASTER_COLLECTION = "06_master_trials"
 

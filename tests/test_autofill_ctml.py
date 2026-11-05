@@ -194,9 +194,9 @@ def test_cli_reads_the_genomic_collection_and_writes_its_own(fake_mongo, tmp_pat
     llm_cli.main(["autofill-ctml", "--out", str(out)])
 
     assert fake_mongo["read_from"][1] == ctm_db.LLM_GENOMIC_COLLECTION
-    assert fake_mongo["prepared"]["name"] == ctm_db.LLM_AUTOFILL_COLLECTION == "04b_llm_autofill_trials"
-    assert ctm_db.LLM_CLINICAL_COLLECTION == "03_clinical_trials"
-    assert ctm_db.LLM_GENOMIC_COLLECTION == "04_genomic_trials"
+    assert fake_mongo["prepared"]["name"] == ctm_db.LLM_AUTOFILL_COLLECTION == "04_autofill_trials"
+    assert ctm_db.LLM_CLINICAL_COLLECTION == "03c_clinical_trials"
+    assert ctm_db.LLM_GENOMIC_COLLECTION == "03g_genomic_trials"
     stored = fake_mongo["upserted"][0]["doc"]
     assert stored["treatment_list"]["step"][0]["match"] == [_auto(AGE)]
     assert stored["processed_with"].startswith("ctm-llm autofill-ctml ")
