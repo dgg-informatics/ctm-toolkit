@@ -11,8 +11,9 @@ What we can derive structurally from the XML fields:
   - disease_keywords from disease_site
   - investigator from pi
 
-The match tree is populated with age; genomic/clinical criteria from free
-text are not auto-extracted and left for manual/AI population downstream.
+The match tree is left empty: ctm-llm clinical records the age group and the
+category diagnosis as entries (structured_ctml), and only ctm-llm
+autofill-ctml writes the match clause.
 """
 import re
 
@@ -136,16 +137,6 @@ def _parse_eligibility(raw: str | None) -> CtmlEligibility:
     return CtmlEligibility(inclusion=inclusion, exclusion=exclusion)
 
 
-def _age_match_criteria(age_group: str | None, categories: list[dict]) -> list[dict]:
-    from .oncotree_mapping import amc_categories_to_oncotree, diagnoses_to_match_node
-    nodes: list[dict] = []
-    constraint = _AGE_MATCH.get((age_group or "").strip().lower())
-    if constraint is not None:
-        nodes.append({"clinical": {"age_numerical": constraint}})
-    diagnosis_node = diagnoses_to_match_node(amc_categories_to_oncotree(categories))
-    if diagnosis_node:
-        nodes.append(diagnosis_node)
-    return nodes
 
 
 def _build_treatment_list(age_group: str | None, categories: list[dict]) -> CtmlTreatmentList:
@@ -154,7 +145,7 @@ def _build_treatment_list(age_group: str | None, categories: list[dict]) -> Ctml
             step_internal_id=1,
             step_code="1",
             step_type="Registration",
-            match=_age_match_criteria(age_group, categories),
+            match=[],   # only ctm-llm autofill-ctml writes match clauses
             arm=[CtmlArm(
                 arm_internal_id=1,
                 arm_code="ARM 1",

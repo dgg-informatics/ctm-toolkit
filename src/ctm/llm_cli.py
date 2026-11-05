@@ -1,28 +1,33 @@
 """ctm-llm — the pipeline's LLM-assisted curation stages.
 
 Usage:
-  ctm-llm general    --out JSON [--trials JSON] [--limit N] [--nct ID ...] [--diagnosis-only]
-  ctm-llm biomarkers --out JSON [--trials JSON] [--kb JSON]
+  ctm-llm clinical --out JSON [--trials JSON] [--limit N] [--nct ID ...]
+  ctm-llm genomic  --out JSON [--trials JSON] [--kb JSON]
+  ctm-llm autofill-ctml [--trials JSON] [--out JSON] [--overwrite] [--yes]   [BETA]
 
-Two subcommands, split along what the model is actually asked to do rather than
-along the older CLI boundary:
+Two stages, split by the kind of CTML they draft:
 
-* ``general`` drafts CTML match nodes. One call per eligibility criterion plus one
-  for ``_summary.long_title`` — the same prompt and the same output shape, so they
-  belong together. Reads the ``02_diff_trials`` documents routed
-  ``diff_status: "changed"``, writes ``03_llm_general_trials``.
-* ``biomarkers`` scans for genetic/molecular biomarker references. Different
-  prompt, different output shape, no match nodes and therefore no OncoTree
-  lookup. Reads ``03_llm_general_trials``, writes ``04_llm_biomarker_trials``.
+* ``clinical`` — clinical match nodes, one model call per piece of text (each
+  top-level criterion with its sub-criteria, and the long title), plus the
+  ``conditions`` record and the ``disease_site`` suggestion. Reads the
+  ``02_diff_trials`` documents routed ``diff_status: "changed"``, writes
+  ``03_clinical_trials``.
+* ``genomic`` — genomic match nodes and ``molecular_genomic_refs``, one model
+  call per piece (criteria, title, conditions, curator genes of interest). No
+  OncoTree lookup. Reads ``03_clinical_trials``, writes
+  ``04_genomic_trials``.
+* ``autofill-ctml`` [BETA] — builds ``treatment_list.step[0].match`` from both
+  stages' suggestions, every leaf marked ``_CURATED_METHOD: "auto"``. The only
+  writer of match clauses. Reads ``04_genomic_trials``, writes
+  ``04b_llm_autofill_trials`` and the to-curate handoff export.
 
-Each subcommand writes exactly one key under ``_llm_curation`` and merges into
-whatever is already there, so neither can destroy the other's work.
+Both write ``node_type``-tagged entries into ``_llm_curation._ctml_suggestions``
+(nulls in ``_null_ctml_suggestions``) and their own ``parsed_sections`` key,
+and replace only their own entries — so either can be rerun without touching
+the other's work. Run ``clinical``, then ``genomic``, then ``autofill-ctml``.
 
-The stages are order-dependent by design: run ``general`` then ``biomarkers``.
-
-Replaces ``ctm-ctml`` (now ``general``) and ``ctm-mm trials-curate`` (now
-``biomarkers``). Both old entry points still work as deprecated aliases and will
-be removed in 2.0.0.
+Deprecated until 3.0.0: ``general`` (→ ``clinical``), ``biomarkers``
+(→ ``genomic``), and the older ``ctm-ctml`` / ``ctm-mm trials-curate``.
 
 Requires in .env:
   UMGPT_API_KEY=...
@@ -53,8 +58,12 @@ from ctm.paths import (
 
 log = logging.getLogger(__name__)
 
-_GENERAL_CACHE = ".ctml_cache.json"
-_BIOMARKER_CACHE = ".trials_curate_cache.json"
+_CLINICAL_CACHE = ".ctml_clinical_cache.json"
+_GENOMIC_CACHE = ".ctml_genomic_cache.json"
+_AUTOFILL_CACHE = ".ctml_autofill_cache.json"   # and/or answers for mixed pieces
+
+# Deprecated subcommand → its replacement. Removed in 3.0.0.
+_ALIASES = {"general": "clinical", "biomarkers": "genomic"}
 
 
 def _confirm_cold_cache(cache: dict, cache_file: Path, assume_yes: bool) -> None:
@@ -84,7 +93,7 @@ def _add_shared_args(parser, cache_default: str) -> None:
     parser.add_argument("--yes", "-y", action="store_true",
                         help="Skip the cold-cache confirmation prompt (for non-interactive runs)")
     # v2: MongoDB only by default. --disk/--no-disk force the file on/off; a stage
-    # with a canonical export (biomarkers) still writes it unless --no-disk.
+    # with a canonical export (genomic) still writes it unless --no-disk.
     parser.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
                         help="Force the JSON file output on/off (default: MongoDB only)")
     parser.add_argument("--db", metavar="NAME", help="Override MONGO_DBNAME for this run")
@@ -92,33 +101,80 @@ def _add_shared_args(parser, cache_default: str) -> None:
                         help="Override the run_date inherited from the source documents")
 
 
+def _add_stage_parser(sub, name: str, help: str, cache_default: str, clinical: bool) -> None:
+    p = sub.add_parser(name, help=help)
+    _add_shared_args(p, cache_default)
+    if clinical:
+        p.add_argument("--limit", type=int, default=None, metavar="N",
+                       help="Process only the first N trials (for testing)")
+        p.add_argument("--nct", default=None, metavar="ID", nargs="+",
+                       help="Process only trials matching these NCT or protocol numbers")
+    else:
+        p.add_argument("--kb", default=None, metavar="JSON",
+                       help="Known gene/variant knowledge base (default: the packaged copy)")
+        p.add_argument("--all-pieces", action="store_true",
+                       help="Send every piece to the AI. By default, pieces with nothing "
+                            "molecular in them (no gene or molecular keyword) are skipped "
+                            "and recorded with mapping_source keyword_prefilter")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ctm-llm", description="LLM-assisted trial curation stages")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_general = sub.add_parser(
-        "general",
-        help="Draft CTML match nodes from each eligibility criterion and the trial title",
+    clinical_help = "Draft clinical CTML from each criterion, the title, conditions and disease site"
+    genomic_help = ("Draft genomic CTML and molecular refs from each criterion, the title, "
+                    "conditions and curator genes")
+    _add_stage_parser(sub, "clinical", clinical_help, _CLINICAL_CACHE, clinical=True)
+    _add_stage_parser(sub, "genomic", genomic_help, _GENOMIC_CACHE, clinical=False)
+    p_auto = sub.add_parser(
+        "autofill-ctml",
+        help="[BETA] Build each trial's match clause from its clinical + genomic suggestions",
+        description="[BETA] Build treatment_list.step[0].match from _llm_curation._ctml_suggestions "
+                    "(clinical and genomic), marking every leaf _CURATED_METHOD=auto. The only "
+                    "command that writes match clauses. Experimental: rules still being tuned "
+                    "against hand-curated trials.",
     )
-    _add_shared_args(p_general, _GENERAL_CACHE)
-    p_general.add_argument("--limit", type=int, default=None, metavar="N",
-                           help="Process only the first N trials (for testing)")
-    p_general.add_argument("--nct", default=None, metavar="ID", nargs="+",
-                           help="Process only trials matching these NCT or protocol numbers")
-    p_general.add_argument("--diagnosis-only", action="store_true",
-                           help="Only (re)draft the conditions + disease_site suggestions; keep every other "
-                                "suggestion as-is and make no criterion/title calls")
-
-    p_biomarkers = sub.add_parser(
-        "biomarkers",
-        help="Scan titles, disease keywords, curator genes and criteria for biomarker references",
-    )
-    _add_shared_args(p_biomarkers, _BIOMARKER_CACHE)
-    p_biomarkers.add_argument("--kb", default=None, metavar="JSON",
-                              help="Known gene/variant knowledge base (default: the packaged copy)")
-
+    p_auto.add_argument("--trials", metavar="JSON",
+                        help="Read trials from a JSON file instead of 04_genomic_trials")
+    p_auto.add_argument("--out", metavar="JSON",
+                        help="Write the JSON output to this path (overrides the to-curate export)")
+    p_auto.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
+                        help="Force the JSON file output on/off (default: the to-curate export)")
+    p_auto.add_argument("--db", metavar="NAME", help="Override MONGO_DBNAME for this run")
+    p_auto.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
+                        help="Override the run_date inherited from the source documents")
+    p_auto.add_argument("--overwrite", action="store_true",
+                        help="Replace non-empty match clauses too (default: fill only empty ones)")
+    p_auto.add_argument("--cache", default=None, metavar="JSON",
+                        help=f"Cache of and/or answers for mixed pieces "
+                             f"(default: {cache_dir() / _AUTOFILL_CACHE})")
+    p_auto.add_argument("--yes", "-y", action="store_true",
+                        help="Skip the cold-cache confirmation before the first AI call")
+    _add_stage_parser(sub, "general", "[deprecated] alias for clinical; removed in 3.0.0",
+                      _CLINICAL_CACHE, clinical=True)
+    _add_stage_parser(sub, "biomarkers", "[deprecated] alias for genomic; removed in 3.0.0",
+                      _GENOMIC_CACHE, clinical=False)
     return parser
+
+
+def _stage_run(command: str) -> dict:
+    """``_llm_curation.stage_runs`` record for this invocation: UTC start time
+    and the command + toolkit version that wrote the suggestions."""
+    from datetime import UTC, datetime
+
+    from ctm.db import toolkit_version
+    return {"ran_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "processed_with": f"ctm-llm {command} {toolkit_version()}"}
+
+
+def default_export(command: str, run_date: str) -> Path | None:
+    """The stage's canonical export: the to-curate handoff file, written by the
+    last pre-curate stage (autofill-ctml). Other stages write no file by default."""
+    if command == "autofill-ctml":
+        return llm_biomarker_export_dir() / f"{run_date}_llm-biomarkers_trials.json"
+    return None
 
 
 def _resolve_out(args, default_path: Path | None) -> Path | None:
@@ -163,12 +219,12 @@ def _resolve_run_date(args, ctm_db, trials: list[dict]) -> str:
     return ctm_db.inherited_run_date(trials, fallback=date.today().isoformat())
 
 
-def _cmd_general(args) -> None:
+def _cmd_clinical(args) -> None:
+    stage_run = _stage_run("clinical")
     from ctm import db as ctm_db
+    from ctm.transformers.clinical_ctml import draft_clinical
     from ctm.transformers.eligibility_to_ctml import (
         build_client,
-        draft_diagnosis_only,
-        draft_trial,
         fetch_oncotree_names,
         load_cache,
         save_cache,
@@ -176,7 +232,7 @@ def _cmd_general(args) -> None:
 
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
-    cache_file = Path(args.cache) if args.cache else cache_path(_GENERAL_CACHE)
+    cache_file = Path(args.cache) if args.cache else cache_path(_CLINICAL_CACHE)
 
     # Only the `changed` documents: `unchanged` carries curated match nodes forward
     # from the master and `deleted` is a terminal record, so drafting either would
@@ -186,7 +242,7 @@ def _cmd_general(args) -> None:
         {"diff_status": "changed"}, "Run ctm-mm trials-diff first, or pass --trials.",
     )
     log_event(log, "llm.input", "Read %d trial(s) from %s", len(trials), source,
-              stage="general", count=len(trials), source_description=source)
+              stage="clinical", count=len(trials), source_description=source)
 
     run_date = _resolve_run_date(args, ctm_db, trials)
     # Upstream provenance has done its job now that run_date is known; it must not
@@ -207,10 +263,7 @@ def _cmd_general(args) -> None:
     site_file = site_map.default_draft_path()
     reviewed = site_map.load_reviewed()
     site_drafts = site_map.load_drafts(site_file)
-    if args.diagnosis_only:
-        _confirm_cold_cache({**reviewed, **site_drafts}, site_file, args.yes)
-    else:
-        _confirm_cold_cache(cache, cache_file, args.yes)
+    _confirm_cold_cache(cache, cache_file, args.yes)
 
     log.info("Fetching OncoTree names...")
     valid_oncotree = fetch_oncotree_names()
@@ -218,32 +271,30 @@ def _cmd_general(args) -> None:
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
-        ctm_db.LLM_GENERAL_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+        ctm_db.LLM_CLINICAL_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    log.info(f"Target: {target_db}.{ctm_db.LLM_GENERAL_COLLECTION} (run_date {run_date})")
+    log.info(f"Target: {target_db}.{ctm_db.LLM_CLINICAL_COLLECTION} (run_date {run_date})")
 
     results = []
     for i, trial in enumerate(trials):
         label = trial.get("protocol_no") or trial.get("nct_id") or f"trial-{i}"
         log_event(log, "llm.trial", "[%d/%d] %s", i + 1, len(trials), label,
-                  trial=label, index=i + 1, total=len(trials), stage="general")
-        if args.diagnosis_only:
-            drafted = draft_diagnosis_only(trial, client, valid_oncotree, reviewed, site_drafts)
-        else:
-            drafted = draft_trial(trial, cache, client, valid_oncotree, reviewed, site_drafts)
-            save_cache(cache, cache_file)  # after each trial so progress survives interruption
+                  trial=label, index=i + 1, total=len(trials), stage="clinical")
+        drafted = draft_clinical(trial, cache, client, valid_oncotree, reviewed, site_drafts,
+                                 stage_run=stage_run)
+        save_cache(cache, cache_file)  # after each trial so progress survives interruption
         site_map.save_drafts(site_drafts, site_file)
         results.append(drafted)
         # Stored per trial for the same reason: this stage costs a model call per
         # criterion, so an interruption must not discard trials already paid for.
-        ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm general", run_date),
+        ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm clinical", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)
 
     log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
-              len(results), target_db, ctm_db.LLM_GENERAL_COLLECTION,
+              len(results), target_db, ctm_db.LLM_CLINICAL_COLLECTION,
               count=len(results), database=target_db,
-              collection=ctm_db.LLM_GENERAL_COLLECTION, stage="llm.general")
-    out = _resolve_out(args, None)   # general has no canonical export
+              collection=ctm_db.LLM_CLINICAL_COLLECTION, stage="llm.clinical")
+    out = _resolve_out(args, None)   # clinical has no canonical export
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(results, indent=2, default=str))
@@ -251,26 +302,23 @@ def _cmd_general(args) -> None:
     log_event(log, "llm.cache", "Cache entries: %d", len(cache), entries=len(cache))
 
 
-def _cmd_biomarkers(args) -> None:
+def _cmd_genomic(args) -> None:
+    stage_run = _stage_run("genomic")
     from ctm import db as ctm_db
     from ctm.transformers.eligibility_to_ctml import build_client
-    from ctm.transformers.trials_curate import (
-        annotate_biomarkers,
-        load_cache,
-        load_known_genes,
-        save_cache,
-    )
+    from ctm.transformers.genomic_ctml import draft_genomic
+    from ctm.transformers.trials_curate import load_cache, load_known_genes, save_cache
 
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
-    cache_file = Path(args.cache) if args.cache else cache_path(_BIOMARKER_CACHE)
+    cache_file = Path(args.cache) if args.cache else cache_path(_GENOMIC_CACHE)
 
     trials, source = _load_trials(
-        args, ctm_db, config, target_db, ctm_db.LLM_GENERAL_COLLECTION, None,
-        "Run ctm-llm general first, or pass --trials.",
+        args, ctm_db, config, target_db, ctm_db.LLM_CLINICAL_COLLECTION, None,
+        "Run ctm-llm clinical first, or pass --trials.",
     )
     log_event(log, "llm.input", "Read %d trial(s) from %s", len(trials), source,
-              stage="biomarkers", count=len(trials), source_description=source)
+              stage="genomic", count=len(trials), source_description=source)
 
     run_date = _resolve_run_date(args, ctm_db, trials)
     trials = [ctm_db.strip_metadata(trial) for trial in trials]
@@ -279,48 +327,119 @@ def _cmd_biomarkers(args) -> None:
     known_genes = load_known_genes(kb_path)
     log.info(f"{len(known_genes)} known genes loaded from {kb_path}")
 
-    # No OncoTree fetch: this stage produces biomarker references, not match nodes.
+    # No OncoTree fetch: genomic nodes carry no diagnosis.
     client = build_client()
     cache = load_cache(cache_file)
     _confirm_cold_cache(cache, cache_file, args.yes)
 
     target = ctm_db.prepare_collection(
         ctm_db.get_database(config, target_db),
-        ctm_db.LLM_BIOMARKER_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+        ctm_db.LLM_GENOMIC_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
     )
-    log.info(f"Target: {target_db}.{ctm_db.LLM_BIOMARKER_COLLECTION} (run_date {run_date})")
+    log.info(f"Target: {target_db}.{ctm_db.LLM_GENOMIC_COLLECTION} (run_date {run_date})")
 
+    results = []
     for i, trial in enumerate(trials, 1):
         label = trial.get("nct_id") or trial.get("protocol_no") or "unknown"
         log_event(log, "llm.trial", "[%d/%d] %s", i, len(trials), label,
-                  trial=label, index=i, total=len(trials), stage="biomarkers")
-        annotate_biomarkers(trial, client, cache, known_genes)
+                  trial=label, index=i, total=len(trials), stage="genomic")
+        drafted = draft_genomic(trial, cache, client, known_genes, stage_run=stage_run,
+                                prefilter=not getattr(args, "all_pieces", False))
+        results.append(drafted)
         save_cache(cache, cache_file)  # after each trial so progress survives interruption
-        ctm_db.upsert_doc(target, ctm_db.stamp(trial, "ctm-llm biomarkers", run_date),
+        ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm genomic", run_date),
                           ctm_db.DIFF_UNIQUE_KEY)
+    trials = results
 
     log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
-              len(trials), target_db, ctm_db.LLM_BIOMARKER_COLLECTION,
+              len(trials), target_db, ctm_db.LLM_GENOMIC_COLLECTION,
               count=len(trials), database=target_db,
-              collection=ctm_db.LLM_BIOMARKER_COLLECTION, stage="llm.biomarkers")
-    # Canonical export by default: the to-curate handoff file for manual curation.
-    default_export = llm_biomarker_export_dir() / f"{run_date}_llm-biomarkers_trials.json"
-    out = _resolve_out(args, default_export)
+              collection=ctm_db.LLM_GENOMIC_COLLECTION, stage="llm.genomic")
+    # The to-curate handoff file now comes from autofill-ctml, the last stage.
+    out = _resolve_out(args, default_export("genomic", run_date))
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(trials, indent=2, default=str))
         log.info(f"Saved {len(trials)} trial(s) → {out}")
 
 
+def _cmd_autofill(args) -> None:
+    stage_run = _stage_run("autofill-ctml")
+    from ctm import db as ctm_db
+    from ctm.transformers import eligibility_to_ctml as e2c
+    from ctm.transformers.autofill_ctml import ai_mixed_resolver, autofill_trial
+
+    config = ctm_db.mongo_config()
+    target_db = args.db or config["dbname"]
+    trials, source = _load_trials(
+        args, ctm_db, config, target_db, ctm_db.LLM_GENOMIC_COLLECTION, None,
+        "Run ctm-llm genomic first, or pass --trials.",
+    )
+    log_event(log, "llm.input", "Read %d trial(s) from %s", len(trials), source,
+              stage="autofill", count=len(trials), source_description=source)
+    run_date = _resolve_run_date(args, ctm_db, trials)
+    trials = [ctm_db.strip_metadata(trial) for trial in trials]
+
+    target = ctm_db.prepare_collection(
+        ctm_db.get_database(config, target_db),
+        ctm_db.LLM_AUTOFILL_COLLECTION, ctm_db.DIFF_UNIQUE_KEY, ctm_db.DIFF_LOOKUP_KEYS,
+    )
+    log.info(f"Target: {target_db}.{ctm_db.LLM_AUTOFILL_COLLECTION} (run_date {run_date})")
+
+    # The AI is only reached for mixed criterion pieces; the client (and the
+    # cold-cache confirmation) are deferred until the first one needs it.
+    cache_file = Path(args.cache) if args.cache else cache_path(_AUTOFILL_CACHE)
+    cache = e2c.load_cache(cache_file)
+
+    def get_client():
+        _confirm_cold_cache(cache, cache_file, args.yes)
+        return e2c.build_client()
+
+    resolve_mixed = ai_mixed_resolver(get_client, cache)
+
+    results, filled, mixed = [], 0, 0
+    for trial in trials:
+        label = trial.get("protocol_no") or trial.get("nct_id") or "unknown"
+        drafted, report = autofill_trial(trial, overwrite=args.overwrite, resolve_mixed=resolve_mixed,
+                                         stage_run=stage_run)
+        if cache:
+            e2c.save_cache(cache, cache_file)   # after each trial so answers survive interruption
+        results.append(drafted)
+        filled += report["filled"]
+        mixed += report["mixed_pieces"] > 0
+        log_event(log, "llm.autofill", "  %s: %s", label,
+                  f"{'filled' if report['filled'] else 'skipped'} ({report['reason']})",
+                  trial=label, stage="autofill", filled=report["filled"],
+                  reason=report["reason"], nodes=report["nodes"],
+                  match_sources=report["match_sources"],
+                  mixed_pieces=report["mixed_pieces"], mixed_logic=report["mixed_logic"])
+        ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm autofill-ctml", run_date),
+                          ctm_db.DIFF_UNIQUE_KEY)
+
+    log_event(log, "db.stored", "Stored %d doc(s) → %s.%s (%d filled, %d with mixed pieces)",
+              len(results), target_db, ctm_db.LLM_AUTOFILL_COLLECTION, filled, mixed,
+              count=len(results), database=target_db,
+              collection=ctm_db.LLM_AUTOFILL_COLLECTION, stage="llm.autofill",
+              filled=filled, with_mixed=mixed)
+    out = _resolve_out(args, default_export("autofill-ctml", run_date))
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(results, indent=2, default=str))
+        log.info(f"Saved {len(results)} trial(s) → {out}")
+
+
 def main(argv: list[str] | None = None) -> None:
     load_env()
     args = build_parser().parse_args(argv)
     configure_logging(verbosity=verbosity_from_args(args))
-    with command_context(log, f"ctm-llm {args.command}"):
-        if args.command == "general":
-            _cmd_general(args)
-        elif args.command == "biomarkers":
-            _cmd_biomarkers(args)
+    command = _ALIASES.get(args.command, args.command)
+    if command != args.command:
+        log.warning("DEPRECATED: ctm-llm %s is now ctm-llm %s and will be removed in 3.0.0.",
+                    args.command, command,
+                    extra={"event": "cli.deprecated", "old": args.command, "new": command})
+    with command_context(log, f"ctm-llm {command}"):
+        {"clinical": _cmd_clinical, "genomic": _cmd_genomic,
+         "autofill-ctml": _cmd_autofill}[command](args)
 
 
 if __name__ == "__main__":

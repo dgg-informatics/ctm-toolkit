@@ -2,8 +2,8 @@
 
 Some trials state their cancer type only in the registry disease-site field
 ("Colon", "Melanoma, Skin", "Lymphoid Leukemia"), never in the criteria or title.
-This turns that field into one extra ``_ctml_suggestions`` entry with
-``source: "disease_site"``, added alongside the criteria and title suggestions.
+This turns that field into one extra ``_ctml_suggestions`` entry whose
+``source`` is the field path, added alongside the criteria and title suggestions.
 
 Each distinct site value (lowercased, trimmed) is mapped once and remembered:
 
@@ -21,8 +21,10 @@ reviewed table only, a list of names for a site with no single OncoTree parent
 ("GU", "Lymphoma"); ``type`` is "solid", "liquid" or null. A trial listing :data:`MANY_SITES` or more distinct sites collapses to the
 special values ``_SOLID_`` / ``_LIQUID_`` (all solid / all liquid cancers).
 
-Sources read: AMC ``_raw.disease_site`` and DDOTS ``_raw._ddots.disease_site``,
-both split on ";". DDOTS ``disease_site_list`` is ignored until real multi-site
+Sources read: AMC ``_raw.disease_site``, DDOTS ``_raw._ddots.disease_site`` and
+West ``_raw._west.Disease Site`` (the sheet's column header), each split on ";" and recorded as its own entry (``source`` = the field path).
+``mapping_source`` is ``reviewed_ref`` when every site came from the reviewed
+table, else ``ai_draft``. DDOTS ``disease_site_list`` is ignored until real multi-site
 data shows its shape.
 """
 import json
@@ -36,7 +38,15 @@ log = logging.getLogger(__name__)
 
 REVIEWED_PATH = REFS_DIR / "disease_site_oncotree.json"
 DRAFT_CACHE_NAME = ".disease_site_cache.json"
-SOURCE = "disease_site"
+AMC_FIELD = "_raw.disease_site"
+DDOTS_FIELD = "_raw._ddots.disease_site"
+WEST_FIELD = "_raw._west.Disease Site"
+SITE_FIELDS = (AMC_FIELD, DDOTS_FIELD, WEST_FIELD)
+# The field each source is expected to carry. A trial from that source without
+# it is reported (llm.field_missing), never an error: the sheets' columns drift.
+EXPECTED_SITE_FIELD = {"amc": AMC_FIELD, "sparrow-api": DDOTS_FIELD, "west": WEST_FIELD}
+REVIEWED_REF = "reviewed_ref"
+AI_DRAFT = "ai_draft"
 MANY_SITES = 10
 SPECIAL = {"_SOLID_", "_LIQUID_"}
 
@@ -85,20 +95,42 @@ def save_drafts(drafts: dict, path: Path | None = None) -> None:
     path.write_text(json.dumps(drafts, indent=2, sort_keys=True))
 
 
-def trial_sites(trial: dict) -> list[str]:
-    """Distinct disease sites from AMC and DDOTS raw fields, first-seen order."""
-    raw = trial.get("_raw") or {}
-    values = [raw.get("disease_site"), (raw.get("_ddots") or {}).get("disease_site")]
+_MISSING = object()
+
+
+def _field_value(trial: dict, field: str):
+    """Value at a dotted path like ``_raw._west.Disease Site``; _MISSING if absent."""
+    value = trial
+    for part in field.split("."):
+        if not isinstance(value, dict) or part not in value:
+            return _MISSING
+        value = value[part]
+    return value
+
+
+def trial_sites(trial: dict, field: str) -> list[str]:
+    """Distinct disease sites in one field (see SITE_FIELDS), split on ";",
+    first-seen order."""
+    value = _field_value(trial, field)
     sites, seen = [], set()
-    for value in values:
-        if not isinstance(value, str):
-            continue
-        for part in value.split(";"):
-            part = " ".join(part.split())
-            if part and _norm(part) not in seen:
-                seen.add(_norm(part))
-                sites.append(part)
+    if not isinstance(value, str):
+        return sites
+    for part in value.split(";"):
+        part = " ".join(part.split())
+        if part and _norm(part) not in seen:
+            seen.add(_norm(part))
+            sites.append(part)
     return sites
+
+
+def notify_missing_site_field(trial: dict) -> None:
+    """Warn (don't fail) when a trial lacks its source's disease-site field."""
+    field = EXPECTED_SITE_FIELD.get(trial.get("entity"))
+    if field and _field_value(trial, field) is _MISSING:
+        label = trial.get("protocol_no") or trial.get("nct_id") or "unknown"
+        log.warning("  %s: no %s field — disease site not read", label, field,
+                    extra={"event": "llm.field_missing", "trial": label, "field": field,
+                           "entity": trial.get("entity"), "stage": "clinical"})
 
 
 def _validate(row: dict | None, site: str, valid: set[str]) -> dict:
@@ -133,7 +165,7 @@ def _ask_model(site: str, client, valid: set[str]) -> dict:
             raise
         log.warning("  content filter — no mapping for disease site %r", site,
                     extra={"event": "llm.content_filter", "stage": "general",
-                           "criterion_source": SOURCE})
+                           "criterion_source": "disease_site"})
         return _validate(None, site, valid)
     try:
         parsed = json.loads(response.choices[0].message.content.strip())
@@ -146,10 +178,10 @@ def map_site(site: str, reviewed: dict, drafts: dict, client, valid: set[str]) -
     """(row, mapping_source) for one site; drafts a new row via the model if unseen."""
     key = _norm(site)
     if key in reviewed:
-        return reviewed[key], "reviewed"
+        return reviewed[key], REVIEWED_REF
     if key not in drafts:
         drafts[key] = _ask_model(site, client, valid)
-    return drafts[key], "ai_draft"
+    return drafts[key], AI_DRAFT
 
 
 def _leaf(name: str) -> dict:
@@ -173,19 +205,19 @@ def _node(rows: list[dict]) -> dict | None:
 
 
 def site_suggestion(trial: dict, reviewed: dict, drafts: dict, client,
-                    valid: set[str]) -> dict | None:
-    """The ``disease_site`` suggestion, or None when the trial has no disease site."""
-    sites = trial_sites(trial)
+                    valid: set[str], field: str = AMC_FIELD) -> dict | None:
+    """The suggestion for one disease-site field, or None when it is empty."""
+    sites = trial_sites(trial, field)
     if not sites:
         return None
     mapped = [map_site(s, reviewed, drafts, client, valid) for s in sites]
     rows = [row for row, _ in mapped]
     return {
-        "source": SOURCE,
+        "source": field,
         "text": "; ".join(sites),
         "suggested_node": _node(rows),
-        "transferred_to_match": False,
-        "mapping_source": "reviewed" if all(m == "reviewed" for _, m in mapped) else "ai_draft",
+        "transferred_to_match": None,
+        "mapping_source": REVIEWED_REF if all(m == REVIEWED_REF for _, m in mapped) else AI_DRAFT,
         "site_mappings": [{**row, "site": site, "mapping_source": m}
-                          for site, (row, m) in zip(sites, mapped)],
+                          for site, (row, m) in zip(sites, mapped, strict=True)],
     }

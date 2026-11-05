@@ -35,17 +35,6 @@ from ctm.paths import load_env, match_export_dir
 
 log = logging.getLogger(__name__)
 
-#: Collections matchengine creates in the match database. ``match-prep`` rebuilds
-#: ``trial``/``clinical``/``genomic`` itself, but nothing owns these — and a
-#: leftover ``trial_match`` is worse than an error: ``copy_collection`` preserves
-#: ``_id``, so stale match documents still resolve against freshly-copied
-#: clinical ones and the database looks consistent while mixing two generations.
-MATCHENGINE_COLLECTIONS = (
-    "trial_match",
-    "run_log_trial_match",
-    "clinical_run_history_trial_match",
-)
-
 MATCH_DB_SUFFIX = "_match"
 
 

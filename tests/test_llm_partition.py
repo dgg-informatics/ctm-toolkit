@@ -6,151 +6,10 @@ title, which share a prompt and an output shape), `biomarkers` owns the biomarke
 scan. Each writes exactly one key under _llm_curation and merges into whatever is
 already there, so neither can destroy the other's work.
 """
-from types import SimpleNamespace
-
 import pytest
 
 
-class _QueuedClient:
-    """Returns queued chat-completion responses in call order."""
-
-    def __init__(self, responses):
-        self._responses = list(responses)
-        self.call_count = 0
-        self.prompts = []
-        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
-
-    def _create(self, **kwargs):
-        self.call_count += 1
-        self.prompts.append(kwargs["messages"][1]["content"])
-        return SimpleNamespace(choices=[SimpleNamespace(
-            message=SimpleNamespace(content=self._responses.pop(0))
-        )])
-
-
-def _trial(**extra):
-    return {
-        "nct_id": "NCT00000001",
-        "protocol_no": None,
-        "entity": "west",
-        "eligibility": {
-            "inclusion": [{"text": "Age >= 18", "sub_criteria": []}],
-            "exclusion": [{"text": "No brain metastases", "sub_criteria": []}],
-        },
-        "_summary": {"long_title": "A Study of Olaparib in Patients with a BRCA1 Mutation"},
-        **extra,
-    }
-
-
-def test_draft_trial_covers_criteria_and_the_title():
-    """Three calls: two criteria plus the title, all through the same prompt."""
-    from ctm.transformers.eligibility_to_ctml import draft_trial
-
-    client = _QueuedClient([
-        '{"clinical": {"age_numerical": ">=18"}}',
-        'null',
-        '{"genomic": {"hugo_symbol": "BRCA1"}}',
-    ])
-
-    result = draft_trial(_trial(), cache={}, client=client, valid_oncotree=set())
-    suggestions = result["_llm_curation"]["_ctml_suggestions"]
-
-    assert client.call_count == 3
-    assert [s["source"] for s in suggestions] == ["inclusion", "exclusion", "summary"]
-
-
-def test_draft_trial_writes_under_llm_curation_not_top_level():
-    """The old shape put _ctml_suggestions at the top level for a later stage to
-    relocate. `general` writes its final home directly."""
-    from ctm.transformers.eligibility_to_ctml import draft_trial
-
-    client = _QueuedClient(['null', 'null', 'null'])
-    result = draft_trial(_trial(), cache={}, client=client, valid_oncotree=set())
-
-    assert "_ctml_suggestions" not in result
-    assert "_ctml_suggestions" in result["_llm_curation"]
-
-
-def test_draft_trial_drops_a_legacy_top_level_key():
-    from ctm.transformers.eligibility_to_ctml import draft_trial
-
-    client = _QueuedClient(['null', 'null', 'null'])
-    trial = _trial(_ctml_suggestions=[{"source": "inclusion", "suggested_node": None}])
-
-    result = draft_trial(trial, cache={}, client=client, valid_oncotree=set())
-
-    assert "_ctml_suggestions" not in result
-
-
-def test_draft_trial_preserves_existing_biomarker_references():
-    """Running `general` after `biomarkers` must not discard the other stage's key.
-    Order-dependence is the intended workflow, but merging is what makes a re-run
-    of either stage non-destructive."""
-    from ctm.transformers.eligibility_to_ctml import draft_trial
-
-    client = _QueuedClient(['null', 'null', 'null'])
-    trial = _trial(_llm_curation={
-        "biomarker_references": [{"biomarker": "BRCA1", "type": "snv"}],
-    })
-
-    result = draft_trial(trial, cache={}, client=client, valid_oncotree=set())
-
-    assert result["_llm_curation"]["biomarker_references"][0]["biomarker"] == "BRCA1"
-    assert "_ctml_suggestions" in result["_llm_curation"]
-
-
-def test_draft_trial_does_not_mutate_its_input():
-    from ctm.transformers.eligibility_to_ctml import draft_trial
-
-    trial = _trial()
-    client = _QueuedClient(['null', 'null', 'null'])
-    draft_trial(trial, cache={}, client=client, valid_oncotree=set())
-
-    assert "_llm_curation" not in trial
-
-
-def test_title_suggestion_absent_without_a_long_title():
-    from ctm.transformers.eligibility_to_ctml import title_suggestion
-
-    client = _QueuedClient([])  # a call would raise IndexError
-    assert title_suggestion({"_summary": {}}, {}, client, set()) is None
-    assert title_suggestion({}, {}, client, set()) is None
-    assert client.call_count == 0
-
-
-def test_title_suggestion_is_labelled_summary():
-    from ctm.transformers.eligibility_to_ctml import title_suggestion
-
-    client = _QueuedClient(['{"genomic": {"hugo_symbol": "BRCA1"}}'])
-    result = title_suggestion(_trial(), {}, client, set())
-
-    assert result["source"] == "summary"
-    assert result["text"] == "A Study of Olaparib in Patients with a BRCA1 Mutation"
-    assert result["transferred_to_match"] is False
-
-
-def test_the_two_stages_compose_without_clobbering_each_other():
-    """The end-to-end property the partition exists to guarantee."""
-    from ctm.transformers.eligibility_to_ctml import draft_trial
-    from ctm.transformers.trials_curate import annotate_biomarkers
-
-    drafted = draft_trial(
-        _trial(), cache={},
-        client=_QueuedClient(['{"clinical": {"age_numerical": ">=18"}}', 'null', 'null']),
-        valid_oncotree=set(),
-    )
-    annotated = annotate_biomarkers(
-        drafted,
-        _QueuedClient(['[{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]']),
-        cache={}, known_genes={"BRCA1"},
-    )
-
-    curation = annotated["_llm_curation"]
-    assert len(curation["_ctml_suggestions"]) == 3
-    assert len(curation["biomarker_references"]) == 1
-
-
-@pytest.mark.parametrize("subcommand", ["general", "biomarkers"])
+@pytest.mark.parametrize("subcommand", ["clinical", "genomic", "general", "biomarkers"])
 def test_cli_disk_defaults_to_none_mongo_only(subcommand):
     """v2: no --disk flag means MongoDB only (no file) for both stages."""
     from ctm.llm_cli import build_parser
@@ -159,7 +18,7 @@ def test_cli_disk_defaults_to_none_mongo_only(subcommand):
     assert args.disk is None
 
 
-@pytest.mark.parametrize("subcommand", ["general", "biomarkers"])
+@pytest.mark.parametrize("subcommand", ["clinical", "genomic", "general", "biomarkers"])
 def test_resolve_out_semantics(subcommand):
     """--out wins; --no-disk forces MongoDB-only; otherwise the stage default."""
     from pathlib import Path
@@ -182,7 +41,7 @@ def test_resolve_out_semantics(subcommand):
     assert _resolve_out(args, canonical) is None
 
 
-def test_ctm_ctml_forwards_to_general(monkeypatch):
+def test_ctm_ctml_forwards_to_clinical(monkeypatch):
     """The deprecated alias must reach the same code path as a real invocation."""
     import sys
 
@@ -194,4 +53,38 @@ def test_ctm_ctml_forwards_to_general(monkeypatch):
 
     ctml_cli.main()
 
-    assert seen["argv"] == ["general", "--out", "o.json", "--limit", "2"]
+    assert seen["argv"] == ["clinical", "--out", "o.json", "--limit", "2"]
+
+
+@pytest.mark.parametrize("subcommand", ["clinical", "genomic", "general", "biomarkers"])
+def test_diagnosis_only_is_gone(subcommand):
+    from ctm.llm_cli import build_parser
+
+    with pytest.raises(SystemExit):
+        build_parser().parse_args([subcommand, "--diagnosis-only"])
+
+
+def test_limit_and_nct_are_clinical_only():
+    from ctm.llm_cli import build_parser
+
+    args = build_parser().parse_args(["general", "--limit", "2", "--nct", "NCT1"])
+    assert args.limit == 2 and args.nct == ["NCT1"]
+    assert build_parser().parse_args(["biomarkers", "--kb", "kb.json"]).kb == "kb.json"
+
+
+@pytest.mark.parametrize("old,new,handler", [("general", "clinical", "_cmd_clinical"),
+                                             ("biomarkers", "genomic", "_cmd_genomic")])
+def test_alias_logs_deprecation_and_runs_new_handler(monkeypatch, caplog, old, new, handler):
+    import logging
+
+    from ctm import llm_cli
+
+    ran = []
+    monkeypatch.setattr(llm_cli, "load_env", lambda: None)
+    monkeypatch.setattr(llm_cli, "_cmd_clinical", lambda args: ran.append("_cmd_clinical"))
+    monkeypatch.setattr(llm_cli, "_cmd_genomic", lambda args: ran.append("_cmd_genomic"))
+    with caplog.at_level(logging.WARNING, logger="ctm.llm_cli"):
+        llm_cli.main([old])
+    assert ran == [handler]
+    assert (f"DEPRECATED: ctm-llm {old} is now ctm-llm {new} and will be removed in 3.0.0."
+            in caplog.text)

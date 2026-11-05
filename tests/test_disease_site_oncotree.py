@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from ctm.transformers import disease_site_to_oncotree as dsm
-from ctm.transformers.eligibility_to_ctml import draft_diagnosis_only, draft_trial
+from ctm.transformers.clinical_ctml import draft_clinical
 
 VALID = {"Colon", "Melanoma", "Lymphoid", "Breast"}
 
@@ -39,8 +39,8 @@ def test_reviewed_table_wins_and_lookup_ignores_case_and_spacing():
     s = dsm.site_suggestion(_amc("  COLON "), reviewed, {}, client, VALID)
     assert client.asked == []
     assert s["suggested_node"] == _node("Colon")
-    assert s["mapping_source"] == "reviewed"
-    assert s["source"] == "disease_site"
+    assert s["mapping_source"] == "reviewed_ref"
+    assert s["source"] == "_raw.disease_site"
 
 
 def test_unseen_site_is_drafted_once_and_cached():
@@ -94,9 +94,13 @@ def test_many_solid_only_sites_collapse_to_solid():
     assert s["suggested_node"] == _node("_SOLID_")
 
 
-def test_ddots_site_is_read_and_merged_with_amc():
+def test_amc_and_ddots_sites_are_read_per_field():
     trial = {"_raw": {"disease_site": "Colon", "_ddots": {"disease_site": "colon; Breast"}}}
-    assert dsm.trial_sites(trial) == ["Colon", "Breast"]
+    assert dsm.trial_sites(trial, "_raw.disease_site") == ["Colon"]
+    assert dsm.trial_sites(trial, "_raw._ddots.disease_site") == ["colon", "Breast"]
+    reviewed = {"colon": {"oncotree": "Colon", "type": "solid"}, "breast": {"oncotree": "Breast", "type": "solid"}}
+    ddots = dsm.site_suggestion(trial, reviewed, {}, _Client(), VALID, field="_raw._ddots.disease_site")
+    assert ddots["source"] == "_raw._ddots.disease_site" and ddots["text"] == "colon; Breast"
 
 
 def test_no_disease_site_means_no_suggestion():
@@ -104,28 +108,6 @@ def test_no_disease_site_means_no_suggestion():
     assert dsm.site_suggestion({}, {}, {}, _Client(), VALID) is None
 
 
-def test_draft_trial_adds_the_site_suggestion_alongside_others():
-    client = _Client({"Colon": '{"oncotree": "Colon", "type": "solid"}'})
-    result = draft_trial(_amc("Colon"), cache={}, client=client, valid_oncotree=VALID)
-    sources = [s["source"] for s in result["_llm_curation"]["_ctml_suggestions"]]
-    assert sources == ["disease_site"]
-
-
-def test_disease_site_only_keeps_other_suggestions_and_their_flags():
-    kept = {"source": "inclusion", "text": "x", "suggested_node": None, "transferred_to_match": True}
-    stale = {"source": "disease_site", "text": "old", "suggested_node": None}
-    trial = _amc("Colon", _llm_curation={"_ctml_suggestions": [kept, stale],
-                                         "biomarker_references": [{"biomarker": "BRCA1"}]})
-    reviewed = {"colon": {"oncotree": "Colon", "type": "solid"}}
-
-    result = draft_diagnosis_only(trial, _Client(), VALID, reviewed, {})
-    suggestions = result["_llm_curation"]["_ctml_suggestions"]
-
-    assert suggestions[0] == kept
-    assert [s["source"] for s in suggestions] == ["inclusion", "disease_site"]
-    assert suggestions[1]["suggested_node"] == _node("Colon")
-    assert result["_llm_curation"]["biomarker_references"] == [{"biomarker": "BRCA1"}]
-    assert trial["_llm_curation"]["_ctml_suggestions"] == [kept, stale]  # input not mutated
 
 
 def test_drafts_round_trip(tmp_path):
@@ -150,29 +132,24 @@ def test_reviewed_table_covers_every_known_ddots_site(site):
     """Every current DDOTS value resolves from the repo table — no model call."""
     client = _Client()
     trial = {"_raw": {"_ddots": {"disease_site": site}}}
-    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, client, VALID)
+    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, client, VALID, field="_raw._ddots.disease_site")
     assert client.asked == []
-    assert s["mapping_source"] == "reviewed"
+    assert s["mapping_source"] == "reviewed_ref"
 
 
 @pytest.mark.parametrize("placeholder", ["Multiple Disease Sites ", "Genomic Based Trial",
                                          "Observational study", "Cancer Control "])
 def test_ddots_placeholders_produce_no_diagnosis(placeholder):
     trial = {"_raw": {"_ddots": {"disease_site": placeholder}}}
-    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID)
+    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID, field="_raw._ddots.disease_site")
     assert s["suggested_node"] is None
 
 
 def test_a_reviewed_row_can_list_several_names():
     trial = {"_raw": {"_ddots": {"disease_site": "Lymphoma"}}}
-    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID)
+    s = dsm.site_suggestion(trial, dsm.load_reviewed(), {}, _Client(), VALID, field="_raw._ddots.disease_site")
     assert s["suggested_node"] == {"or": [_node("Hodgkin Lymphoma"), _node("Non-Hodgkin Lymphoma")]}
 
-
-def test_cli_exposes_disease_site_only():
-    from ctm.llm_cli import build_parser
-    args = build_parser().parse_args(["general", "--diagnosis-only"])
-    assert args.diagnosis_only is True
 
 
 # --- conditions record -------------------------------------------------------
@@ -184,18 +161,18 @@ def test_conditions_record_mirrors_the_transform_mapping():
     conditions = ["Metastatic Breast Cancer", "Melanoma"]
     s = conditions_suggestion({"_raw": {"conditions": conditions}})
 
-    assert s["source"] == "conditions"
+    assert s["source"] == "_raw.conditions"
     assert s["text"] == "Metastatic Breast Cancer; Melanoma"
     assert s["suggested_node"] == diagnoses_to_match_node(ctgov_conditions_to_oncotree(conditions))
     assert s["suggested_node"] is not None
-    assert s["transferred_to_match"] is True     # the transform already put it in the match tree
+    assert s["transferred_to_match"] is None     # None until autofill-ctml decides
 
 
 def test_conditions_with_no_keyword_hit_are_still_recorded():
     from ctm.transformers.eligibility_to_ctml import conditions_suggestion
     s = conditions_suggestion({"_raw": {"conditions": ["Healthy Volunteers"]}})
     assert s["suggested_node"] is None
-    assert s["transferred_to_match"] is False
+    assert s["transferred_to_match"] is None
 
 
 def test_no_conditions_means_no_record():
@@ -204,23 +181,61 @@ def test_no_conditions_means_no_record():
     assert conditions_suggestion({}) is None
 
 
-def test_draft_trial_records_conditions_without_a_model_call():
+def test_clinical_stage_adds_the_site_entry():
+    client = _Client({"Colon": '{"oncotree": "Colon", "type": "solid"}'})
+    cur = draft_clinical(_amc("Colon"), {}, client, VALID, {}, {})["_llm_curation"]
+    site = [e for e in cur["_ctml_suggestions"] if e["source"] == "_raw.disease_site"]
+    assert len(site) == 1 and site[0]["node_type"] == "clinical"
+    assert site[0]["suggested_node"] == _node("Colon")
+
+
+def test_clinical_stage_records_conditions_without_a_model_call():
     client = _Client()
     trial = {"eligibility": {}, "_summary": {}, "_raw": {"conditions": ["Breast Cancer"]}}
-    result = draft_trial(trial, cache={}, client=client, valid_oncotree=VALID)
-    assert [s["source"] for s in result["_llm_curation"]["_ctml_suggestions"]] == ["conditions"]
+    cur = draft_clinical(trial, {}, client, VALID, {}, {})["_llm_curation"]
+    assert [e["source"] for e in cur["_ctml_suggestions"]] == ["_raw.conditions"]
     assert client.asked == []
 
 
-def test_diagnosis_only_replaces_both_records_and_keeps_the_rest():
-    kept = {"source": "inclusion", "text": "x", "suggested_node": None, "transferred_to_match": True}
-    stale = [{"source": "conditions", "text": "old"}, {"source": "disease_site", "text": "old"}]
-    trial = {"_raw": {"conditions": ["Breast Cancer"], "_ddots": {"disease_site": "Breast"}},
-             "_llm_curation": {"_ctml_suggestions": [kept, *stale]}}
+# ── West disease site + missing-field notification ───────────────────────────
+
+def test_west_disease_site_is_read_like_ddots():
+    trial = {"entity": "west", "_raw": {"_west": {"Disease Site": "Breast; Lung"}}}
+    reviewed = {"breast": {"oncotree": "Breast", "type": "solid"}, "lung": {"oncotree": "Lung", "type": "solid"}}
+    assert dsm.trial_sites(trial, "_raw._west.Disease Site") == ["Breast", "Lung"]
+    s = dsm.site_suggestion(trial, reviewed, {}, _Client(), VALID, field="_raw._west.Disease Site")
+    assert s["source"] == "_raw._west.Disease Site"
+    assert s["suggested_node"] == {"or": [_node("Breast"), _node("Lung")]}
+
+
+def test_clinical_stage_writes_the_west_entry():
+    trial = {"entity": "west", "_raw": {"_west": {"Disease Site": "Breast"}}}
     reviewed = {"breast": {"oncotree": "Breast", "type": "solid"}}
+    cur = draft_clinical(trial, {}, _Client(), VALID, reviewed, {})["_llm_curation"]
+    assert [e["source"] for e in cur["_ctml_suggestions"]] == ["_raw._west.Disease Site"]
+    assert cur["parsed_sections"]["clinical"]["_raw._west.Disease Site"]["pieces"] == 1
 
-    result = draft_diagnosis_only(trial, _Client(), VALID, reviewed, {})
-    suggestions = result["_llm_curation"]["_ctml_suggestions"]
 
-    assert [s["source"] for s in suggestions] == ["inclusion", "conditions", "disease_site"]
-    assert all(s["text"] != "old" for s in suggestions)
+@pytest.mark.parametrize("entity,raw,field", [
+    ("west", {"_west": {"Status": "Open"}}, "_raw._west.Disease Site"),
+    ("sparrow-api", {"_ddots": {"status": "O"}}, "_raw._ddots.disease_site"),
+    ("amc", {"protocol_no": "1"}, "_raw.disease_site"),
+])
+def test_missing_expected_field_is_notified_not_an_error(caplog, entity, raw, field):
+    import logging
+
+    trial = {"entity": entity, "protocol_no": "P1", "_raw": raw}
+    with caplog.at_level(logging.WARNING):
+        cur = draft_clinical(trial, {}, _Client(), VALID, {}, {})["_llm_curation"]
+    hits = [r for r in caplog.records if getattr(r, "event", None) == "llm.field_missing"]
+    assert [h.field for h in hits] == [field]
+    assert cur["parsed_sections"]["clinical"][field]["found"] is False
+
+
+def test_other_sources_fields_are_not_notified(caplog):
+    import logging
+
+    trial = {"entity": "amc", "_raw": {"disease_site": "Breast"}}
+    with caplog.at_level(logging.WARNING):
+        draft_clinical(trial, {}, _Client(), VALID, {"breast": {"oncotree": "Breast", "type": "solid"}}, {})
+    assert not [r for r in caplog.records if getattr(r, "event", None) == "llm.field_missing"]

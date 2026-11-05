@@ -104,7 +104,8 @@
     "VARIANT_CATEGORY": "SV",
     "REPORT_DATE": "2026-08-01",
     "LEFT_PARTNER_GENE": "SV1",
-    "RIGHT_PARTNER_GENE": "SV2"
+    "RIGHT_PARTNER_GENE": "SV2",
+    "WILDTYPE": false
   },
   {
     "SAMPLE_ID": "pt_0000001",
@@ -112,7 +113,8 @@
     "VARIANT_CATEGORY": "SV",
     "REPORT_DATE": "2026-08-01",
     "LEFT_PARTNER_GENE": "SV1",
-    "RIGHT_PARTNER_GENE": "SV3"
+    "RIGHT_PARTNER_GENE": "SV3",
+    "WILDTYPE": false
   },
   {
     "SAMPLE_ID": "pt_0000001",

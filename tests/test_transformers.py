@@ -24,8 +24,9 @@ def test_amc_xml_to_normalized():
     assert len(trial.treatment_list.step) == 1
     step = trial.treatment_list.step[0]
     assert step.step_type == "Registration"
-    # Adults → age match criterion
-    assert step.match == [{"clinical": {"age_numerical": ">=18"}}]
+    # ctm-mm trials no longer pre-fills the match; age comes back as a
+    # `structured` clinical entry and only autofill-ctml writes the clause.
+    assert step.match == []
 
     # eligibility hierarchy preserved
     inclusion = trial.eligibility.inclusion

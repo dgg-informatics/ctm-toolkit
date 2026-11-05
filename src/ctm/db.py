@@ -29,8 +29,9 @@ from importlib.metadata import version
 #   00_raw_trials         ctm-mm trials — verbatim source records
 #   01_normalized_trials  ctm-mm trials
 #   02_diff_trials        ctm-mm trials-diff
-#   03_llm_general_trials  ctm-llm general
-#   04_llm_biomarker_trials ctm-llm biomarkers
+#   03_clinical_trials    ctm-llm clinical (was 03_llm_general_trials before 2.4.0)
+#   04_genomic_trials     ctm-llm genomic (was 04_llm_biomarker_trials before 2.4.0)
+#   04b_llm_autofill_trials ctm-llm autofill-ctml [beta] — the only match-clause writer
 #   05_manual_curated_trials  human curation — see MACHINE_WRITTEN below
 #   06_master_trials      ctm-mm trials-merge
 #   07_filtered_trials    ctm-mm trials-filter
@@ -46,8 +47,9 @@ from importlib.metadata import version
 RAW_COLLECTION = "00_raw_trials"
 NORMALIZED_COLLECTION = "01_normalized_trials"
 DIFF_COLLECTION = "02_diff_trials"
-LLM_GENERAL_COLLECTION = "03_llm_general_trials"
-LLM_BIOMARKER_COLLECTION = "04_llm_biomarker_trials"
+LLM_CLINICAL_COLLECTION = "03_clinical_trials"
+LLM_GENOMIC_COLLECTION = "04_genomic_trials"
+LLM_AUTOFILL_COLLECTION = "04b_llm_autofill_trials"
 MANUAL_COLLECTION = "05_manual_curated_trials"
 DEFAULT_MASTER_COLLECTION = "06_master_trials"
 
@@ -65,8 +67,9 @@ MACHINE_WRITTEN = frozenset({
     RAW_COLLECTION,
     NORMALIZED_COLLECTION,
     DIFF_COLLECTION,
-    LLM_GENERAL_COLLECTION,
-    LLM_BIOMARKER_COLLECTION,
+    LLM_CLINICAL_COLLECTION,
+    LLM_GENOMIC_COLLECTION,
+    LLM_AUTOFILL_COLLECTION,
     # trials-merge owns the master: it recomputes the whole snapshot each run and
     # replaces it. 05_manual_curated_trials stays absent — a curator accumulates
     # into it and add-manual appends, so nothing may drop it. A master under a
