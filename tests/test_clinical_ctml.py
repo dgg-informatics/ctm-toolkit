@@ -1,6 +1,7 @@
 """ctm-llm clinical: clinical-only prompt, node_type entries, parsed_sections."""
 import copy
 
+import pytest
 from llm_fakes import QueuedClient
 
 from ctm.transformers.clinical_ctml import (
@@ -52,11 +53,6 @@ def test_clinical_strips_genomic_leaves():
     cur = _draft(_trial(), client)["_llm_curation"]
     assert cur["_ctml_suggestions"] == []
     assert len(cur["_null_ctml_suggestions"]) == 3
-
-
-def test_clinical_prompt_has_no_genomic_fields():
-    assert "hugo_symbol" not in CLINICAL_SYSTEM_PROMPT
-    assert "genomic" not in CLINICAL_SYSTEM_PROMPT
 
 
 def test_clinical_includes_conditions_and_disease_site():
@@ -166,20 +162,19 @@ def test_age_must_be_years_with_a_plain_operator():
         {"clinical": {"gender": "Female"}}
 
 
-def test_clinical_prompt_rules_from_real_trials():
-    """2026-11-04 neuroblastoma trial: pregnancy became gender !Female, a stage/MYCN
-    subgroup exclusion became !Neuroblastoma, and '> 547 days' became '>547'."""
-    p = CLINICAL_SYSTEM_PROMPT
-    assert '"gender": "!Female"' not in p
-    assert "Pregnancy, lactation" in p
-    assert "always in YEARS" in p
-    assert "subgroup" in p
+# Prompt rules that came from real trials. Each row: (present, phrase, why).
+CLINICAL_PROMPT_RULES = [
+    (False, "hugo_symbol", "clinical-only prompt"),
+    (False, "genomic", "clinical-only prompt"),
+    (False, '"gender": "!Female"', "pregnancy is never gender (neuroblastoma, 2026-11-04)"),
+    (True, "Pregnancy, lactation", "pregnancy → null"),
+    (True, "always in YEARS", "'> 547 days' became '>547'"),
+    (True, "subgroup", "stage/biomarker subgroup → null"),
+    (True, "Never negate a broader diagnosis", "'AML arising from MDS' became !AML"),
+    (True, '"Acute myeloid leukemia arising from myelodysplasia"', "worked example"),
+]
 
 
-def test_clinical_prompt_never_negates_a_broader_diagnosis():
-    """2026-11-04: exclusion "AML arising from myelodysplasia" became
-    !Acute Myeloid Leukemia, excluding every AML patient."""
-    p = CLINICAL_SYSTEM_PROMPT
-    assert "arising from" in p
-    assert "Never negate a broader diagnosis" in p
-    assert '"Acute myeloid leukemia arising from myelodysplasia"' in p
+@pytest.mark.parametrize("present,phrase,why", CLINICAL_PROMPT_RULES)
+def test_clinical_prompt_rules(present, phrase, why):
+    assert (phrase in CLINICAL_SYSTEM_PROMPT) is present, why

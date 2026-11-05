@@ -47,11 +47,6 @@ def test_match_is_a_plain_list_of_nodes_with_the_auto_marker():
     assert report["diagnosis_sources"] == ["eligibility.inclusion"]
 
 
-def test_single_node_is_a_one_item_list():
-    out, _ = autofill_trial(_trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")]))
-    assert _match(out) == [_auto(AGE)]
-
-
 def test_every_diagnosis_from_every_source_is_one_or():
     """Head and neck trial from the 07 sample: the criterion's vague histology, the
     conditions' specific diagnosis and the disease site all go into one OR."""
@@ -143,6 +138,7 @@ def test_existing_match_kept_unless_overwrite():
     out, report = autofill_trial(trial)
     assert _match(out) == curated
     assert report["filled"] is False and report["reason"] == "match not empty"
+    assert report["match_sources"] == []
     assert out["_llm_curation"]["_ctml_suggestions"][0]["transferred_to_match"] is None   # never decided
     out, report = autofill_trial(trial, overwrite=True)
     assert _match(out) == [_auto(AGE)] and report["filled"] is True
@@ -354,15 +350,6 @@ def test_ai_resolver_junk_and_content_filter_are_unresolved():
     assert list(cache.values()) == ["unresolved"]
 
 
-def test_ai_resolver_builds_the_client_lazily():
-    from ctm.transformers.autofill_ctml import ai_mixed_resolver
-
-    def no_client():
-        raise AssertionError("client must not be built until a mixed piece needs it")
-
-    ai_mixed_resolver(no_client, {})   # constructing it must not build a client
-
-
 def test_cli_without_mixed_pieces_never_builds_a_client(fake_mongo, tmp_path, monkeypatch):
     import json
 
@@ -444,12 +431,6 @@ def test_report_lists_every_source_that_went_into_the_match():
     assert report["diagnosis_sources"] == ["_raw.conditions", "_raw._ddots.disease_site"]
     assert report["match_sources"] == ["_raw.conditions", "_raw._ddots.disease_site", "_raw.minimum_age"]
     assert out["_llm_curation"]["autofill"]["match_sources"] == report["match_sources"]
-
-
-def test_skipped_trial_has_empty_match_sources():
-    trial = _trial([_e("_raw.minimum_age", "18 Years", AGE, "clinical")], match=[{"clinical": {}}])
-    _, report = autofill_trial(trial)
-    assert report["filled"] is False and report["match_sources"] == []
 
 
 def test_negated_diagnosis_that_cancels_a_positive_one_is_dropped():

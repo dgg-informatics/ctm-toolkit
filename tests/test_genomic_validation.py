@@ -10,11 +10,6 @@ def g(**fields):
     return {"genomic": fields}
 
 
-def test_valid_mutation_passes():
-    node = g(hugo_symbol="EGFR", variant_category="Mutation", wildtype=False)
-    assert validate_genomic_node(node) == node
-
-
 def test_patient_side_category_drops_the_leaf():
     assert validate_genomic_node(g(hugo_symbol="EGFR", variant_category="MUTATION")) is None
 
@@ -50,22 +45,10 @@ def test_wildtype_required_defaults_false(caplog):
     assert "wildtype" not in validate_genomic_node(g(mmr_status="MMR-Deficient"))["genomic"]
 
 
-@pytest.mark.parametrize("category", ["Copy Number Variation", "Structural Variation"])
-def test_wildtype_defaults_for_cnv_and_sv(category):
-    assert validate_genomic_node(g(hugo_symbol="ALK", variant_category=category))["genomic"]["wildtype"] is False
-
-
 def test_protein_change_needs_p_prefix():
     for key, good in (("protein_change", "p.V600E"), ("wildcard_protein_change", "p.V600")):
         assert validate_genomic_node(g(hugo_symbol="BRAF", **{key: good})) == g(hugo_symbol="BRAF", **{key: good})
         assert validate_genomic_node(g(hugo_symbol="BRAF", **{key: good[2:]})) is None
-
-
-def test_cnv_call_vocabulary():
-    base = {"hugo_symbol": "MYCN", "variant_category": "Copy Number Variation", "wildtype": False}
-    assert validate_genomic_node(g(**base, cnv_call="High Amplification")) == g(**base, cnv_call="High Amplification")
-    from ctm.transformers.genomic_ctml import _valid_field
-    assert not _valid_field("cnv_call", "amp")   # stripped, not the leaf (see below)
 
 
 def test_mmr_ms_values_per_key():

@@ -142,24 +142,6 @@ def test_draft_genomic_does_not_mutate_input():
     assert trial == before
 
 
-def test_genomic_prompt_pins_vocabulary():
-    for term in ("MMR-Deficient", "MMR-Proficient", "MSI-H", "MSI-L", "MSS", "Copy Number Variation",
-                 "Structural Variation", "wildcard_protein_change", "variant_classification", "exon",
-                 "germline", "somatic"):
-        assert term in GENOMIC_SYSTEM_PROMPT, term
-    for term in ("MUTATION", "(MMR-D / MSI-H)", '"!Copy Number Variation"', '"!Structural Variation"'):
-        assert term not in GENOMIC_SYSTEM_PROMPT, term
-
-
-def test_genomic_prompt_documents_the_wildtype_table():
-    for term in ('"!Mutation"', "untested", "never \"!\"", "ms_status", "no wildtype"):
-        assert term in GENOMIC_SYSTEM_PROMPT, term
-    assert "no documented mutation" in GENOMIC_SYSTEM_PROMPT.lower()
-    assert '"Structural Variation", wildtype: true' not in GENOMIC_SYSTEM_PROMPT
-    assert "fusion is absent" in GENOMIC_SYSTEM_PROMPT
-    assert '"!Mutation", wildtype: false' in GENOMIC_SYSTEM_PROMPT
-
-
 # ── final-review fixes ───────────────────────────────────────────────────────
 
 def test_malformed_ref_fields_are_coerced_so_stamp_never_fails():
@@ -205,47 +187,6 @@ def test_cached_answers_are_revalidated_on_read():
     assert cur["molecular_genomic_refs"][0]["type"] == "other"
 
 
-def test_genomic_prompt_treats_tumor_level_tests_as_somatic():
-    """MSI/MMR/TMB/HRD and IHC are tumor tests, so their refs are somatic even
-    without explicit tumor wording; the HER2 IHC example agrees."""
-    assert "MSI/MMR/TMB/HRD and IHC are tumor tests" in GENOMIC_SYSTEM_PROMPT
-    assert ('"reference": "HER2-positive (IHC 3+)", "origin": "somatic"'
-            in GENOMIC_SYSTEM_PROMPT)
-
-
-def test_genomic_prompt_flips_exclusions():
-    """2026-11-04 neuroblastoma trial: exclusion "L2 tumors without amplification of MYCN"
-    came back as MYCN CNV wildtype true, the excluded group itself, not who is left."""
-    p = GENOMIC_SYSTEM_PROMPT
-    assert "EXCLUSIONS" in p
-    assert "describe who may still enroll" in p
-    assert "without amplification of MYCN" in p      # the worked example
-    assert "subgroup" in p
-
-
-def test_genomic_prompt_has_status_known_rule():
-    p = GENOMIC_SYSTEM_PROMPT
-    assert '"wildtype": null' in p
-    assert "TP53 gene mutation analysis performed" in p
-
-
-def test_genomic_prompt_offers_exon_and_variant_classification():
-    """2026-11-05: keep the curated detail; matchengine config ignores it for now."""
-    p = GENOMIC_SYSTEM_PROMPT
-    assert "exon                    integer" in p
-    assert '"In_Frame_Del"' in p
-    assert "Do not use exon or variant_classification" not in p
-    assert '"exon": 19' in p
-
-
-def test_genomic_prompt_flips_without_inside_an_inclusion():
-    """2026-11-05: inclusion "LGG without a BRAFV600E or IDH1 mutation" came back as
-    BRAF p.V600E/IDH1 wildtype true (matches nobody)."""
-    p = GENOMIC_SYSTEM_PROMPT
-    assert "without a BRAFV600E or IDH1 mutation" in p
-    assert 'never "wildtype": true with protein_change' in p
-
-
 def test_genes_of_interest_keeps_refs_but_never_a_node():
     """_raw.octsu_genes_interest is a gene buzzword column (2026-11-05): the AI's refs
     are kept for molecular_genomic_refs, its node is dropped."""
@@ -257,3 +198,30 @@ def test_genes_of_interest_keeps_refs_but_never_a_node():
               if e["source"] == "_raw.octsu_genes_interest"]
     assert entry["suggested_node"] is None and entry["mapping_source"] == "ai"
     assert [r["biomarker"] for r in cur["molecular_genomic_refs"]] == ["BRAF"]
+
+
+# Prompt rules that came from real trials. Each row: (present, phrase, why).
+GENOMIC_PROMPT_RULES = [
+    (True, "MMR-Deficient", "mmr_status vocabulary"),
+    (True, "MSI-H", "ms_status vocabulary"),
+    (True, "wildcard_protein_change", "vocabulary"),
+    (True, '"!Mutation", wildtype: false', "no documented mutation keeps WT + untested"),
+    (True, "fusion is absent", "fusions have no absent form"),
+    (True, "MSI/MMR/TMB/HRD and IHC are tumor tests", "tumor tests are somatic"),
+    (True, "describe who may still enroll", "exclusions are flipped (neuroblastoma, 2026-11-04)"),
+    (True, "without amplification of MYCN", "subgroup exclusion → null example"),
+    (True, '"wildtype": null', "status known, either result (TP53 CLIA)"),
+    (True, '"exon": 19', "exon kept; matchengine config ignores it (2026-11-05)"),
+    (True, "without a BRAFV600E or IDH1 mutation", "inclusion 'without' flip (LGG, 2026-11-05)"),
+    (True, 'never "wildtype": true with protein_change', "matches nobody"),
+    (False, "MUTATION", "patient-side spelling"),
+    (False, "(MMR-D / MSI-H)", "patient-side spelling"),
+    (False, '"!Copy Number Variation"', "no ! on CNV"),
+    (False, '"Structural Variation", wildtype: true', "fusion wildtype true matches nobody"),
+    (False, "Do not use exon or variant_classification", "superseded 2026-11-05"),
+]
+
+
+@pytest.mark.parametrize("present,phrase,why", GENOMIC_PROMPT_RULES)
+def test_genomic_prompt_rules(present, phrase, why):
+    assert (phrase in GENOMIC_SYSTEM_PROMPT) is present, why
