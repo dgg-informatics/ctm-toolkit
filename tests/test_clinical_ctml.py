@@ -9,7 +9,7 @@ from ctm.transformers.clinical_ctml import (
     draft_clinical,
     keep_clinical,
 )
-from ctm.transformers.eligibility_to_ctml import _cache_key
+from ctm.transformers.llm_common import _cache_key
 
 VALID = {"Breast", "Lung"}
 REVIEWED = {"breast": {"oncotree": "Breast", "type": "solid"},
@@ -90,15 +90,15 @@ def test_clinical_empty_trial():
     assert client.call_count == 0
 
 
-def test_clinical_leaves_legacy_entries_alone():
+def test_clinical_strips_pre_2_4_entries():
     legacy = {"source": "eligibility.inclusion", "text": "Age >= 18",
               "suggested_node": {"clinical": {"age_numerical": ">=18"}}, "transferred_to_match": True}
     refs = [{"trial_nct": "NCT1", "biomarker": "BRAF", "section": "eligibility"}]
     trial = _trial(_llm_curation={"_ctml_suggestions": [copy.deepcopy(legacy)],
                                   "biomarker_references": copy.deepcopy(refs)})
     cur = _draft(trial, QueuedClient(["null"] * 3))["_llm_curation"]
-    assert cur["_ctml_suggestions"][0] == legacy
-    assert cur["biomarker_references"] == refs
+    assert legacy not in cur["_ctml_suggestions"]
+    assert "biomarker_references" not in cur
 
 
 def test_clinical_cache_key_is_stage_scoped():
@@ -151,7 +151,7 @@ def test_clinical_handles_fenced_and_empty_responses():
 def test_age_must_be_years_with_a_plain_operator():
     """matchengine reads age_numerical as years (decimals = months) and has no '!'
     for age: '>547' (days) matches nobody and '!>=18' crashes its transformer."""
-    from ctm.transformers.eligibility_to_ctml import _validate_node
+    from ctm.transformers.llm_common import _validate_node
     for bad in (">547", "!>=18", "18", ">=abc", "=>18"):
         assert _validate_node({"clinical": {"age_numerical": bad}}, VALID) is None, bad
     for good in (">=18", "<25", ">1.5", "<=0.5", "==21"):

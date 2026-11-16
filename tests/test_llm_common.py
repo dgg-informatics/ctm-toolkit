@@ -1,22 +1,22 @@
-"""Tests for the shared helpers left in trials_curate.py after the biomarker
-scan became ctm-llm genomic (see test_genomic_ctml.py)."""
+"""Tests for the shared LLM helpers in llm_common (trial IDs, JSON caches, the
+known-gene list). The genomic stage itself is tested in test_genomic_ctml.py."""
 import json
 
 
 def test_trial_id_prefers_nct_id():
-    from ctm.transformers.trials_curate import _trial_id
+    from ctm.transformers.llm_common import _trial_id
     trial = {"nct_id": "NCT04858334", "protocol_no": "2021.070"}
     assert _trial_id(trial) == "NCT04858334"
 
 
 def test_trial_id_falls_back_to_protocol_no():
-    from ctm.transformers.trials_curate import _trial_id
+    from ctm.transformers.llm_common import _trial_id
     trial = {"nct_id": None, "protocol_no": "2021.070"}
     assert _trial_id(trial) == "2021.070"
 
 
 def test_load_known_genes(tmp_path):
-    from ctm.transformers.trials_curate import load_known_genes
+    from ctm.transformers.llm_common import load_known_genes
     kb_path = tmp_path / "kb.json"
     kb_path.write_text(json.dumps([{"name": "BRAF"}, {"name": "Kit"}]))
     genes = load_known_genes(kb_path)
@@ -24,12 +24,12 @@ def test_load_known_genes(tmp_path):
 
 
 def test_load_cache_missing_file_returns_empty(tmp_path):
-    from ctm.transformers.trials_curate import load_cache
+    from ctm.transformers.llm_common import load_cache
     assert load_cache(tmp_path / "does-not-exist.json") == {}
 
 
 def test_save_and_load_cache_roundtrip(tmp_path):
-    from ctm.transformers.trials_curate import load_cache, save_cache
+    from ctm.transformers.llm_common import load_cache, save_cache
     cache_path = tmp_path / "cache.json"
     save_cache({"key1": ["hit1"]}, cache_path)
     assert load_cache(cache_path) == {"key1": ["hit1"]}

@@ -75,11 +75,10 @@ def test_llm_curation_alias_round_trips():
 
     curation = LlmCuration.model_validate({
         "_ctml_suggestions": [
-            {"source": "eligibility.inclusion", "text": "Age >= 18",
+            {"source": "eligibility.inclusion", "text": "Age >= 18", "node_type": "clinical",
              "suggested_node": {"clinical": {"age_numerical": ">=18"}},
              "transferred_to_match": False},
         ],
-        "biomarker_references": [],
     })
     assert len(curation.ctml_suggestions) == 1
     assert curation.ctml_suggestions[0].source == "eligibility.inclusion"
@@ -97,30 +96,51 @@ def test_llm_curation_validated_through_stamp():
 
 
 def test_llm_curation_both_keys_optional():
-    """Each LLM stage owns one key and merges, so a doc mid-chain has only one."""
+    """Each LLM stage owns its keys and merges, so a doc mid-chain has only some."""
     from ctm.schemas.storage import validate_storage
 
-    only_general = _envelope()
-    only_general["_llm_curation"] = {"_ctml_suggestions": [
-        {"source": "_summary.long_title", "text": "A BRCA1 trial"}]}
-    validate_storage(only_general)
+    only_clinical = _envelope()
+    only_clinical["_llm_curation"] = {"_ctml_suggestions": [
+        {"source": "_summary.long_title", "text": "A BRCA1 trial", "node_type": "clinical"}]}
+    validate_storage(only_clinical)
 
-    only_biomarkers = _envelope()
-    only_biomarkers["_llm_curation"] = {"biomarker_references": [
-        {"trial_nct": "NCT1", "reference": "BRCA1", "biomarker": "BRCA1", "type": "snv"}]}
-    validate_storage(only_biomarkers)
+    only_refs = _envelope()
+    only_refs["_llm_curation"] = {"molecular_genomic_refs": [
+        {"trial_nct": "NCT1", "reference": "BRCA1", "biomarker": "BRCA1", "type": "snv",
+         "section": "_summary.long_title"}]}
+    validate_storage(only_refs)
 
 
-def test_curation_allows_extra_body_fields():
-    """The body may grow; the model guards only what downstream reads."""
+def test_suggestions_may_grow_but_curation_keys_are_fixed():
+    """An entry's body may carry more (mapping_source, site_mappings, …); the
+    _llm_curation keys themselves are a closed set since 3.0.0."""
     from ctm.schemas.storage import LlmCuration
 
+    entry = {"source": "s", "text": "t", "node_type": "clinical", "mapping_source": "ai"}
     curation = LlmCuration.model_validate({
-        "_ctml_suggestions": [],
-        "biomarker_references": [],
-        "final_suggested_ctml": [{"clinical": {}}],  # legacy key, must not be rejected
-    })
-    assert curation.ctml_suggestions == []
+        "_ctml_suggestions": [entry], "parsed_sections": {}, "stage_runs": {},
+        "autofill": {"filled": True, "reason": "filled"}})
+    assert curation.ctml_suggestions[0].model_extra["mapping_source"] == "ai"
+
+    with pytest.raises(ValidationError):
+        LlmCuration.model_validate({"something_new": []})
+
+
+@pytest.mark.parametrize("legacy_key", ["biomarker_references", "final_suggested_ctml"])
+def test_pre_2_4_curation_keys_are_rejected(legacy_key):
+    """Removed in 3.0.0: the stages strip them, so a stored doc carrying one
+    means something bypassed the pipeline."""
+    from ctm.schemas.storage import LlmCuration
+
+    with pytest.raises(ValidationError):
+        LlmCuration.model_validate({legacy_key: []})
+
+
+def test_a_suggestion_without_node_type_is_rejected():
+    from ctm.schemas.storage import LlmCuration
+
+    with pytest.raises(ValidationError):
+        LlmCuration.model_validate({"_ctml_suggestions": [{"source": "s", "text": "t"}]})
 
 
 # ── enforcement at the stamp() boundary ──────────────────────────────────────
@@ -150,14 +170,14 @@ def test_stamp_does_not_alter_the_document_it_validates():
     """Validation constructs and discards; the stored dict must be unchanged."""
     from ctm import db as ctm_db
 
+    entry = {"source": "s", "text": "t", "node_type": "clinical", "mapping_source": "ai"}
     trial = {"entity": "amc", "protocol_no": "2021.070", "nct_id": None,
              "trial_hash": "a" * 64, "_raw": {},
-             "_llm_curation": {"_ctml_suggestions": [], "biomarker_references": [],
-                               "final_suggested_ctml": [{"clinical": {}}]}}
-    stamped = ctm_db.stamp(trial, "ctm-mm trials-curate", "2026-08-21")
+             "_llm_curation": {"_ctml_suggestions": [dict(entry)]}}
+    stamped = ctm_db.stamp(trial, "ctm-llm clinical", "2026-08-21")
 
-    # Every original key survives, including the legacy one the model ignores.
-    assert stamped["_llm_curation"]["final_suggested_ctml"] == [{"clinical": {}}]
+    # Every original key survives, including an entry field the model doesn't name.
+    assert stamped["_llm_curation"]["_ctml_suggestions"] == [entry]
 
 
 # ── 2.4.0 clinical/genomic shape ─────────────────────────────────────────────
@@ -203,13 +223,3 @@ def test_molecular_ref_origin():
         MolecularGenomicRef.model_validate({**base, "origin": "maybe"})
 
 
-def test_llm_curation_still_accepts_legacy_shape():
-    from ctm.schemas.storage import LlmCuration
-
-    curation = LlmCuration.model_validate({
-        "_ctml_suggestions": [{"source": "eligibility.inclusion", "text": "Age >= 18",
-                               "suggested_node": {"clinical": {"age_numerical": ">=18"}}}],
-        "biomarker_references": [{"biomarker": "BRCA1", "section": "titles"}],
-        "final_suggested_ctml": [{"clinical": {}}],
-    })
-    assert curation.ctml_suggestions[0].node_type is None

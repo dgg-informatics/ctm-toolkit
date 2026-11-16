@@ -81,12 +81,16 @@ def cache_dir() -> Path:
     return Path.home() / ".cache" / "ctm"
 
 
-def llm_biomarker_export_dir() -> Path:
-    """Directory `ctm-llm biomarkers` writes its to-curate JSON into by default.
-    Override with ``LLM_BIOMARKER_EXPORT_DIR`` (an empty value is treated as unset,
-    so a blank env var can't resolve to ``Path("")`` = the current directory)."""
+def autofill_export_dir() -> Path:
+    """Directory ``ctm-llm autofill-ctml`` writes its dated copy of
+    ``04_autofill_trials`` into (``<date>_autofill_trials.json``).
+
+    Override with ``AUTOFILL_EXPORT_DIR`` (an empty value is treated as unset).
+    Renamed in 3.0.0 from ``LLM_BIOMARKER_EXPORT_DIR`` / ``to-curate``: nobody
+    curates from it any more; manual edits start from ``06_master_trials``.
+    """
     return Path(
-        os.environ.get("LLM_BIOMARKER_EXPORT_DIR") or "/var/lib/ctm/to-curate"
+        os.environ.get("AUTOFILL_EXPORT_DIR") or "/var/lib/ctm/autofill"
     ).expanduser()
 
 
@@ -136,22 +140,6 @@ def patient_export_dir() -> Path:
     """
     return Path(
         os.environ.get("PATIENT_EXPORT_DIR") or "/var/lib/ctm/patients/normalized"
-    ).expanduser()
-
-
-def curated_dir() -> Path:
-    """Directory a curator drops the hand-curated trials file into, and where a
-    bare (deprecated) ``ctm-post-curate`` looks for the newest one.
-
-    Override with ``CURATED_DIR`` (an empty value is treated as unset). The
-    counterpart to :func:`llm_biomarker_export_dir`: the pipeline writes
-    ``to-curate/``, a human reads it, edits it, and drops the result here. Those
-    are two directories rather than one file edited in place so that "has this
-    week been curated?" is answerable by looking, and so an interrupted edit
-    cannot be mistaken for finished work.
-    """
-    return Path(
-        os.environ.get("CURATED_DIR") or "/var/lib/ctm/curated"
     ).expanduser()
 
 

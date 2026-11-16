@@ -11,15 +11,11 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-mm match-prep` | Assemble a frozen `<date>_match` db (trials + patients) for matchengine; `--run` to also match |
 | `ctm-mm trials` | AMC feed or XML / DDOTS API / Sparrow XLSX / West XLSX / CTGov JSON → CTML-staged trial JSON |
 | `ctm-mm trials-diff` | Split a fresh normalization into unchanged / changed / deleted vs. the previous master |
-| `ctm-mm trials-curate` | **[deprecated]** Alias for `ctm-llm genomic`; removed in 3.0.0 |
 | `ctm-mm trials-merge` | Merge carried-forward and freshly-curated trials into a new dated master |
 | `ctm-mm trials-filter` | Derive one deduplicated trial per NCT/protocol from the master, for matching |
 | `ctm-llm clinical` | LLM pass drafting **clinical** CTML per criterion and from the title, plus `conditions` and `disease_site` diagnosis entries |
 | `ctm-llm genomic` | LLM pass drafting **genomic** CTML per criterion, title and conditions, plus `molecular_genomic_refs` (incl. germline/somatic `origin`; curator genes give refs only) |
 | `ctm-llm autofill-ctml` | **[beta]** Builds `treatment_list.step[0].match` from the clinical + genomic suggestions, every leaf marked `_CURATED_METHOD: "auto"` — the only command that writes match clauses (`ctm-mm trials` no longer pre-fills them). Fills empty clauses only unless `--overwrite`. Requires matchengine's `dfci_config.json` to list `_CURATED_METHOD` with `"ignore": true` under both clinical and genomic `trial_key_mappings` |
-| `ctm-llm general` | **[deprecated]** Alias for `ctm-llm clinical`; removed in 3.0.0 |
-| `ctm-llm biomarkers` | **[deprecated]** Alias for `ctm-llm genomic`; removed in 3.0.0 |
-| `ctm-ctml` | **[deprecated]** Alias for `ctm-llm clinical`; removed in 3.0.0 |
 | `ctm-fetch` | Fetch a single trial from ClinicalTrials.gov by NCT ID |
 | `ctm-meta` | Multi-section CSV comparing coverage, overlap, and status across trial sources |
 | `ctm-report` | Build the trial-match report as a PDF, or serve a live-reload preview |
@@ -28,8 +24,6 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-pipeline` | The weekly trial run: pull, diff, AI annotation, merge into the master, filter |
 | `ctm-apply-edits` | Merge a file of hand-edited trials into the master, any day |
 | `ctm-trials-report` | Summary of a weekly run: totals, new/changed/deleted trials, match clauses built, what needs a look |
-| `ctm-pre-curate` | **[deprecated]** Forwards to `ctm-pipeline --end 04`; removed next release |
-| `ctm-post-curate` | **[deprecated]** Forwards to `ctm-apply-edits --file`; removed next release |
 | `ctm-load-patients` | Normalize a patient workbook and load it into the patient database |
 
 Every command supports `--help`, plus `-v` (console DEBUG) and `-q` (errors only).
@@ -180,7 +174,7 @@ like every West trial had changed, dumping all of them into manual curation.
 | `MONGO_MASTER_COLLECTION` | no | Defaults to `06_master_trials` |
 | `MONGO_FILTERED_COLLECTION` | no | Defaults to `07_filtered_trials` — what `ctm-mm match-prep` reads, falling back to `MONGO_MASTER_COLLECTION` if `ctm-mm trials-filter` hasn't run yet |
 | `MONGO_PATIENT_DBNAME` | only for `ctm-mm load` | The patient database `ctm-mm load` ingests into (e.g. `patients_dev`). Fixed, not per-run; `--patient-db` overrides |
-| `LLM_BIOMARKER_EXPORT_DIR` | no | Where `ctm-llm autofill-ctml` drops its to-curate JSON. Defaults to `/var/lib/ctm/to-curate` |
+| `AUTOFILL_EXPORT_DIR` | no | Where `ctm-llm autofill-ctml` drops its dated copy of `04` (`<date>_autofill_trials.json`). Defaults to `/var/lib/ctm/autofill`. Was `LLM_BIOMARKER_EXPORT_DIR` / `to-curate` before 3.0.0 |
 | `MASTER_TRIAL_EXPORT_DIR` | no | Where `ctm-mm trials-merge` writes the master backup JSON. Defaults to `/var/lib/ctm/trials` |
 
 These are CTM's own Mongo settings. MatchMiner's credentials are separate and
@@ -287,7 +281,7 @@ down a pipeline stage.
 > still write a dated file automatically: `ctm-llm autofill-ctml` and
 > `ctm-mm trials-merge`, into the two directories above. **If you are not on the
 > dev server**, those `/var/lib/ctm/...` paths won't be writable — set
-> `LLM_BIOMARKER_EXPORT_DIR` and `MASTER_TRIAL_EXPORT_DIR` in your `.env` to a
+> `AUTOFILL_EXPORT_DIR` and `MASTER_TRIAL_EXPORT_DIR` in your `.env` to a
 > writable location (or pass `--out`), or the export write will fail.
 
 ```bash
@@ -490,40 +484,25 @@ This process is much more complex since we have 4 data sources (Sparrow, West, A
 
 ### Updating Trials
 
-AMC, Sparrow, and West each send a refreshed trial sheet roughly weekly. Re-running the full LLM + manual-curation pass on every trial every week is wasteful — most trials haven't changed. `ctm-mm trials-diff` / `ctm-mm trials-merge` let you skip that work for anything whose eligibility criteria are unchanged, while keeping a permanent dated record of every trial set.
+Trial updates are automated: every Monday cron runs `ctm-pipeline --end 07_filtered_trials; ctm-trials-report` (see "Scheduling" below), and only new or changed trials reach the AI.
 
-Starting input: a fresh combined normalization + the previous dated **master** trials file (e.g. `2026-07-13-trials.json` — the curated output from last week's run, already loaded into MatchMiner).
-Ending output: a new dated master, e.g. `2026-07-14-trials.json`.
+1. **`01` `ctm-mm trials`** pulls and normalizes every source into the run database (`<YYYY-MM-DD>`).
+2. **`02` `ctm-mm trials-diff`** splits the fresh trials against `06_master_trials`:
+   - `unchanged`: eligibility identical to the master's copy. Its match clause (and any manual edit) is carried forward; every other field (status, title, …) is refreshed. No AI call.
+   - `changed`: eligibility differs, or the trial is new. The only trials the LLM stages see.
+   - `deleted`: in the master but no longer in any source; removed at merge.
+   - `--allow-empty-master` is for the first-ever run only: without it an empty master is an error, since every trial would route to `changed`.
+3. **`03c` / `03g` / `04`** `ctm-llm clinical`, `genomic`, `autofill-ctml` annotate the changed trials and build their match clauses. Repeated criterion text is a cache hit.
+4. **`06` `ctm-mm trials-merge --from 04_autofill_trials`** replaces changed trials in the master (stamped `curated_by: auto`), carries the rest forward, and drops deletions. It writes `06_master_trials` in the master database first (guarded by curation-provenance validation), then a snapshot copy in the run database, and a backup at `MASTER_TRIAL_EXPORT_DIR/trials_master-<date>.json`.
+5. **`07` `ctm-mm trials-filter`** rebuilds `07_filtered_trials` (below).
 
-1. Normalize the new raw sheets, same as the first-time flow:
-   1. `$ ctm-mm trials --amc <amc.xml> --sparrow <sparrow.xlsx> --west <west.xlsx> --out normalized-2026-07-14.json`
-2. Diff the fresh normalization against last week's master:
-   1. `$ ctm-mm trials-diff --new normalized-2026-07-14.json --master 2026-07-13-trials.json --out-prefix 2026-07-14`  # omit `--new` to read `01_normalized_trials` instead  # --new is the normalized data and --master is the most recent manually curated data
-   2. Produces three buckets:
-      - `unchanged` — eligibility identical to the master's copy. Already has curated match nodes carried forward from `2026-07-13-trials.json` untouched; every other field (status, title, etc.) is refreshed. **No LLM call, no manual review needed for these.**
-      - `changed` — eligibility differs, or the trial is brand new. Not yet curated — this is the only bucket that needs the next two steps.
-      - `deleted` — trials present in last week's master but absent from this week's sheets. Kept as a permanent record; nothing automated acts on it.
-   3. Writes `2026-07-14-unchanged.json`, `-changed.json`, and `-deleted.json` as before, **and** stores the same split in MongoDB — the `02_diff_trials` collection of `MONGO_DBNAME`, one document per trial carrying `diff_status`, `run_date`, and `processed_with`. See "MongoDB configuration" below.
-   4. `--no-disk` skips the files and stores only to MongoDB. Not useful yet: the next steps (`ctm-llm general`, `ctm-llm biomarkers`, `trials-merge`) still read file paths, so the chain needs the files until they migrate too. Disk output stays the default for the whole `1.x` line; it becomes opt-in at `2.0.0`, once every stage can read from Mongo.
-   5. The master is read from the `06_master_trials` collection in `MONGO_MASTER_DBNAME` unless `--master` names a file. `--master-db` and `--master-collection` override either half.
-   6. On the very first run there's no master yet — pass `--allow-empty-master` and everything routes to `changed`. Without it, an empty master is a hard error, since silently routing every trial to `changed` means re-running the full LLM curation.
+**Manual edits** go through `ctm-apply-edits --file edits.json` on any day: export the trial from `06_master_trials`, edit it, apply. It is stamped `curated_by: manual-edit`, survives later weeks while its source is unchanged, and is reported (`trials_merge.manual_edit_superseded`) when a changed source makes the AI re-draft it.
 
 > [!NOTE]
-> **Fringe case — a trial changes source (`entity`) between cycles.** The identity key used to match a trial across cycles depends on `entity`: `protocol_no` for AMC, `nct_id` for everything else. If a trial moves from AMC to being tracked via West/Sparrow (or vice versa) — e.g. AMC drops it from their sheet and it starts showing up via ClinicalTrials.gov instead — its key changes basis even if the trial itself hasn't meaningfully changed. It'll show up as both `deleted` (under its old key) and `changed` (under its new key), even if `eligibility` is byte-identical to before. This is intentional, not a bug: a source migration is a real event worth a quick human glance rather than being silently absorbed as "unchanged." (The already-curated match tree isn't lost — it's just sitting in the previous dated master, so it's a quick copy-paste during the manual review of the "new" entry rather than starting from scratch.)
-
-3. Run the LLM + manual curation, same as the first-time flow, but only on the changed file:
-   1. `$ ctm-llm clinical --trials 2026-07-14-changed.json --out 2026-07-14-changed-draft.json`  # or omit --trials to read the 02_diff_trials `changed` documents straight from Mongo
-   2. `--nct`/`--limit` aren't needed here — the file is already scoped to just the changed trials.
-   3. `$ ctm-llm genomic --trials 2026-07-14-changed-draft.json --out 2026-07-14-changed-curated-draft.json`  # drafts genomic CTML per piece of text, logs every molecular mention (cross-checked against the known-gene KB) to `_llm_curation.molecular_genomic_refs`. Caches to `~/.cache/ctm/` and uses the gene/variant KB shipped inside the package, so neither `--cache` nor `--kb` needs setting. Pieces with nothing molecular in them (no gene or molecular keyword) skip the AI call and are recorded with `mapping_source: "keyword_prefilter"`; pass `--all-pieces` to send every piece.
-   4. Manually check the eligibility criteria and corresponding match clauses suggested by the LLM, same as before, using the `_llm_curation` field as the starting point. Save your edits as `2026-07-14-changed-curated.json`.
-
-4. Merge the carried-forward and freshly-curated trials into the new master:
-   1. `$ ctm-mm trials-merge --unchanged 2026-07-14-unchanged.json --changed 2026-07-14-changed-curated.json --out 2026-07-14-trials.json`
-   2. `trials-merge` writes `06_master_trials` to the master database first — that write is the one guarded by curation-provenance validation — then copies the same documents into the run database (`MONGO_DBNAME`, or `--db`). The master stays authoritative for every read (`trials-filter`, `match-prep`); the run-database copy is a per-run snapshot, so that run's database is a self-contained record of everything it produced. Skipped with a message when the run and master databases are the same name.
-5. Load `2026-07-14-trials.json` into MatchMiner, same as the "MatchMiner Preparation and Running" step below — a date-named collection is a reasonable choice so you retain a Mongo-side historical record too.
+> **Fringe case — a trial changes source (`entity`) between cycles.** The identity key depends on `entity`: `protocol_no` for AMC, `nct_id` for everything else. A trial that moves between AMC and West/Sparrow shows up as both `deleted` (old key) and `changed` (new key), even with byte-identical eligibility. That is intentional: a source migration is worth a glance rather than being absorbed as "unchanged".
 
 > [!NOTE]
-> Keep every dated master (`2026-07-13-trials.json`, `2026-07-14-trials.json`, ...) around rather than overwriting one file in place — the dated masters *are* the historical record. Each trial also carries a `trial_hash` field (a fingerprint of its raw source data, stamped automatically by `ctm-mm trials`) for later audit: it lets you notice a trial's metadata quietly changed under an `unchanged` routing, without forcing a real-time review of every such change.
+> Each trial carries `trial_hash` (a fingerprint of its raw source data, stamped by `ctm-mm trials`). It lets you notice a trial's metadata quietly changed under an `unchanged` routing, and it is the key the run databases join on.
 
 ### Deduplicating trials
 
@@ -553,6 +532,8 @@ Not every trial in `07_filtered_trials` is equally useful to match against: some
 | **3** | genomic | any `genomic` leaf anywhere in the tree, sufficient on its own regardless of what else the clause carries |
 | **2** | clinical beyond age | no genomic, and at least one leaf carries a field outside the age allowlist (`age_numerical`), or any leaf whose key isn't `clinical` at all |
 | **1** | age only | no genomic, and every leaf is `clinical` with fields entirely inside the age allowlist |
+
+Provenance markers (`_CURATED_METHOD`, which autofill puts on every leaf) are not criteria: they are dropped before a leaf is judged, so an auto-built age-only clause is level 1 (fixed in 2.7.1).
 | **0** | uncurated | no leaves carrying any field — empty `match`, or only `and`/`or` wrappers |
 
 `ctm-mm match-prep --min-match-level N` (`0`-`3`, default `0`) restricts the trial copy to `match_level >= N` (threshold, not exact — a trial with genomic *and* clinical criteria still satisfies `--min-match-level 2`). `0` is today's unfiltered behaviour; `1` drops uncurated trials; `2` drops age-only noise; `3` keeps genomic trials only.

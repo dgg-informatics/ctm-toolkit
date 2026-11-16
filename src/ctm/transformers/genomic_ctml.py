@@ -25,7 +25,7 @@ import logging
 import os
 import re
 
-from .eligibility_to_ctml import _cache_key, is_content_filter
+from .llm_common import _cache_key, _trial_id, is_content_filter
 from .llm_curation import (
     GENES_OF_INTEREST,
     GENOMIC,
@@ -37,7 +37,6 @@ from .llm_curation import (
     record_stage_run,
     section_row,
 )
-from .trials_curate import _trial_id
 
 log = logging.getLogger(__name__)
 

@@ -5,12 +5,10 @@ behaviours that matter are stop-at-first-failure and a non-zero exit (which is
 what turns a failed cron run into mail). ctm-pipeline and ctm-apply-edits have
 their own file, test_ctm_pipeline.py.
 """
-import json
 import os
 
 import pytest
 
-from ctm import post_curate_cli
 from ctm.pipelines import Stage, newest_file, run_stages
 
 # ── The step runner ──────────────────────────────────────────────────────────
@@ -65,24 +63,6 @@ def test_newest_file_fails_naming_the_directory(tmp_path, caplog):
         newest_file(tmp_path, "*.json", "curated trials file")
     assert str(tmp_path) in caplog.text
     assert "curated trials file" in caplog.text
-
-
-# ── ctm-post-curate (deprecated; forwarding is tested in test_ctm_pipeline) ──
-
-def _curated(tmp_path, name):
-    directory = tmp_path / "curated"
-    directory.mkdir(exist_ok=True)
-    path = directory / name
-    path.write_text(json.dumps([{"nct_id": "NCT1"}]))
-    return path
-
-
-def test_post_curate_falls_back_to_the_newest_curated_file(tmp_path, monkeypatch):
-    older = _curated(tmp_path, "2026-09-21-curated.json")
-    newer = _curated(tmp_path, "2026-09-28-curated.json")
-    os.utime(older, (1_000, 1_000))
-    monkeypatch.setenv("CURATED_DIR", str(tmp_path / "curated"))
-    assert post_curate_cli.resolve_curated(None) == newer
 
 
 # ── CTM_ENV_FILE ─────────────────────────────────────────────────────────────

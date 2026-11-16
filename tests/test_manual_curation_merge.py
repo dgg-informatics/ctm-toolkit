@@ -108,7 +108,7 @@ def _amc_curated_trial(protocol_no="2021.070"):
 ~Age &gt;= 18</ELIGIBILITY></PROTOCOL></PROTOCOL_SUMMARY>"""
     t = to_ctml_dict(parse(ET.fromstring(xml))[0])
     t["trial_hash"] = compute_trial_hash(t)
-    t["_llm_curation"] = {"_ctml_suggestions": [], "biomarker_references": []}
+    t["_llm_curation"] = {"_ctml_suggestions": []}
     return t
 
 
@@ -155,8 +155,7 @@ def test_add_manual_rejects_broken_structure(tmp_path, fake_mongo):
 
 def _merge_args(**over):
     base = {"db": None, "master_db": None, "master_collection": None,
-            "run_date": "2026-08-21", "out": None, "allow_empty_master": False,
-            "unchanged": None, "changed": None}
+            "run_date": "2026-08-21", "out": None, "allow_empty_master": False}
     return argparse.Namespace(**{**base, **over})
 
 
@@ -237,17 +236,3 @@ def test_trials_merge_empty_manual_is_an_error(fake_mongo, caplog):
         _cmd_trials_merge(_merge_args())
     assert "add-manual first" in caplog.text
 
-
-def test_trials_merge_legacy_file_flow_still_works(tmp_path):
-    from ctm.mm_cli import _cmd_trials_merge
-
-    unchanged = tmp_path / "u.json"
-    unchanged.write_text(json.dumps([{"entity": "amc", "protocol_no": "2015.063"}]))
-    changed = tmp_path / "c.json"
-    changed.write_text(json.dumps([{"entity": "amc", "protocol_no": "2021.070"}]))
-    out = tmp_path / "master.json"
-
-    _cmd_trials_merge(_merge_args(unchanged=str(unchanged), changed=str(changed), out=str(out)))
-
-    master = json.loads(out.read_text())
-    assert [t["protocol_no"] for t in master] == ["2015.063", "2021.070"]

@@ -3,15 +3,14 @@
 v2: the trial stages store to MongoDB only by default. Pass --out (or --out-prefix
 for trials-diff) to also write a file. Two stages additionally drop a dated JSON
 into a canonical directory: `ctm-mm trials-merge` writes the master backup to
-MASTER_TRIAL_EXPORT_DIR, and `ctm-llm genomic` the to-curate file to
-LLM_BIOMARKER_EXPORT_DIR (both overridable with --out, suppress with --no-disk).
+MASTER_TRIAL_EXPORT_DIR, and `ctm-llm autofill-ctml` a copy of 04 to
+AUTOFILL_EXPORT_DIR (both overridable with --out, suppress with --no-disk).
 
 Usage:
   ctm-mm patients PATH/TO/patient_data.xlsx [options]
   ctm-mm trials [--amc [XML]] [--ct JSON] [--ddots [JSON]] [--sparrow XLSX] [--west XLSX] [--out PATH]
   ctm-mm trials-diff [--new JSON] [--out-prefix PREFIX] [--master JSON] [--db NAME]
-  ctm-mm trials-curate --trials JSON [--out JSON] --cache JSON   (deprecated → ctm-llm genomic)
-  ctm-mm trials-merge [--out JSON]  (or legacy: --unchanged JSON --changed JSON --out JSON)
+  ctm-mm trials-merge [--from COLLECTION] [--out JSON]
 
 Options:
   --pt-uuid N[,N...]  Filter to one or more patients by pt_uuid, comma-separated (patients command)
@@ -34,7 +33,6 @@ from ctm.logging_config import (
     verbosity_from_args,
 )
 from ctm.paths import (
-    cache_dir,
     load_env,
     master_trial_export_dir,
     patient_export_dir,
@@ -44,7 +42,6 @@ from ctm.paths import (
 
 log = logging.getLogger(__name__)
 
-_CURATE_CACHE = ".trials_curate_cache.json"
 
 # Sentinels for a bare `--ddots` / `--amc` (no path): pull from the source rather
 # than read a file. Omitting the flag entirely still means "skip this source", so a
@@ -164,31 +161,9 @@ def build_parser() -> argparse.ArgumentParser:
                                help="Permit an empty master; every trial routes to 'changed'. "
                                     "Only correct on the first-ever run")
 
-    p_trials_curate = sub.add_parser(
-        "trials-curate",
-        help="[DEPRECATED] Use `ctm-llm genomic`. Forwards there; removed in 3.0.0",
-    )
-    p_trials_curate.add_argument("--trials", metavar="JSON",
-                                 help="Drafted trials JSON. Omit to read the "
-                                      "03c_clinical_trials collection")
-    p_trials_curate.add_argument("--out", metavar="JSON",
-                                 help="Write the curated trials JSON to this path")
-    p_trials_curate.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
-                                 help="Force the JSON file output on/off (default: MongoDB only)")
-    p_trials_curate.add_argument("--db", metavar="NAME",
-                                 help="Override MONGO_DBNAME for this run")
-    p_trials_curate.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
-                                 help="Override the run_date inherited from the source documents")
-    p_trials_curate.add_argument("--cache", default=None, metavar="JSON",
-                                 help="Biomarker-scan LLM response cache "
-                                      f"(default: {cache_dir() / _CURATE_CACHE})")
-    p_trials_curate.add_argument("--kb", default=None, metavar="JSON",
-                                 help="Known gene/variant knowledge base (default: the copy shipped "
-                                      "with the package)")
-
     p_add_manual = sub.add_parser(
         "add-manual",
-        help="Ingest a hand-curated trials file (edited to-curate export from 04_autofill_trials) into "
+        help="Ingest a hand-edited trials file (exported from 06_master_trials) into "
              "05_manual_curated_trials, stamping curation provenance",
     )
     p_add_manual.add_argument("--trials", required=True, metavar="JSON",
@@ -233,11 +208,6 @@ def build_parser() -> argparse.ArgumentParser:
                                 help="Where this run's new trials come from: 05_manual_curated_trials "
                                      "(manual edits, the default) or 04_autofill_trials (ctm-pipeline: "
                                      "stamped curated_by=auto; may be empty in a week with no changes)")
-    # Legacy file flow: pre-partitioned unchanged/changed files, no Mongo.
-    p_trials_merge.add_argument("--unchanged", metavar="JSON",
-                                help="[legacy file flow] Unchanged trials JSON from trials-diff")
-    p_trials_merge.add_argument("--changed", metavar="JSON",
-                                help="[legacy file flow] Curated changed trials JSON")
 
     p_trials_filter = sub.add_parser(
         "trials-filter",
@@ -335,7 +305,6 @@ def command_handlers() -> dict:
         "patients": _cmd_raw_to_mm,
         "trials": _cmd_trials,
         "trials-diff": _cmd_trials_diff,
-        "trials-curate": _cmd_trials_curate,
         "add-manual": _cmd_add_manual,
         "trials-merge": _cmd_trials_merge,
         "trials-filter": _cmd_trials_filter,
@@ -345,7 +314,6 @@ def command_handlers() -> dict:
 
 
 def main() -> None:
-    # trials-curate reaches UMGPT via build_client();
     # load_env() first so .env can also carry the CTM_LOG_* settings.
     load_env()
     args = build_parser().parse_args()
@@ -482,8 +450,8 @@ def _cmd_raw_to_mm(args) -> None:
 
 def _resolve_patient_workbook(explicit: str | None) -> Path:
     """The workbook to normalize: the path given, else the newest in
-    ``PATIENT_RAW_DIR``. Shares ``newest_file`` with ``ctm-post-curate`` (deprecated), which
-    resolves its curated file the same way."""
+    ``PATIENT_RAW_DIR``. Shares ``newest_file`` with ``ctm-load-patients``, which
+    resolves its workbook the same way."""
     from ctm.pipelines import newest_file
 
     if explicit:
@@ -843,30 +811,6 @@ def _cmd_trials_diff(args) -> None:
               stage="trials-diff")
 
 
-def _cmd_trials_curate(args) -> None:
-    """DEPRECATED shim forwarding to `ctm-llm genomic`.
-
-    Rebuilds the equivalent argv rather than calling the implementation directly,
-    so the alias exercises exactly the same code path a real `ctm-llm biomarkers`
-    invocation does and cannot drift from it. Removed in 3.0.0.
-    """
-    from ctm.llm_cli import main as llm_main
-
-    log.warning("DEPRECATED: ctm-mm trials-curate is now ctm-llm genomic and will be removed in 3.0.0.")
-
-    argv = ["genomic"]
-    for flag, value in (("--trials", args.trials), ("--out", args.out),
-                        ("--cache", args.cache), ("--kb", args.kb),
-                        ("--db", args.db), ("--run-date", args.run_date)):
-        if value:
-            argv += [flag, str(value)]
-    if not args.disk:
-        argv.append("--no-disk")
-    if getattr(args, "yes", False):
-        argv.append("--yes")
-    llm_main(argv)
-
-
 def _validate_curation_structure(trial: dict, label: str) -> None:
     """Fail if a hand-edited trial has broken the CTML structure.
 
@@ -923,19 +867,7 @@ def _cmd_add_manual(args) -> None:
 
 def _cmd_trials_merge(args) -> None:
     from ctm import db as ctm_db
-    from ctm.trials_lifecycle import merge_master, reconcile_master, trial_key
-
-    # Legacy file flow: explicit unchanged/changed files, no Mongo, no curation
-    # provenance. Kept for the pre-Mongo pipeline.
-    if args.unchanged or args.changed:
-        if not (args.unchanged and args.changed and args.out):
-            fail("the legacy file flow needs --unchanged, --changed and --out together")
-        unchanged = _read_trials_json(Path(args.unchanged), "--unchanged")
-        changed = _read_trials_json(Path(args.changed), "--changed")
-        master = merge_master(unchanged, changed)
-        Path(args.out).write_text(json.dumps(master, indent=2, default=str))
-        log.info(f"Saved {len(master)} trial(s) → {args.out}")
-        return
+    from ctm.trials_lifecycle import reconcile_master, trial_key
 
     config = ctm_db.mongo_config(require_master=not args.master_db)
     target_db = args.db or config["dbname"]

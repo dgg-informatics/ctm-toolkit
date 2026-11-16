@@ -8,11 +8,11 @@ place:
 * Every entry carries ``node_type`` ("clinical" | "genomic"). An entry with a
   node goes in ``_ctml_suggestions``; a null one in ``_null_ctml_suggestions``.
   Nulls are recorded per stage.
-* A stage removes and rewrites only entries of its own ``node_type``. A
-  **legacy** entry (no ``node_type``, written before 2.4.0) is never removed or
-  edited by a stage, and neither is a legacy ``biomarker_references`` key.
-  Autofill, the last stage, drops them all with :func:`drop_legacy_entries`
-  (2.6.0), so they never reach the master.
+* A stage removes and rewrites only entries of its own ``node_type``.
+  Pre-2.4.0 leftovers (entries without ``node_type``, and the
+  ``biomarker_references`` / ``final_suggested_ctml`` keys) are dropped by
+  :func:`drop_legacy_entries` on every merge (3.0.0), so the strict storage
+  schema never sees them.
 * ``mixed`` is true on both entries of a piece (same ``source`` and ``text``)
   that produced a clinical **and** a genomic node — the and/or between them is
   lost in the split, so a curator must read the text. It is recomputed on every
@@ -25,7 +25,7 @@ Pure: no I/O, and inputs are never mutated.
 """
 import copy
 
-from .eligibility_to_ctml import _criterion_full_text
+from .llm_common import _criterion_full_text
 
 CLINICAL = "clinical"
 GENOMIC = "genomic"
@@ -85,13 +85,16 @@ def section_row(found: bool, scanned: bool, pieces: int) -> dict:
     return {"found": found, "scanned": scanned, "pieces": pieces}
 
 
-def drop_legacy_entries(curation: dict) -> int:
-    """Remove pre-2.4.0 entries (no ``node_type``) from both suggestion lists, in
-    place, and return how many went.
+LEGACY_KEYS = ("biomarker_references", "final_suggested_ctml")
 
-    ``biomarker_references`` goes too, but only once ``molecular_genomic_refs``
-    exists: until ``ctm-llm genomic`` has run, it is the trial's only record of
-    its biomarkers. This replaces the jq cleanup run by hand before add-manual.
+
+def drop_legacy_entries(curation: dict) -> int:
+    """Remove pre-2.4.0 leftovers in place and return how many entries went:
+    suggestions without ``node_type`` (both lists) and the ``LEGACY_KEYS``.
+
+    Called by every merge and by autofill. ``biomarker_references`` goes
+    unconditionally since 3.0.0: ``ctm-llm genomic`` regenerates the trial's
+    refs as ``molecular_genomic_refs``.
     """
     dropped = 0
     for key in ("_ctml_suggestions", "_null_ctml_suggestions"):
@@ -101,8 +104,8 @@ def drop_legacy_entries(curation: dict) -> int:
         kept = [e for e in entries if e.get("node_type")]
         dropped += len(entries) - len(kept)
         curation[key] = kept
-    if "molecular_genomic_refs" in curation:
-        curation.pop("biomarker_references", None)
+    for key in LEGACY_KEYS:
+        curation.pop(key, None)
     return dropped
 
 
@@ -121,6 +124,7 @@ def merge_stage(curation: dict | None, node_type: str, entries: list[dict],
                 sections: dict[str, dict], replace_sources: set[str] | None = None) -> dict:
     """New curation dict with this stage's entries and sections replaced."""
     out = copy.deepcopy(curation) if curation else {}
+    drop_legacy_entries(out)
 
     def owned(e: dict) -> bool:
         return e.get("node_type") == node_type and (

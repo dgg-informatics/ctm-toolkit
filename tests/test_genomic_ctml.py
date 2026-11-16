@@ -5,8 +5,8 @@ import json
 import pytest
 from llm_fakes import ContentFilterError, QueuedClient
 
-from ctm.transformers.eligibility_to_ctml import _cache_key
 from ctm.transformers.genomic_ctml import GENOMIC_SYSTEM_PROMPT, draft_genomic
+from ctm.transformers.llm_common import _cache_key
 
 KNOWN = {"MYCN", "BRAF"}
 MYCN_NODE = {"genomic": {"hugo_symbol": "MYCN", "variant_category": "Copy Number Variation",
@@ -121,7 +121,7 @@ def test_genomic_empty_trial():
     assert len(cur["parsed_sections"]["genomic"]) == 5
 
 
-def test_genomic_keeps_legacy_biomarker_references_and_clinical_entries():
+def test_genomic_drops_legacy_refs_and_keeps_clinical_entries():
     legacy = [{"trial_nct": "NCT1", "biomarker": "BRCA1", "section": "eligibility"}]
     clinical = {"source": "_summary.long_title", "text": "t", "suggested_node": {"clinical": {"gender": "Female"}},
                 "transferred_to_match": False, "node_type": "clinical", "mixed": False}
@@ -129,7 +129,7 @@ def test_genomic_keeps_legacy_biomarker_references_and_clinical_entries():
              "_llm_curation": {"biomarker_references": copy.deepcopy(legacy),
                                "_ctml_suggestions": [copy.deepcopy(clinical)]}}
     cur = _cur(trial, QueuedClient([_resp(MYCN_NODE)]))
-    assert cur["biomarker_references"] == legacy
+    assert "biomarker_references" not in cur
     by_type = {e["node_type"]: e for e in cur["_ctml_suggestions"]}
     assert by_type["clinical"]["suggested_node"] == clinical["suggested_node"]
     assert by_type["clinical"]["mixed"] is True and by_type["genomic"]["mixed"] is True

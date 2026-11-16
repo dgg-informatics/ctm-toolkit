@@ -12,7 +12,7 @@ exactly the mappings the normalizers used. ``source`` is the field's path:
   Unspecified → null node.
 * ``_raw.categorys`` (AMC): cat1/cat2/cat3 → OncoTree via the AMC category map.
 
-``_raw.conditions`` (CTGov conditions keyword-mapped) lives in eligibility_to_ctml.
+``_raw.conditions`` (CTGov conditions keyword-mapped) lives in llm_common.
 A field that is present but maps to nothing still gets an entry (null node), so
 the curator can see it was read.
 """

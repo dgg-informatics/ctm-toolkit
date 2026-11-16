@@ -78,7 +78,7 @@ def test_amc_categories_diagnosis():
 
 
 def test_conditions_record():
-    from ctm.transformers.eligibility_to_ctml import conditions_suggestion
+    from ctm.transformers.llm_common import conditions_suggestion
     s = conditions_suggestion({"_raw": _ctgov_raw()})
     assert s["source"] == "_raw.conditions"
     assert s["mapping_source"] == "keyword_oncotree_map"

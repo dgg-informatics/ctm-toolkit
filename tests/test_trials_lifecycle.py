@@ -133,12 +133,13 @@ def test_split_unchanged_carries_forward_llm_curation_from_master():
     from ctm.trials_lifecycle import split_by_eligibility
     eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}
     llm_curation = {
-        "_ctml_suggestions": [{"source": "inclusion", "text": "Age >= 18",
+        "_ctml_suggestions": [{"source": "eligibility.inclusion", "text": "Age >= 18",
+                               "node_type": "clinical",
                                "suggested_node": {"clinical": {"age_numerical": ">=18"}},
                                "transferred_to_match": True}],
-        "biomarker_references": [{"trial_nct": "NCT1", "reference": "BRAF V600E",
-                                  "biomarker": "BRAF", "type": "snv", "in_kb": True}],
-        "final_suggested_ctml": [{"clinical": {"age_numerical": ">=18"}}],
+        "molecular_genomic_refs": [{"trial_nct": "NCT1", "reference": "BRAF V600E",
+                                    "biomarker": "BRAF", "type": "snv", "in_kb": True,
+                                    "section": "eligibility.inclusion"}],
     }
     master = [_trial("amc", "2021.070", eligibility, _llm_curation=llm_curation)]
     new = [_trial("amc", "2021.070", eligibility, treatment_list={"step": []})]
@@ -161,21 +162,11 @@ def test_split_unchanged_omits_llm_curation_when_master_has_none():
     assert "_llm_curation" not in unchanged[0]
 
 
-def test_merge_master_concatenates_unchanged_and_curated_changed():
-    from ctm.trials_lifecycle import merge_master
-    unchanged = [_trial("amc", "2015.063", {"inclusion": [], "exclusion": []})]
-    curated_changed = [_trial("amc", "2021.070", {"inclusion": [], "exclusion": []})]
-
-    result = merge_master(unchanged, curated_changed)
-
-    assert result == unchanged + curated_changed
-
-
 def test_end_to_end_weekly_update_flow():
     """Simulates one full weekly cycle: diff a fresh normalization against
-    last week's master, pretend to curate the changed trials, merge, and
+    last week's master, pretend to annotate the changed trials, reconcile, and
     check every one of the four routing outcomes landed correctly."""
-    from ctm.trials_lifecycle import merge_master, split_by_eligibility
+    from ctm.trials_lifecycle import reconcile_master, split_by_eligibility, trial_key
 
     same_eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}
     old_eligibility = {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []}
@@ -205,13 +196,16 @@ def test_end_to_end_weekly_update_flow():
 
     assert [t["nct_id"] for t in deleted] == ["NCT99999999"]
 
-    # Pretend ctm-ctml + manual curation happened on `changed`, adding suggestions:
+    # Pretend the LLM stages annotated `changed`:
     curated_changed = [{**t, "_ctml_suggestions": []} for t in changed]
 
-    new_master = merge_master(unchanged, curated_changed)
+    new_master = reconcile_master(last_week_master, curated_changed,
+                                  {trial_key(t) for t in deleted})
 
     assert {t["protocol_no"] for t in new_master} == {"2015.063", "2019.058", "2021.070"}
     assert len(new_master) == 3
+    kept = next(t for t in new_master if t["protocol_no"] == "2015.063")
+    assert kept["treatment_list"] == curated_treatment_list   # carried from the master
 
 
 def test_compute_trial_hash_ignores_pull_timestamps():

@@ -419,8 +419,8 @@ def ai_mixed_resolver(get_client, cache: dict):
     mixed pieces never needs UMGPT. Junk answers and content-filter refusals are
     "unresolved" (and cached, so a rerun does not pay for them again).
     """
-    from .eligibility_to_ctml import _cache_key, is_content_filter
     from .genomic_ctml import strip_fences
+    from .llm_common import _cache_key, is_content_filter
 
     client = []
 

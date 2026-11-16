@@ -148,7 +148,7 @@ def _validate(row: dict | None, site: str, valid: set[str]) -> dict:
 
 
 def _ask_model(site: str, client, valid: set[str]) -> dict:
-    from .eligibility_to_ctml import is_content_filter
+    from .llm_common import is_content_filter
     model = os.environ.get("UMGPT_MODEL", "gpt-4o")
     try:
         response = client.chat.completions.create(
@@ -164,7 +164,7 @@ def _ask_model(site: str, client, valid: set[str]) -> dict:
         if not is_content_filter(exc):
             raise
         log.warning("  content filter — no mapping for disease site %r", site,
-                    extra={"event": "llm.content_filter", "stage": "general",
+                    extra={"event": "llm.content_filter", "stage": "clinical",
                            "criterion_source": "disease_site"})
         return _validate(None, site, valid)
     try:
