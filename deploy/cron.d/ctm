@@ -7,6 +7,8 @@ PATH=/opt/ctm/ctm-toolkit/.venv/bin:/usr/bin:/bin
 
 # m h dom mon dow  user       command
 # Weekly trial run: pull, diff, AI annotation, merge into 06, filter into 07.
-0 7 * * MON        dgg-mipro  ctm-pipeline --end 07_filtered_trials
+# Then the weekly report, which is this job's mail. `;` not `&&`: the report
+# still goes out (and says where the run stopped) when the pipeline fails.
+0 7 * * MON        dgg-mipro  ctm-pipeline --end 07_filtered_trials; ctm-trials-report
 # Nightly match against 07 and the latest patients.
 0 1 * * *          dgg-mipro  flock -n /var/lib/ctm/matches/.ctm-match.lock ctm-match

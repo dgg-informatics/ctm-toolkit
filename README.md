@@ -27,6 +27,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-match` | Match and report, but only if trials or patients have changed |
 | `ctm-pipeline` | The weekly trial run: pull, diff, AI annotation, merge into the master, filter |
 | `ctm-apply-edits` | Merge a file of hand-edited trials into the master, any day |
+| `ctm-trials-report` | Summary of a weekly run: totals, new/changed/deleted trials, match clauses built, what needs a look |
 | `ctm-pre-curate` | **[deprecated]** Forwards to `ctm-pipeline --end 04`; removed next release |
 | `ctm-post-curate` | **[deprecated]** Forwards to `ctm-apply-edits --file`; removed next release |
 | `ctm-load-patients` | Normalize a patient workbook and load it into the patient database |
@@ -628,7 +629,7 @@ The server's cron file is tracked in `deploy/cron.d/ctm`. Install it with
 CTM_ENV_FILE=/etc/ctm/.env
 PATH=/opt/ctm/ctm-toolkit/.venv/bin:/usr/bin:/bin
 
-0 7 * * MON  dgg-mipro  ctm-pipeline --end 07_filtered_trials
+0 7 * * MON  dgg-mipro  ctm-pipeline --end 07_filtered_trials; ctm-trials-report
 0 1 * * *    dgg-mipro  flock -n /var/lib/ctm/matches/.ctm-match.lock ctm-match
 ```
 
@@ -645,6 +646,7 @@ the old wrapper's `set -a; . /etc/ctm/.env; set +a` was doing.
 | --- | --- |
 | `ctm-pipeline` | `01` trials → `02` trials-diff → `03c` clinical → `03g` genomic → `04` autofill-ctml → `06` trials-merge `--from 04` → `07` trials-filter. `--end`/`--start` take a collection name or prefix (`07` or `07_filtered_trials`); `--start` after 01 needs `--db`. `--start 03c --trials FILE` re-annotates a file of trials (a backfill). A week with no changed trials skips the LLM stages and still merges the deletions |
 | `ctm-apply-edits` | `05` add-manual (`curated_by: manual-edit`) → `06` trials-merge → `07` trials-filter. `--file` names the edited trials; start them from the latest `06_master_trials`, which already holds earlier edits |
+| `ctm-trials-report` | Read-only. Prints the run's summary to stdout (the Monday cron mail) and writes `MASTER_TRIAL_EXPORT_DIR/trials_report-<db>.txt`. `--db` reports on any past run; `--no-file` prints only. Chained with `;`, so it still reports where the pipeline stopped when it fails |
 | `ctm-load-patients` | `ctm-mm patients` → `ctm-mm load`. Reads the newest `*.xlsx` in `PATIENT_RAW_DIR` unless `--workbook` names one |
 
 All three take `--dry-run`, which lists the stages without running them.
