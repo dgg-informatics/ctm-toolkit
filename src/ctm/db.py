@@ -58,6 +58,15 @@ DEFAULT_MASTER_COLLECTION = "06_master_trials"
 # time — it holds no curation of its own, only copies of master documents.
 DEFAULT_FILTERED_COLLECTION = "07_filtered_trials"
 
+# `curated_by` on a master row is the *method*; `curated_by_user` is the account.
+# "manual-curation" is the pre-2.6 add-manual default (every trial a person
+# signed off). From 2.6 the weekly ctm-pipeline writes "auto" (AI only, straight
+# from 04) and ctm-apply-edits writes "manual-edit" (a person changed it), so
+# "everything a person touched" is one query.
+CURATED_MANUAL = "manual-curation"
+CURATED_AUTO = "auto"
+CURATED_MANUAL_EDIT = "manual-edit"
+
 # Collections a pipeline stage owns and may therefore destroy and rewrite.
 # 05_manual_curated_trials is deliberately absent: it holds hand-curated work, and
 # a stage that dropped it would silently discard days of a curator's effort with
@@ -112,9 +121,8 @@ METADATA_FIELDS = ("_id", "processed_with", "run_date", "diff_status", "trial_ke
 def run_dbname(run_date: str) -> str:
     """The per-run database for a run date: the date itself, ``YYYY-MM-DD``.
 
-    The one place the name is built. ``ctm-pre-curate`` derives it from today and
-    ``ctm-post-curate`` from the curated file's prefix, and the two must agree or
-    post-curate merges a master out of an empty database.
+    The one place the name is built. ``ctm-pipeline`` and ``ctm-apply-edits``
+    derive it from today unless ``--db`` names one.
     """
     return run_date
 
@@ -311,7 +319,7 @@ def inherited_run_date(docs: list[dict], fallback: str | None = None) -> str:
     )
 
 
-def stamp_curation(doc: dict, *, curated_by: str = "manual-curation",
+def stamp_curation(doc: dict, *, curated_by: str = CURATED_MANUAL,
                    curated_by_user: str | None = None, curated_at=None) -> dict:
     """Attach sticky curation provenance to a copy of ``doc``.
 

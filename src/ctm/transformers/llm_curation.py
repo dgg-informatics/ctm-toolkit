@@ -10,7 +10,9 @@ place:
   Nulls are recorded per stage.
 * A stage removes and rewrites only entries of its own ``node_type``. A
   **legacy** entry (no ``node_type``, written before 2.4.0) is never removed or
-  edited, and neither is a legacy ``biomarker_references`` key.
+  edited by a stage, and neither is a legacy ``biomarker_references`` key.
+  Autofill, the last stage, drops them all with :func:`drop_legacy_entries`
+  (2.6.0), so they never reach the master.
 * ``mixed`` is true on both entries of a piece (same ``source`` and ``text``)
   that produced a clinical **and** a genomic node — the and/or between them is
   lost in the split, so a curator must read the text. It is recomputed on every
@@ -81,6 +83,27 @@ def make_entry(source: str, text: str, node: dict | None, node_type: str, **extr
 
 def section_row(found: bool, scanned: bool, pieces: int) -> dict:
     return {"found": found, "scanned": scanned, "pieces": pieces}
+
+
+def drop_legacy_entries(curation: dict) -> int:
+    """Remove pre-2.4.0 entries (no ``node_type``) from both suggestion lists, in
+    place, and return how many went.
+
+    ``biomarker_references`` goes too, but only once ``molecular_genomic_refs``
+    exists: until ``ctm-llm genomic`` has run, it is the trial's only record of
+    its biomarkers. This replaces the jq cleanup run by hand before add-manual.
+    """
+    dropped = 0
+    for key in ("_ctml_suggestions", "_null_ctml_suggestions"):
+        entries = curation.get(key)
+        if not entries:
+            continue
+        kept = [e for e in entries if e.get("node_type")]
+        dropped += len(entries) - len(kept)
+        curation[key] = kept
+    if "molecular_genomic_refs" in curation:
+        curation.pop("biomarker_references", None)
+    return dropped
 
 
 def recompute_mixed(suggestions: list[dict]) -> None:

@@ -51,7 +51,8 @@ No model call. ``source`` values are field paths. Rules:
   stored at ``_llm_curation.autofill``.
 
 ``autofill_trial`` is pure (no I/O, inputs never mutated); the AI lives behind
-the injected resolver. Legacy entries (no ``node_type``) are ignored.
+the injected resolver. Legacy entries (no ``node_type``) are dropped from the
+output on every trial, filled or not (``legacy_dropped`` in the report; 2.6.0).
 """
 import copy
 import hashlib
@@ -72,6 +73,7 @@ from .llm_curation import (
     MINIMUM_AGE,
     SEX,
     WEST_DISEASE_SITE,
+    drop_legacy_entries,
     record_stage_run,
 )
 
@@ -262,13 +264,16 @@ def autofill_trial(trial: dict, overwrite: bool = False,
     out = copy.deepcopy(trial)
     curation = out.setdefault("_llm_curation", {})
     record_stage_run(curation, "autofill", stage_run)
+    # Before any early return: a trial whose match is kept still goes to the
+    # master, and legacy entries must not ride along with it.
+    legacy_dropped = drop_legacy_entries(curation)
     entries = [e for e in curation.get("_ctml_suggestions") or []
                if e.get("node_type") and e.get("suggested_node") is not None]
     report = {"method": "auto", "filled": False, "reason": None, "nodes": 0,
               "mixed_pieces": 0, "diagnosis_sources": [], "match_sources": [],
               "dropped_negated_diagnoses": [],
               "age_source": None, "dropped_ages": [], "age_conflict": False,
-              "genomic_conflicts": [],
+              "genomic_conflicts": [], "legacy_dropped": legacy_dropped,
               "mixed_logic": dict.fromkeys(MIXED_LOGIC, 0)}
 
     steps = (out.get("treatment_list") or {}).get("step") or []

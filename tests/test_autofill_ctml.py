@@ -154,12 +154,15 @@ def test_filling_an_empty_match_says_so_even_with_overwrite():
         assert out["_llm_curation"]["autofill"]["reason"] == "filled empty match"
 
 
-def test_nothing_to_fill_and_legacy_entries_ignored():
+def test_legacy_entries_never_fill_and_are_dropped():
+    """A pre-2.4.0 entry has no node_type: never a match source, and (2.6.0) not
+    carried into the master either."""
     legacy = {"source": "eligibility.inclusion", "text": "Age >= 18", "suggested_node": AGE}
     out, report = autofill_trial(_trial([legacy], nulls=[_e("eligibility.inclusion", "x", None, "clinical")]))
     assert _match(out) == []
     assert report["filled"] is False and report["reason"] == "no suggestions"
-    assert out["_llm_curation"]["_ctml_suggestions"] == [legacy]
+    assert out["_llm_curation"]["_ctml_suggestions"] == []
+    assert report["legacy_dropped"] == 1
 
 
 def test_trial_without_a_step_is_left_alone():

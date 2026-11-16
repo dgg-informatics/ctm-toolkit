@@ -1,95 +1,42 @@
-"""ctm-pre-curate — the weekly trial refresh, up to the point a human is needed.
+"""ctm-pre-curate — DEPRECATED in 2.6.0, removed in the next release.
 
-Five stages: pull the sources, diff against the master, draft clinical CTML
-(``ctm-llm clinical``), draft genomic CTML and molecular refs (``ctm-llm genomic``),
-then build match clauses from those suggestions (``ctm-llm autofill-ctml``, beta). The output is a file in ``LLM_BIOMARKER_EXPORT_DIR`` for a
-curator to edit; ``ctm-post-curate`` picks up what they publish.
-
-Designed to be the whole cron line:
-
-    CTM_ENV_FILE=/etc/ctm/.env
-    PATH=/opt/ctm/current/venv/bin:/usr/bin:/bin
-    0 7 * * MON  dgg-mipro  ctm-pre-curate
-
-Nothing about logging or redirection belongs in that line. ``CTM_LOG_ENV=prod``
-in the env file puts the console at WARNING and the run log in
-``/var/lib/ctm/logs``, so a clean run mails nothing and mail means something
-broke.
+Forwards to ``ctm-pipeline --end 04``: the old weekly refresh up to the curator
+handoff. Nobody stands at 04 any more; the cron line is now
+``ctm-pipeline --end 07_filtered_trials`` (see ``deploy/cron.d/ctm``).
 """
 import argparse
 import logging
-import sys
-from datetime import date
 
-from ctm.logging_config import (
-    add_logging_arguments,
-    command_context,
-    configure_logging,
-    log_event,
-    verbosity_from_args,
-)
-from ctm.paths import llm_biomarker_export_dir, load_env
-from ctm.pipelines import Stage, run_stages
+from ctm import pipeline_cli
+from ctm.paths import load_env
 
 log = logging.getLogger(__name__)
-
-
-def build_stages(args) -> list[Stage]:
-    """The four stages, each built through the real ``ctm-mm``/``ctm-llm``
-    parser so a new flag cannot silently arrive without its default."""
-    from ctm import llm_cli, mm_cli
-
-    def mm(*argv):
-        parsed = mm_cli.build_parser().parse_args(argv)
-        return lambda: mm_cli.command_handlers()[parsed.command](parsed)
-
-    def llm(*argv):
-        parsed = llm_cli.build_parser().parse_args(argv)
-        handler = {"clinical": llm_cli._cmd_clinical,
-                   "genomic": llm_cli._cmd_genomic,
-                   "autofill-ctml": llm_cli._cmd_autofill}[parsed.command]
-        return lambda: handler(parsed)
-
-    sources = args.sources or ["--amc", "--ddots", "--west"]
-    return [
-        Stage(f"ctm-mm trials {' '.join(sources)}", mm("trials", *sources)),
-        Stage("ctm-mm trials-diff", mm("trials-diff")),
-        Stage("ctm-llm clinical", llm("clinical", "--yes") if args.yes else llm("clinical")),
-        Stage("ctm-llm genomic", llm("genomic", "--yes") if args.yes else llm("genomic")),
-        Stage("ctm-llm autofill-ctml",
-              llm("autofill-ctml", "--yes") if args.yes else llm("autofill-ctml")),
-    ]
 
 
 def main() -> None:
     load_env()
     parser = argparse.ArgumentParser(
         prog="ctm-pre-curate",
-        description="Weekly trial refresh through to the curator handoff",
+        description="DEPRECATED: use ctm-pipeline. Forwards to ctm-pipeline --end 04",
     )
-    parser.add_argument("--sources", nargs="+", metavar="FLAG",
-                        help="Source flags for `ctm-mm trials` "
-                             "(default: --amc --ddots --west)")
-    parser.add_argument("--yes", action="store_true",
-                        help="Pass --yes to the LLM stages, so a cold cache does "
-                             "not stop an unattended run at the confirmation prompt")
-    parser.add_argument("--dry-run", dest="dry_run", action="store_true",
-                        help="List the stages without running them")
-    add_logging_arguments(parser)
-    args = parser.parse_args()
-    configure_logging(verbosity=verbosity_from_args(args))
+    parser.add_argument("--sources", nargs="+", metavar="FLAG")
+    parser.add_argument("--yes", action="store_true")
+    parser.add_argument("--dry-run", dest="dry_run", action="store_true")
+    args, rest = parser.parse_known_args()
 
-    with command_context(log, "ctm-pre-curate"):
-        stages = build_stages(args)
-        code = run_stages(stages, dry_run=args.dry_run)
-        if code:
-            sys.exit(code)
-        if not args.dry_run:
-            log_event(log, "pre_curate.complete",
-                      "Pre-curation complete — curate the file in %s",
-                      llm_biomarker_export_dir(),
-                      to_curate_dir=str(llm_biomarker_export_dir()),
-                      run_date=date.today().isoformat())
+    argv = ["--end", "04"]
+    if args.sources:
+        argv += ["--sources", *args.sources]
+    if args.yes:
+        argv.append("--yes")
+    if args.dry_run:
+        argv.append("--dry-run")
+    log.warning("DEPRECATED: ctm-pre-curate is now `ctm-pipeline %s` and will be "
+                "removed in the next release. Weekly cron: ctm-pipeline --end "
+                "07_filtered_trials", " ".join(argv),
+                extra={"event": "cli.deprecated", "old": "ctm-pre-curate",
+                       "new": "ctm-pipeline"})
+    pipeline_cli.main(argv + rest)
 
 
 if __name__ == "__main__":
