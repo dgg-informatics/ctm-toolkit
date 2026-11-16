@@ -368,6 +368,7 @@ def _cmd_autofill(args) -> None:
     from ctm import db as ctm_db
     from ctm.transformers import eligibility_to_ctml as e2c
     from ctm.transformers.autofill_ctml import ai_mixed_resolver, autofill_trial
+    from ctm.transformers.filter_trials import leaf_counts, match_level
 
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
@@ -407,10 +408,14 @@ def _cmd_autofill(args) -> None:
         results.append(drafted)
         filled += report["filled"]
         mixed += report["mixed_pieces"] > 0
+        steps = (drafted.get("treatment_list") or {}).get("step") or []
+        leaves, genomic_leaves = leaf_counts(steps[0].get("match") if steps else None)
         log_event(log, "llm.autofill", "  %s: %s", label,
                   f"{'filled' if report['filled'] else 'skipped'} ({report['reason']})",
                   trial=label, stage="autofill", filled=report["filled"],
                   reason=report["reason"], nodes=report["nodes"],
+                  leaves=leaves, genomic_leaves=genomic_leaves,
+                  match_level=match_level(drafted),
                   match_sources=report["match_sources"],
                   mixed_pieces=report["mixed_pieces"], mixed_logic=report["mixed_logic"])
         ctm_db.upsert_doc(target, ctm_db.stamp(drafted, "ctm-llm autofill-ctml", run_date),

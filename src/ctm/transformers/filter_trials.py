@@ -194,6 +194,18 @@ def _match_leaves(match) -> list[tuple[str, object]]:
     return leaves
 
 
+def leaf_counts(match) -> tuple[int, int]:
+    """(criteria, genomic criteria) in a match clause: every non-empty
+    ``clinical``/``genomic`` node at any depth under ``and``/``or``.
+
+    Same walk as :func:`match_level`, so the two agree on what counts. Logged by
+    autofill and shown in the weekly report.
+    """
+    leaves = [(k, v) for k, v in _match_leaves(match or [])
+              if k in ("clinical", "genomic") and v]
+    return len(leaves), sum(k == "genomic" for k, _ in leaves)
+
+
 def match_level(trial: dict) -> int:
     """How specific a trial's match clause is: 0 uncurated, 1 age-only, 2 clinical, 3 genomic.
 

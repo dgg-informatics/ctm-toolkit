@@ -362,6 +362,7 @@ def test_cron_file_runs_the_pipeline_on_mondays_and_match_nightly():
     lines = [line.split() for line in (REPO / "deploy/cron.d/ctm").read_text().splitlines()
              if line and not line.startswith("#") and "=" not in line.split()[0]]
     commands = {" ".join(parts[6:]): parts[:5] for parts in lines}
-    assert commands["ctm-pipeline --end 07_filtered_trials"] == ["0", "7", "*", "*", "MON"]
+    weekly = next(c for c in commands if c.startswith("ctm-pipeline --end 07_filtered_trials"))
+    assert commands[weekly] == ["0", "7", "*", "*", "MON"]
     assert any("ctm-match" in c for c in commands)
     assert not any("curate" in c for c in commands)
