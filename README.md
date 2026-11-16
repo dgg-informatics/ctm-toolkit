@@ -247,6 +247,29 @@ jq -r 'select(.event=="trials.source") | "\(.source)\t\(.count)"' \
    /var/lib/ctm/logs/2026-09-28.log
 ```
 
+**Weekly-run events for a dashboard (2.7.0 baseline).** One pipeline run is one
+log file, and these events describe it without a Mongo query. Field names are a
+contract: add fields freely, but don't rename or remove them.
+
+| Event | Fields |
+|---|---|
+| `pipeline.begin` | `database`, `start`, `end` |
+| `stage.begin` / `stage.ok` / `stage.failed` | `stage`, `position`, `total`; `exit_code` on failure |
+| `pipeline.no_changes` | `database`: a quiet week, LLM stages skipped |
+| `trials.diff` | `unchanged`, `changed`, `new`, `deleted` (disjoint counts; `02` still stores new as `changed`), `new_keys`, `changed_keys`, `deleted_keys` |
+| `llm.cache` | `entries` |
+| `llm.autofill` | one per trial: `trial`, `filled`, `reason`, `nodes`, `leaves`, `genomic_leaves`, `match_level`, `match_sources`, `mixed_pieces`, `mixed_logic` |
+| `trials_merge.manual_edit_superseded` | `trial_keys`, `source` (WARNING) |
+| `trials.filtered` | `kept`, `excluded`, `read`, `match_levels` (`{"3": n, "2": n, "1": n, "0": n}`) |
+| `command.end` | `exit_code`, `duration_s` |
+
+```bash
+# trials per match_level after this run
+jq -c 'select(.event=="trials.filtered") | .match_levels' /var/lib/ctm/logs/2026-11-23.log
+# new trials this week
+jq -r 'select(.event=="trials.diff") | .new_keys[]' /var/lib/ctm/logs/2026-11-23.log
+```
+
 > **No PHI in logs.** Log `pt_uuid`, never an MRN or a name — `pt_uuid` is the
 > PHI-free join key the clinical/genomic documents already use. A redaction
 > filter scrubs Mongo URI credentials, secret-shaped `key=value` pairs, the

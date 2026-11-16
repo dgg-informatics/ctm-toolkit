@@ -795,9 +795,20 @@ def _cmd_trials_diff(args) -> None:
 
     unchanged, changed, deleted = split_by_eligibility(new_trials, master_trials)
 
-    log_event(log, "trials.diff", "%d unchanged, %d changed, %d deleted",
-              len(unchanged), len(changed), len(deleted),
-              unchanged=len(unchanged), changed=len(changed), deleted=len(deleted))
+    # For the run log only: 02 still stores a new trial as "changed". Here `new`
+    # (no master entry) and `changed` (eligibility differs) are disjoint, and the
+    # keys are logged so the log alone says what the run touched. Trial IDs are
+    # not PHI.
+    from ctm.trials_lifecycle import trial_key
+    master_keys = {trial_key(t) for t in master_trials}
+    new_keys = sorted(trial_key(t) for t in changed if trial_key(t) not in master_keys)
+    changed_keys = sorted(trial_key(t) for t in changed if trial_key(t) in master_keys)
+    deleted_keys = sorted(trial_key(t) for t in deleted)
+    log_event(log, "trials.diff", "%d unchanged, %d changed, %d new, %d deleted",
+              len(unchanged), len(changed_keys), len(new_keys), len(deleted),
+              unchanged=len(unchanged), changed=len(changed_keys), new=len(new_keys),
+              deleted=len(deleted), new_keys=new_keys, changed_keys=changed_keys,
+              deleted_keys=deleted_keys)
 
     # Files before Mongo when asked for: a standalone mongod is not a replica
     # set, so there is no transaction to roll back a partial write, and complete
@@ -1053,10 +1064,15 @@ def _cmd_trials_filter(args) -> None:
 
     filtered = filter_trials([ctm_db.strip_metadata(row) for row in rows])
     log.info(f"Master:   {len(rows)} row(s) from {master_db}.{master_collection}")
-    log_event(log, "trials.filtered", "Filtered: %d trial(s) (%d excluded)",
+    # String keys: this lands in a JSON log line, read by the dashboard.
+    match_levels = {str(level): 0 for level in (3, 2, 1, 0)}
+    for trial in filtered:
+        match_levels[str(trial["match_level"])] += 1
+    log_event(log, "trials.filtered", "Filtered: %d trial(s) (%d excluded); match_level %s",
               len(filtered), len(rows) - len(filtered),
+              " ".join(f"{k}:{v}" for k, v in match_levels.items()),
               kept=len(filtered), excluded=len(rows) - len(filtered),
-              read=len(rows))
+              read=len(rows), match_levels=match_levels)
     reasons: dict[str, int] = {}
     for trial in filtered:
         reasons[trial["filtered_reason"]] = reasons.get(trial["filtered_reason"], 0) + 1

@@ -15,6 +15,7 @@ Inputs (all already written by the pipeline):
   that this run replaced.
 """
 from ctm.db import CURATED_MANUAL_EDIT
+from ctm.transformers.filter_trials import leaf_counts
 from ctm.trials_lifecycle import trial_key
 
 STAGE_ORDER = (
@@ -28,24 +29,6 @@ TITLE_WIDTH = 42
 
 def _key(doc: dict) -> str:
     return doc.get("trial_key") or trial_key(doc)
-
-
-def _leaves(node) -> tuple[int, int]:
-    """(all leaves, genomic leaves) in a match clause."""
-    if isinstance(node, list):
-        counts = [_leaves(n) for n in node]
-        return sum(c[0] for c in counts), sum(c[1] for c in counts)
-    if not isinstance(node, dict):
-        return 0, 0
-    total = genomic = 0
-    for k, v in node.items():
-        if k in ("clinical", "genomic"):
-            total += 1
-            genomic += k == "genomic"
-        else:
-            t, g = _leaves(v)
-            total, genomic = total + t, genomic + g
-    return total, genomic
 
 
 def _match(doc: dict):
@@ -74,7 +57,7 @@ def build_report(data: dict) -> dict:
         key = _key(doc)
         drafted = autofill.get(key, {})
         report = (drafted.get("_llm_curation") or {}).get("autofill") or {}
-        leaves, genomic = _leaves(_match(drafted) or [])
+        leaves, genomic = leaf_counts(_match(drafted))
         rows.append({
             "key": key,
             "kind": "NEW" if have_previous and key not in previous else "CHG",
