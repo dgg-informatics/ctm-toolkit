@@ -165,6 +165,19 @@ def _grouped(rows: list[dict]) -> dict[str, list[dict]]:
 # trial is inert regardless of what match_level says about it.
 AGE_ONLY_FIELDS = frozenset({"age_numerical"})
 
+# Provenance markers, not criteria: autofill stamps "_CURATED_METHOD": "auto" on
+# every leaf, and matchengine ignores it (dfci_config.json "ignore": true). Left
+# in, it made every auto-built age-only clause score 2 instead of 1 (2.4.0 to 2.7.0)
+# and a marker-only node count as a criterion.
+MARKER_FIELDS = frozenset({"_CURATED_METHOD"})
+
+
+def _criteria(value) -> dict:
+    """A leaf's fields without provenance markers."""
+    if not isinstance(value, dict):
+        return value
+    return {k: v for k, v in value.items() if k not in MARKER_FIELDS}
+
 _MATCH_WRAPPERS = ("and", "or")
 
 
@@ -202,7 +215,7 @@ def leaf_counts(match) -> tuple[int, int]:
     autofill and shown in the weekly report.
     """
     leaves = [(k, v) for k, v in _match_leaves(match or [])
-              if k in ("clinical", "genomic") and v]
+              if k in ("clinical", "genomic") and _criteria(v)]
     return len(leaves), sum(k == "genomic" for k, _ in leaves)
 
 
@@ -227,7 +240,8 @@ def match_level(trial: dict) -> int:
     match = (steps[0].get("match") or []) if steps else []
 
     # A node expressing no fields is not a criterion, so it cannot lift the level.
-    leaves = [(key, value) for key, value in _match_leaves(match) if value]
+    leaves = [(key, _criteria(value)) for key, value in _match_leaves(match)
+              if _criteria(value)]
     if not leaves:
         return 0
     if any(key == "genomic" for key, _ in leaves):

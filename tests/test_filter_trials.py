@@ -462,3 +462,44 @@ def test_match_level_1_empty_genomic_node_does_not_lift_level():
     from ctm.transformers.filter_trials import match_level
     match = [{"genomic": {}}, {"clinical": {"age_numerical": ">=18"}}]
     assert match_level(_with_match(match)) == 1
+
+
+# ── autofill's _CURATED_METHOD marker (2.7.1) ────────────────────────────────
+# Every leaf autofill writes carries "_CURATED_METHOD": "auto". It is
+# provenance, ignored by matchengine, so it must not make a clause look more
+# specific: before 2.7.1 an auto-built age-only clause scored 2 and was matched.
+
+AUTO = {"_CURATED_METHOD": "auto"}
+
+
+def test_match_level_1_auto_age_only():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"clinical": {"age_numerical": ">=18", **AUTO}}]
+    assert match_level(_with_match(match)) == 1
+
+
+def test_match_level_1_auto_age_only_nested():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"and": [{"clinical": {"age_numerical": ">=11", **AUTO}},
+                      {"clinical": {"age_numerical": "<25", **AUTO}}]}]
+    assert match_level(_with_match(match)) == 1
+
+
+def test_match_level_2_auto_age_plus_diagnosis():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"and": [{"clinical": {"age_numerical": ">=18", **AUTO}},
+                      {"clinical": {"oncotree_primary_diagnosis": "Melanoma", **AUTO}}]}]
+    assert match_level(_with_match(match)) == 2
+
+
+def test_match_level_3_auto_genomic():
+    from ctm.transformers.filter_trials import match_level
+    match = [{"genomic": {"hugo_symbol": "BRAF", **AUTO}}]
+    assert match_level(_with_match(match)) == 3
+
+
+def test_a_marker_only_node_is_not_a_criterion():
+    from ctm.transformers.filter_trials import leaf_counts, match_level
+    match = [{"clinical": dict(AUTO)}, {"genomic": dict(AUTO)}]
+    assert match_level(_with_match(match)) == 0
+    assert leaf_counts(match) == (0, 0)
