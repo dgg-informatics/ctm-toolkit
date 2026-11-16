@@ -201,6 +201,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_add_manual.add_argument("--curated-by-user", dest="curated_by_user", metavar="USER",
                               help="Curator account for provenance (default: the OS user; set this "
                                    "when running under a shared service account)")
+    p_add_manual.add_argument("--curated-by", dest="curated_by", metavar="METHOD",
+                              default="manual-curation",
+                              help="Curation method recorded as curated_by (default: manual-curation; "
+                                   "ctm-apply-edits passes manual-edit)")
 
     p_trials_merge = sub.add_parser(
         "trials-merge",
@@ -223,6 +227,12 @@ def build_parser() -> argparse.ArgumentParser:
                                 help="Also write the new master to this JSON file")
     p_trials_merge.add_argument("--allow-empty-master", dest="allow_empty_master", action="store_true",
                                 help="Permit an empty previous master (first-ever master build)")
+    p_trials_merge.add_argument("--from", dest="source_collection", metavar="COLLECTION",
+                                choices=["05_manual_curated_trials", "04_autofill_trials"],
+                                default="05_manual_curated_trials",
+                                help="Where this run's new trials come from: 05_manual_curated_trials "
+                                     "(manual edits, the default) or 04_autofill_trials (ctm-pipeline: "
+                                     "stamped curated_by=auto; may be empty in a week with no changes)")
     # Legacy file flow: pre-partitioned unchanged/changed files, no Mongo.
     p_trials_merge.add_argument("--unchanged", metavar="JSON",
                                 help="[legacy file flow] Unchanged trials JSON from trials-diff")
@@ -469,7 +479,7 @@ def _cmd_raw_to_mm(args) -> None:
 
 def _resolve_patient_workbook(explicit: str | None) -> Path:
     """The workbook to normalize: the path given, else the newest in
-    ``PATIENT_RAW_DIR``. Shares ``newest_file`` with ``ctm-post-curate``, which
+    ``PATIENT_RAW_DIR``. Shares ``newest_file`` with ``ctm-post-curate`` (deprecated), which
     resolves its curated file the same way."""
     from ctm.pipelines import newest_file
 
@@ -886,7 +896,9 @@ def _cmd_add_manual(args) -> None:
         _validate_curation_structure(trial, label)
         # Envelope first (this stage's provenance), then sticky curation provenance.
         stamped = ctm_db.stamp(trial, "ctm-mm add-manual", run_date)
-        stamped = ctm_db.stamp_curation(stamped, curated_by_user=args.curated_by_user)
+        stamped = ctm_db.stamp_curation(
+            stamped, curated_by=getattr(args, "curated_by", None) or ctm_db.CURATED_MANUAL,
+            curated_by_user=args.curated_by_user)
         ctm_db.upsert_doc(collection, stamped, ctm_db.DIFF_UNIQUE_KEY)
 
     log_event(log, "db.stored", "Stored %d doc(s) → %s.%s",
@@ -920,13 +932,22 @@ def _cmd_trials_merge(args) -> None:
     run_database = ctm_db.get_database(config, target_db)
     master_database = ctm_db.get_database(config, master_db)
 
-    # Three inputs: the freshly curated trials, the authoritative previous master,
-    # and the diff's deletions.
-    new_curated = ctm_db.read_collection(run_database, ctm_db.MANUAL_COLLECTION,
-                                         keep_metadata=True)
-    if not new_curated:
-        fail(f"no trials in {target_db}.{ctm_db.MANUAL_COLLECTION}. "
-              "Run ctm-mm add-manual first.")
+    # Three inputs: this run's new trials, the authoritative previous master, and
+    # the diff's deletions. The new trials are manual edits (05, the default) or,
+    # for ctm-pipeline, the AI's output straight from 04.
+    source = getattr(args, "source_collection", None) or ctm_db.MANUAL_COLLECTION
+    new_curated = ctm_db.read_collection(run_database, source, keep_metadata=True)
+    if source == ctm_db.LLM_AUTOFILL_COLLECTION:
+        # Nobody signed these off, so say so — and overwrite whatever curation
+        # stamp a backfilled trial carried in from the old master.
+        new_curated = [ctm_db.stamp_curation(t, curated_by=ctm_db.CURATED_AUTO)
+                       for t in new_curated]
+        if not new_curated:
+            # A week with no changed trials: carry the master forward and still
+            # apply the diff's deletions.
+            log.info(f"No trials in {target_db}.{source} — carrying the master forward.")
+    elif not new_curated:
+        fail(f"no trials in {target_db}.{source}. Run ctm-mm add-manual first.")
 
     previous_master = ctm_db.read_collection(master_database, master_collection,
                                              keep_metadata=True)
@@ -938,9 +959,24 @@ def _cmd_trials_merge(args) -> None:
                                        {"diff_status": "deleted"})
     deleted_keys = {trial_key(t) for t in diff_docs}
 
-    log.info(f"Curated: {len(new_curated)} from {target_db}.{ctm_db.MANUAL_COLLECTION}")
+    log.info(f"Curated: {len(new_curated)} from {target_db}.{source}")
     log.info(f"Master:  {len(previous_master)} from {master_db}.{master_collection}")
     log.info(f"Deleted: {len(deleted_keys)} key(s) from {target_db}.{ctm_db.DIFF_COLLECTION}")
+
+    # A trial someone fixed by hand is about to be replaced: its source changed
+    # and the AI re-drafted it, or a second edit landed. Either way the earlier
+    # fix is gone, so name the trials. Pre-2.6 "manual-curation" rows are every
+    # trial the old weekly flow touched, so only "manual-edit" counts here.
+    incoming = {trial_key(t) for t in new_curated}
+    superseded_edits = sorted(
+        trial_key(t) for t in previous_master
+        if t.get("curated_by") == ctm_db.CURATED_MANUAL_EDIT and trial_key(t) in incoming
+    )
+    if superseded_edits:
+        log_event(log, "trials_merge.manual_edit_superseded",
+                  "%d manually edited trial(s) replaced from %s — re-check: %s",
+                  len(superseded_edits), source, ", ".join(superseded_edits),
+                  level=logging.WARNING, trial_keys=superseded_edits, source=source)
 
     master = reconcile_master(previous_master, new_curated, deleted_keys)
 

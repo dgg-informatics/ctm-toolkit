@@ -25,8 +25,10 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-report` | Build the trial-match report as a PDF, or serve a live-reload preview |
 | `ctm-status` | What the pipeline holds now, and whether a fresh match is needed |
 | `ctm-match` | Match and report, but only if trials or patients have changed |
-| `ctm-pre-curate` | The weekly trial refresh, through to the curator handoff |
-| `ctm-post-curate` | Ingest a curated trials file and rebuild the master |
+| `ctm-pipeline` | The weekly trial run: pull, diff, AI annotation, merge into the master, filter |
+| `ctm-apply-edits` | Merge a file of hand-edited trials into the master, any day |
+| `ctm-pre-curate` | **[deprecated]** Forwards to `ctm-pipeline --end 04`; removed next release |
+| `ctm-post-curate` | **[deprecated]** Forwards to `ctm-apply-edits --file`; removed next release |
 | `ctm-load-patients` | Normalize a patient workbook and load it into the patient database |
 
 Every command supports `--help`, plus `-v` (console DEBUG) and `-q` (errors only).
@@ -613,18 +615,21 @@ against last month's cohort" failure, which otherwise looks like nothing at all.
 
 ### Scheduling: the pipelines as entry points
 
-`ctm-pre-curate` and `ctm-post-curate` are commands, not shell scripts in
-`/usr/local/bin`. That means they ship in the wheel, deploy with the release and
-roll back with the symlink — an untracked wrapper on a server has no rollback,
-and drifts from the repo it drives. It also means they are tested.
+`ctm-pipeline`, `ctm-apply-edits` and `ctm-load-patients` are commands, not shell
+scripts in `/usr/local/bin`. That means they ship in the wheel, deploy with the
+release and roll back with the symlink — an untracked wrapper on a server has no
+rollback, and drifts from the repo it drives. It also means they are tested.
+
+The server's cron file is tracked in `deploy/cron.d/ctm`. Install it with
+`sudo cp deploy/cron.d/ctm /etc/cron.d/ctm` and add a `MAILTO=` line for alerts
+(the address is not committed):
 
 ```cron
-MAILTO=deemer@med.umich.edu
 CTM_ENV_FILE=/etc/ctm/.env
-PATH=/opt/ctm/current/venv/bin:/usr/bin:/bin
+PATH=/opt/ctm/ctm-toolkit/.venv/bin:/usr/bin:/bin
 
-0  7 * * MON  dgg-mipro  ctm-pre-curate --yes
-0  1 * * *    dgg-mipro  ctm-match
+0 7 * * MON  dgg-mipro  ctm-pipeline --end 07_filtered_trials
+0 1 * * *    dgg-mipro  flock -n /var/lib/ctm/matches/.ctm-match.lock ctm-match
 ```
 
 That is the whole of it. No redirection, no `stage()` function, no ERR trap:
@@ -638,8 +643,8 @@ the old wrapper's `set -a; . /etc/ctm/.env; set +a` was doing.
 
 | | |
 | --- | --- |
-| `ctm-pre-curate` | `trials` → `trials-diff` → `ctm-llm clinical` → `ctm-llm genomic` → `ctm-llm autofill-ctml`. `--sources` overrides `--amc --ddots --west`; `--yes` keeps a cold cache from stopping an unattended run at the confirmation prompt |
-| `ctm-post-curate` | `add-manual` → `trials-merge` → `trials-filter`. Reads the newest `*.json` in `CURATED_DIR` unless `--curated` names one |
+| `ctm-pipeline` | `01` trials → `02` trials-diff → `03c` clinical → `03g` genomic → `04` autofill-ctml → `06` trials-merge `--from 04` → `07` trials-filter. `--end`/`--start` take a collection name or prefix (`07` or `07_filtered_trials`); `--start` after 01 needs `--db`. `--start 03c --trials FILE` re-annotates a file of trials (a backfill). A week with no changed trials skips the LLM stages and still merges the deletions |
+| `ctm-apply-edits` | `05` add-manual (`curated_by: manual-edit`) → `06` trials-merge → `07` trials-filter. `--file` names the edited trials; start them from the latest `06_master_trials`, which already holds earlier edits |
 | `ctm-load-patients` | `ctm-mm patients` → `ctm-mm load`. Reads the newest `*.xlsx` in `PATIENT_RAW_DIR` unless `--workbook` names one |
 
 All three take `--dry-run`, which lists the stages without running them.
@@ -654,9 +659,14 @@ normalized file.
 **"Newest" means modification time**, not the date in a filename. `touch` changes
 it, and a plain `cp` sets it to now — so copying in an older file makes it the
 newest (`cp -p` preserves the original). When more than one candidate is present
-the choice is logged, and `--dry-run` prints it before anything runs. Note the
-asymmetry: a curated file's `YYYY-MM-DD` prefix determines its run and database,
-while a patient workbook's filename carries no meaning at all.
+the choice is logged, and `--dry-run` prints it before anything runs.
+
+**Who curated a master row** is `curated_by`: `auto` (the weekly pipeline, AI
+only), `manual-edit` (`ctm-apply-edits`), or `manual-curation` (the pre-2.6
+add-manual flow). When a weekly run replaces a `manual-edit` trial — its source
+changed, so the AI re-drafted it — merge logs
+`trials_merge.manual_edit_superseded` with the trial keys, as a warning, so it
+reaches the cron mail.
 
 **Post-curate stops before matching.** `ctm-match` owns that, because it has to
 run when *either* input changes — trials from here, or patients from `ctm-mm

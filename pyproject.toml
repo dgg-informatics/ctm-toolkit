@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ctm-toolkit"
-version = "2.5.0"
+version = "2.6.0"
 description = "Clinical trial data normalization and report generation toolkit"
 readme = "README.md"
 license = { text = "MIT" }
@@ -60,6 +60,9 @@ ctm-mm = "ctm.mm_cli:main"
 ctm-report = "ctm.report_cli:main"
 ctm-status = "ctm.status_cli:main"
 ctm-match = "ctm.match_cli:main"
+ctm-pipeline = "ctm.pipeline_cli:main"
+ctm-apply-edits = "ctm.apply_edits_cli:main"
+# Deprecated in 2.6.0, forwarding to ctm-pipeline / ctm-apply-edits; removed next release.
 ctm-pre-curate = "ctm.pre_curate_cli:main"
 ctm-post-curate = "ctm.post_curate_cli:main"
 ctm-load-patients = "ctm.load_patients_cli:main"

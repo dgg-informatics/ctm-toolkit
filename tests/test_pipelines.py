@@ -1,16 +1,16 @@
 """The two multi-stage pipelines, and the step runner underneath them.
 
 These used to be bash in /usr/local/bin, untested and unversioned. The
-behaviours that matter are stop-at-first-failure, a non-zero exit (which is what
-turns a failed cron run into mail), and post-curate identifying the run from the
-curated file's name rather than the clock.
+behaviours that matter are stop-at-first-failure and a non-zero exit (which is
+what turns a failed cron run into mail). ctm-pipeline and ctm-apply-edits have
+their own file, test_ctm_pipeline.py.
 """
 import json
 import os
 
 import pytest
 
-from ctm import post_curate_cli, pre_curate_cli
+from ctm import post_curate_cli
 from ctm.pipelines import Stage, newest_file, run_stages
 
 # ── The step runner ──────────────────────────────────────────────────────────
@@ -67,93 +67,22 @@ def test_newest_file_fails_naming_the_directory(tmp_path, caplog):
     assert "curated trials file" in caplog.text
 
 
-# ── ctm-post-curate ──────────────────────────────────────────────────────────
+# ── ctm-post-curate (deprecated; forwarding is tested in test_ctm_pipeline) ──
 
-def _curated(tmp_path, name="2026-09-21-curated.json", payload=None):
+def _curated(tmp_path, name):
     directory = tmp_path / "curated"
     directory.mkdir(exist_ok=True)
     path = directory / name
-    path.write_text(json.dumps(payload if payload is not None else [{"nct_id": "NCT1"}]))
+    path.write_text(json.dumps([{"nct_id": "NCT1"}]))
     return path
 
 
-def test_run_date_comes_from_the_filename_not_today(tmp_path):
-    """Ingesting Monday's curation on Thursday belongs to Monday's run — that is
-    the database its upstream stages wrote."""
-    assert post_curate_cli.run_date_from(_curated(tmp_path)) == "2026-09-21"
-
-
-def test_a_file_without_a_date_prefix_is_rejected(tmp_path, caplog):
-    with pytest.raises(SystemExit):
-        post_curate_cli.run_date_from(_curated(tmp_path, name="curated.json"))
-    assert "YYYY-MM-DD" in caplog.text
-
-
-def test_resolve_curated_prefers_the_explicit_path(tmp_path, monkeypatch):
-    monkeypatch.setenv("CURATED_DIR", str(tmp_path / "curated"))
-    explicit = _curated(tmp_path, name="2026-01-01-explicit.json")
-    _curated(tmp_path, name="2026-09-28-newer.json")
-    assert post_curate_cli.resolve_curated(str(explicit)) == explicit
-
-
-def test_resolve_curated_falls_back_to_the_newest(tmp_path, monkeypatch):
-    older = _curated(tmp_path, name="2026-09-21-curated.json")
-    newer = _curated(tmp_path, name="2026-09-28-curated.json")
+def test_post_curate_falls_back_to_the_newest_curated_file(tmp_path, monkeypatch):
+    older = _curated(tmp_path, "2026-09-21-curated.json")
+    newer = _curated(tmp_path, "2026-09-28-curated.json")
     os.utime(older, (1_000, 1_000))
     monkeypatch.setenv("CURATED_DIR", str(tmp_path / "curated"))
     assert post_curate_cli.resolve_curated(None) == newer
-
-
-def test_an_empty_explicit_file_is_rejected(tmp_path, caplog):
-    path = tmp_path / "2026-09-21-empty.json"
-    path.write_text("")
-    with pytest.raises(SystemExit):
-        post_curate_cli.resolve_curated(str(path))
-    assert "empty" in caplog.text
-
-
-def test_malformed_json_fails_before_anything_reaches_mongo(tmp_path, caplog):
-    """The file has just been hand-edited; a truncated bracket is the single most
-    likely thing wrong with it, and much cheaper to catch here."""
-    path = tmp_path / "2026-09-21-bad.json"
-    path.write_text('[{"nct_id": "NCT1"')
-    with pytest.raises(SystemExit) as excinfo:
-        post_curate_cli.validate_json(path)
-    assert excinfo.value.code == 2
-    assert "not valid JSON" in caplog.text
-
-
-def test_an_empty_trial_list_is_rejected(tmp_path):
-    path = tmp_path / "2026-09-21-none.json"
-    path.write_text("[]")
-    with pytest.raises(SystemExit):
-        post_curate_cli.validate_json(path)
-
-
-def test_post_curate_stops_before_matching(tmp_path):
-    """Matching belongs to ctm-match, which runs when *either* trials or
-    patients change — chaining it here re-introduces the stale-cohort bug."""
-    stages = post_curate_cli.build_stages(
-        _curated(tmp_path), "2026-09-21", "2026-09-21", "deemer")
-    assert [s.label for s in stages] == [
-        "ctm-mm add-manual", "ctm-mm trials-merge", "ctm-mm trials-filter"]
-
-
-
-# ── ctm-pre-curate ───────────────────────────────────────────────────────────
-
-def test_pre_curate_runs_the_four_stages():
-    import argparse
-
-    args = argparse.Namespace(sources=None, yes=False, dry_run=True)
-    assert [s.label for s in pre_curate_cli.build_stages(args)] == [
-        "ctm-mm trials --amc --ddots --west",
-        "ctm-mm trials-diff",
-        "ctm-llm clinical",
-        "ctm-llm genomic",
-        "ctm-llm autofill-ctml",
-    ]
-
 
 
 # ── CTM_ENV_FILE ─────────────────────────────────────────────────────────────

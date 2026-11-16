@@ -170,8 +170,8 @@ def _stage_run(command: str) -> dict:
 
 
 def default_export(command: str, run_date: str) -> Path | None:
-    """The stage's canonical export: the to-curate handoff file, written by the
-    last pre-curate stage (autofill-ctml). Other stages write no file by default."""
+    """The stage's canonical export: autofill-ctml's output file, a copy of 04
+    for review. Other stages write no file by default."""
     if command == "autofill-ctml":
         return llm_biomarker_export_dir() / f"{run_date}_llm-biomarkers_trials.json"
     return None

@@ -141,7 +141,7 @@ def patient_export_dir() -> Path:
 
 def curated_dir() -> Path:
     """Directory a curator drops the hand-curated trials file into, and where a
-    bare ``ctm-post-curate`` looks for the newest one.
+    bare (deprecated) ``ctm-post-curate`` looks for the newest one.
 
     Override with ``CURATED_DIR`` (an empty value is treated as unset). The
     counterpart to :func:`llm_biomarker_export_dir`: the pipeline writes

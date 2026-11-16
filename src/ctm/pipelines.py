@@ -1,6 +1,7 @@
 """Multi-stage pipelines, as entry points rather than shell wrappers.
 
-``ctm-pre-curate`` and ``ctm-post-curate`` used to be bash in ``/usr/local/bin``.
+The weekly trial run (``ctm-pipeline``, formerly ``ctm-pre-curate`` /
+``ctm-post-curate``) used to be bash in ``/usr/local/bin``.
 Moving them here is not only about a shorter cron line:
 
 * They are **versioned and deployable**. They ship in the wheel, deploy with the
@@ -20,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ctm.logging_config import fail, log_event
@@ -30,10 +31,35 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class Stage:
-    """One step of a pipeline: a label for the log, and the thing to run."""
+    """One step of a pipeline: a label for the log, and the thing to run.
+
+    ``argv`` is the command line the stage was built from, kept so a test (or a
+    dry run) can see exactly which flags reached it.
+    """
 
     label: str
     run: Callable[[], int | None]
+    argv: list[str] = field(default_factory=list)
+
+
+def mm_stage(label: str, *argv: str) -> Stage:
+    """A ``ctm-mm`` subcommand, parsed by the real parser so a new flag cannot
+    arrive without its default."""
+    from ctm import mm_cli
+
+    parsed = mm_cli.build_parser().parse_args(list(argv))
+    return Stage(label, lambda: mm_cli.command_handlers()[parsed.command](parsed), list(argv))
+
+
+def llm_stage(label: str, *argv: str) -> Stage:
+    """A ``ctm-llm`` stage, parsed the same way."""
+    from ctm import llm_cli
+
+    parsed = llm_cli.build_parser().parse_args(list(argv))
+    handler = {"clinical": llm_cli._cmd_clinical,
+               "genomic": llm_cli._cmd_genomic,
+               "autofill-ctml": llm_cli._cmd_autofill}[parsed.command]
+    return Stage(label, lambda: handler(parsed), list(argv))
 
 
 def run_stages(stages: list[Stage], dry_run: bool = False) -> int:
