@@ -4,7 +4,10 @@ The drafting itself lives in ``clinical_ctml`` (``ctm-llm clinical``) and
 ``genomic_ctml`` (``ctm-llm genomic``). This module keeps what they, and
 other code, share: the UMGPT client, the OncoTree name list and clinical-node
 validation, content-filter detection, criterion text, JSON caches keyed by MD5,
-and the ``conditions`` record.
+trial IDs, the known-gene list, and the ``conditions`` record.
+
+3.0.0 merged ``eligibility_to_ctml`` (named for the single pre-2.4 pass) and
+``trials_curate`` (what was left of the old biomarker stage) into this module.
 """
 import hashlib
 import json
@@ -138,3 +141,11 @@ def conditions_suggestion(trial: dict) -> dict | None:
         "mapping_source": "keyword_oncotree_map",
     }
 
+
+def _trial_id(trial: dict) -> str:
+    return trial.get("nct_id") or trial.get("protocol_no") or "unknown"
+
+
+def load_known_genes(kb_path: Path) -> set[str]:
+    kb = json.loads(kb_path.read_text())
+    return {g["name"].upper() for g in kb}

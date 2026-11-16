@@ -16,7 +16,7 @@ always produces the same filtered set.
 import hashlib
 import re
 
-from .eligibility_to_ctml import _criterion_full_text
+from .llm_common import _criterion_full_text
 
 # Highest precedence first. AMC is the local enrolling site and the freshest
 # source (OnCore is updated far more often than ClinicalTrials.gov), so where a
@@ -56,7 +56,7 @@ def criterion_hash(criterion: dict, section: str) -> str:
 
     ``section`` is part of the hash because identical text means the opposite
     thing under inclusion and exclusion — mirroring the section-qualified
-    stage-03 LLM cache key in ``eligibility_to_ctml``.
+    LLM cache keys in ``llm_common``.
     """
     normalized = normalize_criterion_text(_criterion_full_text(criterion))
     return hashlib.sha256(f"{section}:{normalized}".encode()).hexdigest()

@@ -19,15 +19,12 @@ Two stages, split by the kind of CTML they draft:
 * ``autofill-ctml`` [BETA] — builds ``treatment_list.step[0].match`` from both
   stages' suggestions, every leaf marked ``_CURATED_METHOD: "auto"``. The only
   writer of match clauses. Reads ``03g_genomic_trials``, writes
-  ``04_autofill_trials`` and the to-curate handoff export.
+  ``04_autofill_trials`` and a dated copy in ``AUTOFILL_EXPORT_DIR``.
 
 Both write ``node_type``-tagged entries into ``_llm_curation._ctml_suggestions``
 (nulls in ``_null_ctml_suggestions``) and their own ``parsed_sections`` key,
 and replace only their own entries — so either can be rerun without touching
 the other's work. Run ``clinical``, then ``genomic``, then ``autofill-ctml``.
-
-Deprecated until 3.0.0: ``general`` (→ ``clinical``), ``biomarkers``
-(→ ``genomic``), and the older ``ctm-ctml`` / ``ctm-mm trials-curate``.
 
 Requires in .env:
   UMGPT_API_KEY=...
@@ -50,9 +47,9 @@ from ctm.logging_config import (
 )
 from ctm.paths import (
     DEFAULT_KB_PATH,
+    autofill_export_dir,
     cache_dir,
     cache_path,
-    llm_biomarker_export_dir,
     load_env,
 )
 
@@ -62,8 +59,6 @@ _CLINICAL_CACHE = ".ctml_clinical_cache.json"
 _GENOMIC_CACHE = ".ctml_genomic_cache.json"
 _AUTOFILL_CACHE = ".ctml_autofill_cache.json"   # and/or answers for mixed pieces
 
-# Deprecated subcommand → its replacement. Removed in 3.0.0.
-_ALIASES = {"general": "clinical", "biomarkers": "genomic"}
 
 
 def _confirm_cold_cache(cache: dict, cache_file: Path, assume_yes: bool) -> None:
@@ -139,9 +134,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_auto.add_argument("--trials", metavar="JSON",
                         help="Read trials from a JSON file instead of 03g_genomic_trials")
     p_auto.add_argument("--out", metavar="JSON",
-                        help="Write the JSON output to this path (overrides the to-curate export)")
+                        help="Write the JSON output to this path (overrides the autofill export)")
     p_auto.add_argument("--disk", action=argparse.BooleanOptionalAction, default=None,
-                        help="Force the JSON file output on/off (default: the to-curate export)")
+                        help="Force the JSON file output on/off (default: the autofill export)")
     p_auto.add_argument("--db", metavar="NAME", help="Override MONGO_DBNAME for this run")
     p_auto.add_argument("--run-date", dest="run_date", metavar="YYYY-MM-DD",
                         help="Override the run_date inherited from the source documents")
@@ -152,10 +147,6 @@ def build_parser() -> argparse.ArgumentParser:
                              f"(default: {cache_dir() / _AUTOFILL_CACHE})")
     p_auto.add_argument("--yes", "-y", action="store_true",
                         help="Skip the cold-cache confirmation before the first AI call")
-    _add_stage_parser(sub, "general", "[deprecated] alias for clinical; removed in 3.0.0",
-                      _CLINICAL_CACHE, clinical=True)
-    _add_stage_parser(sub, "biomarkers", "[deprecated] alias for genomic; removed in 3.0.0",
-                      _GENOMIC_CACHE, clinical=False)
     return parser
 
 
@@ -173,7 +164,7 @@ def default_export(command: str, run_date: str) -> Path | None:
     """The stage's canonical export: autofill-ctml's output file, a copy of 04
     for review. Other stages write no file by default."""
     if command == "autofill-ctml":
-        return llm_biomarker_export_dir() / f"{run_date}_llm-biomarkers_trials.json"
+        return autofill_export_dir() / f"{run_date}_autofill_trials.json"
     return None
 
 
@@ -223,7 +214,7 @@ def _cmd_clinical(args) -> None:
     stage_run = _stage_run("clinical")
     from ctm import db as ctm_db
     from ctm.transformers.clinical_ctml import draft_clinical
-    from ctm.transformers.eligibility_to_ctml import (
+    from ctm.transformers.llm_common import (
         build_client,
         fetch_oncotree_names,
         load_cache,
@@ -305,9 +296,8 @@ def _cmd_clinical(args) -> None:
 def _cmd_genomic(args) -> None:
     stage_run = _stage_run("genomic")
     from ctm import db as ctm_db
-    from ctm.transformers.eligibility_to_ctml import build_client
     from ctm.transformers.genomic_ctml import draft_genomic
-    from ctm.transformers.trials_curate import load_cache, load_known_genes, save_cache
+    from ctm.transformers.llm_common import build_client, load_cache, load_known_genes, save_cache
 
     config = ctm_db.mongo_config()
     target_db = args.db or config["dbname"]
@@ -355,7 +345,7 @@ def _cmd_genomic(args) -> None:
               len(trials), target_db, ctm_db.LLM_GENOMIC_COLLECTION,
               count=len(trials), database=target_db,
               collection=ctm_db.LLM_GENOMIC_COLLECTION, stage="llm.genomic")
-    # The to-curate handoff file now comes from autofill-ctml, the last stage.
+    # The dated file export comes from autofill-ctml, the last stage.
     out = _resolve_out(args, default_export("genomic", run_date))
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -366,7 +356,7 @@ def _cmd_genomic(args) -> None:
 def _cmd_autofill(args) -> None:
     stage_run = _stage_run("autofill-ctml")
     from ctm import db as ctm_db
-    from ctm.transformers import eligibility_to_ctml as e2c
+    from ctm.transformers import llm_common as e2c
     from ctm.transformers.autofill_ctml import ai_mixed_resolver, autofill_trial
     from ctm.transformers.filter_trials import leaf_counts, match_level
 
@@ -437,11 +427,7 @@ def main(argv: list[str] | None = None) -> None:
     load_env()
     args = build_parser().parse_args(argv)
     configure_logging(verbosity=verbosity_from_args(args))
-    command = _ALIASES.get(args.command, args.command)
-    if command != args.command:
-        log.warning("DEPRECATED: ctm-llm %s is now ctm-llm %s and will be removed in 3.0.0.",
-                    args.command, command,
-                    extra={"event": "cli.deprecated", "old": args.command, "new": command})
+    command = args.command
     with command_context(log, f"ctm-llm {command}"):
         {"clinical": _cmd_clinical, "genomic": _cmd_genomic,
          "autofill-ctml": _cmd_autofill}[command](args)

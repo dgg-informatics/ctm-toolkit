@@ -68,13 +68,10 @@ db.getCollection(TRIAL_MATCH).distinct("match_type").forEach(function (mt) {
 
 // ── trial views ──────────────────────────────────────────────────────────────
 
-// Trials with at least one molecular/genomic ref on file (2.4.0+), or a legacy
-// pre-2.4.0 biomarker reference, until the 3.0.0 migration renames them.
+// Trials with at least one molecular/genomic ref on file. (3.0.0: the pre-2.4
+// biomarker_references key no longer exists, so it is not matched here.)
 makeView("biomarker_trials", TRIAL, [
-  { $match: { $or: [
-    { "_llm_curation.molecular_genomic_refs.0": { $exists: true } },
-    { "_llm_curation.biomarker_references.0": { $exists: true } }
-  ] } }
+  { $match: { "_llm_curation.molecular_genomic_refs.0": { $exists: true } } }
 ]);
 
 // Full trial docs for every trial that produced at least one trial_match

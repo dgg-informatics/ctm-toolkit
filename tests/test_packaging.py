@@ -33,7 +33,7 @@ def test_knowledge_base_ships_with_the_package():
     assert DEFAULT_KB_PATH.is_relative_to(PACKAGE_ROOT)
     assert DEFAULT_KB_PATH.is_file()
 
-    from ctm.transformers.trials_curate import load_known_genes
+    from ctm.transformers.llm_common import load_known_genes
 
     assert len(load_known_genes(DEFAULT_KB_PATH)) > 0
 
@@ -62,28 +62,26 @@ def test_cache_dir_precedence(monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize("env,default", [
-    ("LLM_BIOMARKER_EXPORT_DIR", "/var/lib/ctm/to-curate"),
+    ("AUTOFILL_EXPORT_DIR", "/var/lib/ctm/autofill"),
     ("MASTER_TRIAL_EXPORT_DIR", "/var/lib/ctm/trials"),
     ("WEST_TRIALS_PATH", "/var/lib/ctm/sources/trials-west-latest.xlsx"),
     ("REPORT_EXPORT_DIR", "/var/lib/ctm/reports"),
     ("PATIENT_RAW_DIR", "/var/lib/ctm/patients"),
     ("PATIENT_EXPORT_DIR", "/var/lib/ctm/patients/normalized"),
     ("MATCH_EXPORT_DIR", "/var/lib/ctm/matches"),
-    ("CURATED_DIR", "/var/lib/ctm/curated"),
 ])
 def test_export_dir_empty_env_falls_back_to_default_not_cwd(monkeypatch, env, default):
     """A blank env var must fall back to the default, not resolve to Path("") = CWD
     (which silently scattered the export into the working directory)."""
     from ctm import paths
 
-    func = {"LLM_BIOMARKER_EXPORT_DIR": paths.llm_biomarker_export_dir,
+    func = {"AUTOFILL_EXPORT_DIR": paths.autofill_export_dir,
             "MASTER_TRIAL_EXPORT_DIR": paths.master_trial_export_dir,
             "WEST_TRIALS_PATH": paths.west_trials_path,
             "REPORT_EXPORT_DIR": paths.report_export_dir,
             "PATIENT_RAW_DIR": paths.patient_raw_dir,
             "PATIENT_EXPORT_DIR": paths.patient_export_dir,
-            "MATCH_EXPORT_DIR": paths.match_export_dir,
-            "CURATED_DIR": paths.curated_dir}[env]
+            "MATCH_EXPORT_DIR": paths.match_export_dir}[env]
     monkeypatch.setenv(env, "")
     assert str(func()) == default
 

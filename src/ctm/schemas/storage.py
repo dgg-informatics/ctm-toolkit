@@ -59,8 +59,8 @@ class CtmlSuggestion(BaseModel):
     when ``suggested_node`` is null, ``_null_ctml_suggestions``).
 
     Written by ``ctm-llm clinical`` and ``ctm-llm genomic``, one per piece of
-    text, tagged ``node_type``. ``node_type`` is None only on legacy entries
-    written before 2.4.0. ``extra`` is allowed: the body can legitimately grow
+    text, tagged ``node_type`` (required since 3.0.0; pre-2.4.0 entries without
+    it are stripped by the stages). ``extra`` is allowed: the body can legitimately grow
     (e.g. ``mapping_source``, ``site_mappings``), and this only guards the
     fields downstream reads.
     """
@@ -70,7 +70,7 @@ class CtmlSuggestion(BaseModel):
     text: str
     suggested_node: dict | None = None
     transferred_to_match: bool | None = None   # None until autofill-ctml decides
-    node_type: Literal["clinical", "genomic"] | None = None
+    node_type: Literal["clinical", "genomic"]
     mixed: bool = False
 
 
@@ -93,31 +93,28 @@ class MolecularGenomicRef(BaseModel):
     origin: Literal["germline", "somatic", "unknown"] = "unknown"
 
 
-# Pre-2.4.0 name, kept so existing imports keep working.
-BiomarkerReference = MolecularGenomicRef
-
-
 class LlmCuration(BaseModel):
     """The _llm_curation sub-document the two LLM stages build.
 
     Each stage writes only its own ``node_type`` entries, its own
     ``parsed_sections`` key and (genomic only) ``molecular_genomic_refs``, and
     merges rather than rebuilds, so every field is optional and either stage may
-    be validated mid-chain. Legacy keys (``biomarker_references``,
-    ``final_suggested_ctml``) are accepted as stored until the 3.0.0 migration.
+    be validated mid-chain. The keys are a closed set (``extra="forbid"``) since
+    3.0.0: the pre-2.4 ``biomarker_references`` / ``final_suggested_ctml`` are
+    stripped by the stages, so one reaching storage means something bypassed them.
 
     Stored keys with a leading underscore are private attributes to Pydantic,
     so those fields are aliased. ``populate_by_name`` lets them validate from
     either spelling.
     """
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     ctml_suggestions: list[CtmlSuggestion] = Field(default=[], alias="_ctml_suggestions")
     null_ctml_suggestions: list[CtmlSuggestion] = Field(default=[], alias="_null_ctml_suggestions")
     molecular_genomic_refs: list[MolecularGenomicRef] = []
-    biomarker_references: list[dict] = []   # legacy, unvalidated
     parsed_sections: dict[str, dict[str, dict]] = {}
     stage_runs: dict[str, dict] = {}        # {clinical|genomic|autofill: {ran_at, processed_with}}
+    autofill: dict | None = None            # autofill-ctml's report
 
 
 class CurationProvenance(BaseModel):

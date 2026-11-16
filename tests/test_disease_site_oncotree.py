@@ -155,7 +155,7 @@ def test_a_reviewed_row_can_list_several_names():
 # --- conditions record -------------------------------------------------------
 
 def test_conditions_record_mirrors_the_transform_mapping():
-    from ctm.transformers.eligibility_to_ctml import conditions_suggestion
+    from ctm.transformers.llm_common import conditions_suggestion
     from ctm.transformers.oncotree_mapping import ctgov_conditions_to_oncotree, diagnoses_to_match_node
 
     conditions = ["Metastatic Breast Cancer", "Melanoma"]
@@ -169,14 +169,14 @@ def test_conditions_record_mirrors_the_transform_mapping():
 
 
 def test_conditions_with_no_keyword_hit_are_still_recorded():
-    from ctm.transformers.eligibility_to_ctml import conditions_suggestion
+    from ctm.transformers.llm_common import conditions_suggestion
     s = conditions_suggestion({"_raw": {"conditions": ["Healthy Volunteers"]}})
     assert s["suggested_node"] is None
     assert s["transferred_to_match"] is None
 
 
 def test_no_conditions_means_no_record():
-    from ctm.transformers.eligibility_to_ctml import conditions_suggestion
+    from ctm.transformers.llm_common import conditions_suggestion
     assert conditions_suggestion({"_raw": {"disease_site": "Breast"}}) is None   # AMC
     assert conditions_suggestion({}) is None
 

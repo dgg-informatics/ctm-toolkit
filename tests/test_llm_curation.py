@@ -71,15 +71,17 @@ def test_merge_replaces_only_own_node_type():
     assert out["_null_ctml_suggestions"] == [g2]
 
 
-def test_merge_never_touches_legacy_entries():
+def test_merge_drops_pre_2_4_entries_and_keys():
+    """3.0.0: the first stage a trial passes through strips the old shape, so
+    the strict storage schema never sees it."""
     legacy = {"source": "eligibility.inclusion", "text": "Age >= 18", "suggested_node": CLIN,
               "transferred_to_match": True}
-    refs = [{"biomarker": "X"}]
-    cur = {"_ctml_suggestions": [copy.deepcopy(legacy)], "biomarker_references": copy.deepcopy(refs)}
+    cur = {"_ctml_suggestions": [copy.deepcopy(legacy)], "_null_ctml_suggestions": [{"text": "n"}],
+           "biomarker_references": [{"biomarker": "X"}], "final_suggested_ctml": [{}]}
     out = merge_stage(cur, CLINICAL, [_e("eligibility.inclusion", "Age >= 18", CLIN, CLINICAL)], {})
-    assert out["_ctml_suggestions"][0] == legacy
-    assert "mixed" not in out["_ctml_suggestions"][0]
-    assert out["biomarker_references"] == refs
+    assert all(e.get("node_type") for e in out["_ctml_suggestions"] + out["_null_ctml_suggestions"])
+    assert len(out["_ctml_suggestions"]) == 1
+    assert "biomarker_references" not in out and "final_suggested_ctml" not in out
 
 
 def test_merge_replace_sources_limits_removal():

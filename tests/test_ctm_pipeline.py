@@ -141,7 +141,6 @@ def test_llm_stages_run_when_something_changed(fake_mongo):
 def _merge_args(**over):
     base = {"db": None, "master_db": None, "master_collection": None,
             "run_date": "2026-11-16", "out": None, "allow_empty_master": False,
-            "unchanged": None, "changed": None,
             "source_collection": LLM_AUTOFILL_COLLECTION}
     return argparse.Namespace(**{**base, **over})
 
@@ -279,12 +278,13 @@ def test_drop_legacy_entries():
     assert "biomarker_references" not in curation
 
 
-def test_biomarker_references_kept_until_genomic_has_run():
+def test_legacy_keys_are_always_dropped():
+    """3.0.0: genomic regenerates refs, so the old keys go even before it runs."""
     from ctm.transformers.llm_curation import drop_legacy_entries
 
-    curation = {"biomarker_references": ["BRAF"]}
+    curation = {"biomarker_references": ["BRAF"], "final_suggested_ctml": [{}]}
     drop_legacy_entries(curation)
-    assert curation["biomarker_references"] == ["BRAF"]
+    assert curation == {}
 
 
 def test_autofill_drops_legacy_even_when_it_skips_the_match():
@@ -326,28 +326,25 @@ def test_apply_edits_reports_what_it_replaces(caplog):
     assert summary == {"replaced": ["A"], "added": ["NEW"], "re_edited": ["A"]}
 
 
-# ── deprecated entry points ──────────────────────────────────────────────────
+# ── removed in 3.0.0 ─────────────────────────────────────────────────────────
 
-def test_pre_curate_forwards_to_the_pipeline_up_to_04(monkeypatch, caplog):
-    from ctm import pre_curate_cli
+@pytest.mark.parametrize("module", ["pre_curate_cli", "post_curate_cli", "ctml_cli"])
+def test_the_deprecated_entry_points_are_gone(module):
+    import importlib
 
-    seen = {}
-    monkeypatch.setattr(pipeline_cli, "main", lambda argv=None: seen.setdefault("argv", argv))
-    monkeypatch.setattr("sys.argv", ["ctm-pre-curate", "--yes"])
-    pre_curate_cli.main()
-    assert seen["argv"] == ["--end", "04", "--yes"]
-    assert "DEPRECATED" in caplog.text
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(f"ctm.{module}")
+    text = (REPO / "pyproject.toml").read_text()
+    assert f"ctm.{module}" not in text
 
 
-def test_post_curate_forwards_to_apply_edits(monkeypatch, caplog):
-    from ctm import post_curate_cli
+def test_trials_curate_and_the_file_merge_are_gone():
+    from ctm import mm_cli
 
-    seen = {}
-    monkeypatch.setattr(apply_edits_cli, "main", lambda argv=None: seen.setdefault("argv", argv))
-    monkeypatch.setattr("sys.argv", ["ctm-post-curate", "--curated", "x.json"])
-    post_curate_cli.main()
-    assert seen["argv"] == ["--file", "x.json"]
-    assert "DEPRECATED" in caplog.text
+    with pytest.raises(SystemExit):
+        mm_cli.build_parser().parse_args(["trials-curate"])
+    with pytest.raises(SystemExit):
+        mm_cli.build_parser().parse_args(["trials-merge", "--unchanged", "u.json"])
 
 
 # ── packaging and deploy ─────────────────────────────────────────────────────

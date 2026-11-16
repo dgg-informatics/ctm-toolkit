@@ -228,7 +228,7 @@ def test_handoff_export_moves_from_genomic_to_autofill():
 
     from ctm.llm_cli import build_parser, default_export
 
-    for stage, expected in (("genomic", None), ("autofill-ctml", "2026-11-02_llm-biomarkers_trials.json")):
+    for stage, expected in (("genomic", None), ("autofill-ctml", "2026-11-02_autofill_trials.json")):
         args = build_parser().parse_args([stage])
         path = default_export(args.command, "2026-11-02")
         assert (path.name if isinstance(path, Path) else path) == expected
@@ -359,7 +359,7 @@ def test_cli_without_mixed_pieces_never_builds_a_client(fake_mongo, tmp_path, mo
     from ctm import llm_cli
 
     monkeypatch.setattr(llm_cli, "load_env", lambda: None)
-    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client",
+    monkeypatch.setattr("ctm.transformers.llm_common.build_client",
                         lambda: (_ for _ in ()).throw(AssertionError("no client needed")))
     src = tmp_path / "in.json"
     src.write_text(json.dumps([_cli_trial()]))
@@ -375,7 +375,7 @@ def test_cli_resolves_mixed_pieces_with_the_ai(fake_mongo, tmp_path, monkeypatch
     from ctm import llm_cli
 
     monkeypatch.setattr(llm_cli, "load_env", lambda: None)
-    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client",
+    monkeypatch.setattr("ctm.transformers.llm_common.build_client",
                         lambda: QueuedClient(['{"logic": "or"}']))
     src, out = tmp_path / "in.json", tmp_path / "o.json"
     src.write_text(json.dumps([_mixed_trial()]))

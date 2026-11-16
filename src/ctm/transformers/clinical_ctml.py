@@ -26,13 +26,13 @@ from .disease_site_to_oncotree import (
     site_suggestion,
     trial_sites,
 )
-from .eligibility_to_ctml import (
+from .genomic_ctml import strip_fences
+from .llm_common import (
     _cache_key,
     _validate_node,
     conditions_suggestion,
     is_content_filter,
 )
-from .genomic_ctml import strip_fences
 from .llm_curation import (
     AGE_GROUP,
     CATEGORYS,

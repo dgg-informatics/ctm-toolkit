@@ -35,18 +35,6 @@ def _diff_args(**overrides):
     return args
 
 
-def _curate_args(**overrides):
-    """A trials-curate Namespace with every argparse-supplied field present."""
-    defaults = {
-        "trials": None, "out": None, "cache": None, "kb": None,
-        "disk": None, "db": None, "run_date": None, "yes": True,
-    }
-    args = argparse.Namespace(**{**defaults, **overrides})
-    if args.disk is None:
-        args.disk = args.out is not None
-    return args
-
-
 def _trials_args(*argv):
     """A `trials` Namespace built by the real parser.
 
@@ -483,122 +471,6 @@ def test_cmd_trials_diff_without_master_flag_requires_the_master_dbname(tmp_path
         _cmd_trials_diff(args)
 
 
-def test_cmd_trials_merge_concatenates_to_out(tmp_path):
-    from ctm.mm_cli import _cmd_trials_merge
-
-    unchanged = [{"entity": "amc", "protocol_no": "2015.063"}]
-    changed = [{"entity": "amc", "protocol_no": "2021.070"}]
-
-    unchanged_path = tmp_path / "unchanged.json"
-    unchanged_path.write_text(json.dumps(unchanged))
-    changed_path = tmp_path / "changed.json"
-    changed_path.write_text(json.dumps(changed))
-    out_path = tmp_path / "2026-07-14-trials.json"
-
-    args = argparse.Namespace(unchanged=str(unchanged_path), changed=str(changed_path), out=str(out_path))
-    _cmd_trials_merge(args)
-
-    master = json.loads(out_path.read_text())
-    assert [t["protocol_no"] for t in master] == ["2015.063", "2021.070"]
-
-
-def test_cmd_trials_curate_writes_curated_output(tmp_path, monkeypatch, fake_mongo):
-    from ctm import mm_cli
-
-    trials = [{
-        "nct_id": "NCT00000009",
-        "protocol_no": None,
-        "eligibility": {"inclusion": [{"text": "Age >= 18", "sub_criteria": []}], "exclusion": []},
-        "_summary": {"long_title": "A Study in Patients with a BRCA1 Mutation"},
-        "_ctml_suggestions": [
-            {"source": "eligibility.inclusion", "text": "Age >= 18",
-             "suggested_node": {"clinical": {"age_numerical": ">=18"}}, "transferred_to_match": False},
-        ],
-    }]
-    trials_path = tmp_path / "draft.json"
-    trials_path.write_text(json.dumps(trials))
-
-    kb_path = tmp_path / "kb.json"
-    kb_path.write_text(json.dumps([{"name": "BRCA1"}]))
-
-    out_path = tmp_path / "curated.json"
-    cache_path = tmp_path / "cache.json"
-
-    class _FakeClient:
-        def __init__(self):
-            self.chat = self
-            self.completions = self
-
-        def create(self, **kwargs):
-            from types import SimpleNamespace
-            return SimpleNamespace(choices=[SimpleNamespace(
-                message=SimpleNamespace(content='{"node": {"genomic": {"hugo_symbol": "BRCA1", '
-                                            '"variant_category": "Mutation", "wildtype": false}}, '
-                                            '"refs": [{"biomarker": "BRCA1", "type": "snv", "reference": "BRCA1"}]}')
-            )])
-
-    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client", lambda: _FakeClient())
-    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.fetch_oncotree_names", lambda: set())
-
-    args = _curate_args(trials=str(trials_path), out=str(out_path),
-                        cache=str(cache_path), kb=str(kb_path))
-    mm_cli._cmd_trials_curate(args)
-
-    result = json.loads(out_path.read_text())
-    assert len(result) == 1
-    # The deprecated alias reaches `ctm-llm genomic`: molecular refs plus
-    # genomic entries, one per piece (criterion + title).
-    curation = result[0]["_llm_curation"]
-    # "Age >= 18" has nothing molecular in it, so the keyword prefilter skips its
-    # call; only the BRCA1 title is sent (and the fake answers BRCA1 for it).
-    assert [r["section"] for r in curation["molecular_genomic_refs"]] == ["_summary.long_title"]
-    assert {e["node_type"] for e in curation["_ctml_suggestions"]} == {"genomic"}
-    assert "biomarker_references" not in curation
-    assert "final_suggested_ctml" not in result[0]["_llm_curation"]
-
-
-def test_cmd_trials_curate_alias_only_makes_the_genomic_calls(tmp_path, monkeypatch, fake_mongo):
-    """The alias must reach `genomic`: one call per piece (here one criterion,
-    no title) and no OncoTree fetch, since genomic nodes have no diagnosis."""
-    from ctm import mm_cli
-
-    trials_path = tmp_path / "draft.json"
-    trials_path.write_text(json.dumps([{
-        "nct_id": "NCT00000009", "protocol_no": None,
-        "eligibility": {"inclusion": [{"text": "BRCA1 mutation", "sub_criteria": []}], "exclusion": []},
-    }]))
-    kb_path = tmp_path / "kb.json"
-    kb_path.write_text(json.dumps([{"name": "BRCA1"}]))
-
-    calls = []
-
-    class _OneCallClient:
-        def __init__(self):
-            self.chat = self
-            self.completions = self
-
-        def create(self, **kwargs):
-            from types import SimpleNamespace
-            calls.append(kwargs)
-            return SimpleNamespace(choices=[SimpleNamespace(
-                message=SimpleNamespace(content='{"node": null, "refs": []}')
-            )])
-
-    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.build_client", lambda: _OneCallClient())
-
-    def _no_oncotree():
-        raise AssertionError("genomic must not fetch OncoTree")
-
-    monkeypatch.setattr("ctm.transformers.eligibility_to_ctml.fetch_oncotree_names", _no_oncotree)
-
-    mm_cli._cmd_trials_curate(_curate_args(
-        trials=str(trials_path), out=str(tmp_path / "out.json"),
-        cache=str(tmp_path / "c.json"), kb=str(kb_path),
-    ))
-
-    assert len(calls) == 1
-
-
 def test_cmd_trials_stores_normalized_output_in_the_first_collection(tmp_path, fake_mongo):
     """01_normalized_trials is the head of the chain, so every later stage's
     run_date traces back to what this stage stamped."""
@@ -774,8 +646,7 @@ def _filter_args(**overrides):
 def _merge_args(**overrides):
     """A trials-merge Namespace with every argparse-supplied field present."""
     defaults = {"db": None, "master_db": None, "master_collection": None,
-                "run_date": "2026-09-10", "out": None, "allow_empty_master": False,
-                "unchanged": None, "changed": None}
+                "run_date": "2026-09-10", "out": None, "allow_empty_master": False}
     return argparse.Namespace(**{**defaults, **overrides})
 
 

@@ -414,9 +414,8 @@ def upsert_doc(collection, doc: dict, unique_key: str) -> None:
     Used by the LLM stages instead of one batch insert at the end. Those stages
     make a model call per criterion over hundreds of trials, so a crash partway
     through a batch write loses every completed trial; writing as each trial
-    finishes keeps that work. This mirrors what `_cmd_trials_curate` already does
-    with its response cache, which it saves after every trial "so progress
-    survives interruption".
+    finishes keeps that work, as the stages' response caches do by saving after
+    every trial.
     """
     if not doc.get(unique_key):
         raise ValueError(f"document has no {unique_key!r}; refusing to store it")
