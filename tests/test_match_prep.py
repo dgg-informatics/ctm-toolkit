@@ -45,6 +45,62 @@ def test_matchengine_command():
         "matchengine", "match", "--db", "2026-09-04_match"]
 
 
+# ── matchengine config (2.7.2) ───────────────────────────────────────────────
+# Precedence: --config-path, then MATCHENGINE_CONFIG, then matchengine's own
+# packaged default (no flag passed at all).
+
+def test_matchengine_command_passes_a_config_path():
+    assert matchengine_command("2026-09-04_match", "/var/lib/ctm/config/matchminer-umich-config.json") == [
+        "matchengine", "match", "--db", "2026-09-04_match",
+        "--config-path", "/var/lib/ctm/config/matchminer-umich-config.json"]
+
+
+def test_config_flag_wins_over_the_env(tmp_path, monkeypatch):
+    from ctm.match_prep import resolve_matchengine_config
+
+    flag, env = tmp_path / "flag.json", tmp_path / "env.json"
+    flag.write_text("{}")
+    env.write_text("{}")
+    monkeypatch.setenv("MATCHENGINE_CONFIG", str(env))
+    assert resolve_matchengine_config(str(flag)) == str(flag)
+
+
+def test_config_from_the_env(tmp_path, monkeypatch):
+    from ctm.match_prep import resolve_matchengine_config
+
+    env = tmp_path / "env.json"
+    env.write_text("{}")
+    monkeypatch.setenv("MATCHENGINE_CONFIG", str(env))
+    assert resolve_matchengine_config(None) == str(env)
+
+
+def test_no_config_means_matchengines_default(monkeypatch):
+    from ctm.match_prep import resolve_matchengine_config
+
+    monkeypatch.delenv("MATCHENGINE_CONFIG", raising=False)
+    assert resolve_matchengine_config(None) is None
+    monkeypatch.setenv("MATCHENGINE_CONFIG", "")      # set but blank: same as unset
+    assert resolve_matchengine_config(None) is None
+
+
+def test_a_missing_config_file_fails_naming_it(tmp_path, monkeypatch, caplog):
+    """A typo must not silently fall back to the packaged default, which has no
+    _CURATED_METHOD ignore and so matches no AI-built clause."""
+    from ctm.match_prep import resolve_matchengine_config
+
+    monkeypatch.setenv("MATCHENGINE_CONFIG", str(tmp_path / "nope.json"))
+    with pytest.raises(SystemExit):
+        resolve_matchengine_config(None)
+    assert "nope.json" in caplog.text and "MATCHENGINE_CONFIG" in caplog.text
+
+
+def test_match_prep_accepts_config_path():
+    from ctm import mm_cli
+
+    parsed = mm_cli.build_parser().parse_args(["match-prep", "--config-path", "x.json"])
+    assert parsed.config_path == "x.json"
+
+
 # ── _cmd_match_prep against an in-memory fake client ──────────────────────────
 
 def _matches(doc, query):

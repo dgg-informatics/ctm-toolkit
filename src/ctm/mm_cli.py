@@ -308,6 +308,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_match.add_argument("--pt-data", dest="pt_data", metavar="JSON",
                          help="One-off: read a ctm-mm patients bundle {clinical, genomic, "
                               "extras} from disk (linked on the fly) instead of Mongo")
+    p_match.add_argument("--config-path", dest="config_path", metavar="JSON",
+                         help="matchengine config passed with --run (default: "
+                              "MATCHENGINE_CONFIG, else matchengine's packaged one)")
     p_match.add_argument("--run", action="store_true",
                          help="Also run matchengine against the assembled db (uses .env-"
                               "derived SECRETS_JSON)")
@@ -1160,6 +1163,7 @@ def _cmd_match_prep(args) -> int | None:
         DEFAULT_GENOMIC_COLLECTION,
         match_level_query,
         matchengine_command,
+        resolve_matchengine_config,
         resolve_trial_collection,
         synthesize_secrets,
     )
@@ -1258,7 +1262,8 @@ def _cmd_match_prep(args) -> int | None:
     # ── run matchengine, or print the command ─────────────────────────────────
     if args.run:
         import subprocess
-        cmd = matchengine_command(match_db_name)
+        cmd = matchengine_command(
+            match_db_name, resolve_matchengine_config(getattr(args, "config_path", None)))
         env = {**os.environ, "SECRETS_JSON": json.dumps(synthesize_secrets(config, match_db_name))}
         log.info(f"Running: {' '.join(cmd)}")
         try:

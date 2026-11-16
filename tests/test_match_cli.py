@@ -35,7 +35,7 @@ def _client(trials_at=NOW, patients_at=NOW, match_collections=None):
 def _args(**kwargs):
     base = {"force": False, "dry_run": False, "run_date": "2026-09-29",
             "match_db": None, "patient_db": "patients_dev", "min_match_level": 0,
-            "out": None, "out_dir": None}
+            "out": None, "out_dir": None, "config_path": None}
     return argparse.Namespace(**{**base, **kwargs})
 
 
@@ -249,3 +249,42 @@ def test_min_match_level_defaults_to_two(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["ctm-match"])
     mc.main()
     assert captured["args"].min_match_level == 2
+
+
+# ── matchengine config (2.7.2) ───────────────────────────────────────────────
+
+def test_the_config_reaches_matchengine(wired, monkeypatch, tmp_path, caplog):
+    import logging
+
+    config = tmp_path / "matchminer-umich-config.json"
+    config.write_text("{}")
+    monkeypatch.setenv("MATCHENGINE_CONFIG", str(config))
+    caplog.set_level(logging.INFO)
+    assert _run(_client(), _args(), monkeypatch, wired) == 0
+
+    assert wired["match_prep"][0].config_path == str(config)
+    begin = [r for r in caplog.records if getattr(r, "event", None) == "match.begin"]
+    assert begin[0].matchengine_config == str(config)
+
+
+def test_no_config_leaves_matchengine_on_its_default(wired, monkeypatch):
+    monkeypatch.delenv("MATCHENGINE_CONFIG", raising=False)
+    assert _run(_client(), _args(), monkeypatch, wired) == 0
+    assert wired["match_prep"][0].config_path is None
+
+
+def test_a_missing_config_fails_before_the_match_db_is_reset(wired, monkeypatch, tmp_path):
+    client = _client(match_collections={"trial_match": FakeCollection([{"_id": 1}])})
+    with pytest.raises(SystemExit):
+        _run(client, _args(config_path=str(tmp_path / "typo.json")), monkeypatch, wired)
+    assert wired["match_prep"] == []
+    assert client["2026-09-29_match"]["trial_match"].docs == [{"_id": 1}]
+
+
+def test_ctm_match_accepts_config_path(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(match_cli, "_run", lambda a: seen.setdefault("args", a) and 0)
+    monkeypatch.setattr(match_cli, "load_env", lambda: None)
+    monkeypatch.setattr("sys.argv", ["ctm-match", "--config-path", "c.json"])
+    match_cli.main()
+    assert seen["args"].config_path == "c.json"

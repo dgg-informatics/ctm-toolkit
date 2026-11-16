@@ -92,7 +92,31 @@ def match_level_query(min_match_level: int) -> dict | None:
     return {"match_level": {"$gte": min_match_level}}
 
 
-def matchengine_command(match_db: str) -> list[str]:
-    """The matchengine invocation for the assembled db. Matchengine's defaults cover
-    config-path and plugin-dir; only the database differs run to run."""
-    return ["matchengine", "match", "--db", match_db]
+def resolve_matchengine_config(explicit: str | None) -> str | None:
+    """The matchengine config to pass as ``--config-path``, or None for
+    matchengine's packaged default.
+
+    ``--config-path`` wins, then ``MATCHENGINE_CONFIG`` (blank counts as unset).
+    A path that is not a file fails here, naming where it came from: silently
+    falling back to the packaged default would drop our ignore entries
+    (``_CURATED_METHOD`` among them), and no AI-built clause would match.
+    """
+    import os
+
+    from ctm.logging_config import fail
+
+    source, path = ("--config-path", explicit) if explicit else \
+        ("MATCHENGINE_CONFIG", os.environ.get("MATCHENGINE_CONFIG") or None)
+    if path and not os.path.isfile(path):
+        fail("matchengine config not found: %s (from %s)", path, source)
+    return path
+
+
+def matchengine_command(match_db: str, config_path: str | None = None) -> list[str]:
+    """The matchengine invocation for the assembled db. Only the database differs
+    run to run; ``--config-path`` is added when one is configured, and otherwise
+    matchengine uses its packaged ``dfci_config.json``."""
+    cmd = ["matchengine", "match", "--db", match_db]
+    if config_path:
+        cmd += ["--config-path", config_path]
+    return cmd

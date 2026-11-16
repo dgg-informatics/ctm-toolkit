@@ -615,6 +615,17 @@ and the next run skips instead of retrying.
 databases disposable — the record is kept indefinitely as a file, so Mongo only
 has to hold however many recent runs are convenient.
 
+**The matchengine config** comes from `ctm-match --config-path`, else
+`MATCHENGINE_CONFIG` in the env file, else matchengine's packaged
+`dfci_config.json`. On prod it is `/var/lib/ctm/config/matchminer-umich-config.json`, an
+edited copy kept outside site-packages so a reinstall cannot overwrite it. It
+sets `"ignore": true` on `_CURATED_METHOD` (clinical and genomic; without it no
+AI-built clause matches) and on genomic `EXON`, `VARIANT_CLASSIFICATION` and
+`CNV_CALL`. A configured path that is not a file fails the run before the match
+database is reset, and `match.begin` logs which config was used. JSON allows
+duplicate keys and Python keeps the last, so delete a key's original mapping
+when you add its `ignore`.
+
 `ctm-status` exits `0` up to date, `1` stale, `2` not ready, so a wrapper can
 branch on it; `--json` puts the same content on stdout for a dashboard.
 

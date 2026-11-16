@@ -81,7 +81,8 @@ def export_trial_match(client, match_db: str, out_path: Path) -> int:
     return len(docs)
 
 
-def _match_prep_args(match_db: str, run_date: str, min_match_level: int) -> argparse.Namespace:
+def _match_prep_args(match_db: str, run_date: str, min_match_level: int,
+                     config_path: str | None = None) -> argparse.Namespace:
     """The Namespace `ctm-mm match-prep --run` would have built from its flags.
 
     Assembled here rather than shelling out so the whole reconcile is one
@@ -94,6 +95,7 @@ def _match_prep_args(match_db: str, run_date: str, min_match_level: int) -> argp
         trial_db=None, trial_collection=None, trials_file=None,
         clinical_db=None, clinical_collection=None,
         genomic_db=None, genomic_collection=None, pt_data=None,
+        config_path=config_path,
     )
 
 
@@ -150,8 +152,14 @@ def _run(args) -> int:
     export_path = Path(args.out) if args.out else (
         match_export_dir() / f"{run_date}_trial_match.json")
 
+    # Resolved before anything is reset: a bad path must fail while the previous
+    # match database and state are still intact.
+    from ctm.match_prep import resolve_matchengine_config
+    matchengine_config = resolve_matchengine_config(getattr(args, "config_path", None))
+
     log_event(log, "match.begin", "Matching: %s", "; ".join(status.reasons()),
               match_db=match_db, reasons=status.reasons(),
+              matchengine_config=matchengine_config or "matchengine default",
               trials=status.trials.count, patients=status.patients_clinical.count)
 
     if args.dry_run:
@@ -163,7 +171,8 @@ def _run(args) -> int:
 
     reset_match_database(client, match_db)
 
-    code = _cmd_match_prep(_match_prep_args(match_db, run_date, args.min_match_level))
+    code = _cmd_match_prep(_match_prep_args(match_db, run_date, args.min_match_level,
+                                            matchengine_config))
     if code:
         fail("matchengine exited %d — state not advanced, so the next run retries",
              code, code=code)
@@ -224,6 +233,9 @@ def main() -> None:
                              "clinical beyond age — because level 0 and 1 surface "
                              "trials that match nearly everyone, which is noise on "
                              "a report a clinician reads")
+    parser.add_argument("--config-path", dest="config_path", metavar="JSON",
+                        help="matchengine config (default: MATCHENGINE_CONFIG, else "
+                             "matchengine's packaged dfci_config.json)")
     parser.add_argument("--out", metavar="PATH",
                         help="trial_match export path (default: MATCH_EXPORT_DIR)")
     parser.add_argument("--out-dir", dest="out_dir", metavar="DIR",
