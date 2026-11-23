@@ -27,13 +27,22 @@ class FakeCollection:
     def __init__(self, docs=None):
         self.docs = list(docs or [])
         self.replaced = []
+        self.inserted = []
         self.was_dropped = False
 
     def find(self, query=None, projection=None):
         return FakeCursor(self.docs)
 
     def find_one(self, query):
-        return next((d for d in self.docs if d["_id"] == query["_id"]), None)
+        """First doc whose fields equal every key in ``query`` (plain equality only)."""
+        missing = object()
+        return next((d for d in self.docs
+                     if all(d.get(k, missing) == v for k, v in query.items())), None)
+
+    def insert_many(self, docs):
+        docs = [dict(d) for d in docs]
+        self.inserted.extend(docs)
+        self.docs.extend(docs)
 
     def count_documents(self, query):
         return len(self.docs)

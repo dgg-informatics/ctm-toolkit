@@ -23,6 +23,7 @@ This repo prepares data from various sources to integrate with popular open-sour
 | `ctm-match` | Match and report, but only if trials or patients have changed |
 | `ctm-pipeline` | The weekly trial run: pull, diff, AI annotation, merge into the master, filter |
 | `ctm-apply-edits` | Merge a file of hand-edited trials into the master, any day |
+| `ctm-review` | Browser page to verify / edit / delete / add one trial's match leaves; applies through `ctm-apply-edits` and logs every change to `curation_reviews` |
 | `ctm-trials-report` | Summary of a weekly run: totals, new/changed/deleted trials, match clauses built, what needs a look |
 | `ctm-load-patients` | Normalize a patient workbook and load it into the patient database |
 
@@ -498,6 +499,8 @@ Trial updates are automated: every Monday cron runs `ctm-pipeline --end 07_filte
 
 **Manual edits** go through `ctm-apply-edits --file edits.json` on any day: export the trial from `06_master_trials`, edit it, apply. It is stamped `curated_by: manual-edit`, survives later weeks while its source is unchanged, and is reported (`trials_merge.manual_edit_superseded`) when a changed source makes the AI re-draft it.
 
+**`ctm-review`** does the same without the export/edit/upload round trip. Run it on the server and open it through a tunnel (`ssh -L 8765:localhost:8765 <server>`, then http://localhost:8765). Search an NCT ID or protocol number, then verify (✓), delete (✗), edit (✎) or add (+) leaves of `treatment_list.step[].match`, with an optional note on each. Verified leaves get `_CURATED_METHOD: "verified"`, edited and added ones `"manual"`. Apply runs `ctm-apply-edits` for everything staged, then writes one document per action to `curation_reviews` in the master database (before/after, note, reviewer, batch id, and the eligibility text the leaf came from). Staged actions that were never applied are lost when the page reloads or the server stops. `--reviewer NAME` sets who is recorded; set it when running as the service account.
+
 > [!NOTE]
 > **Fringe case — a trial changes source (`entity`) between cycles.** The identity key depends on `entity`: `protocol_no` for AMC, `nct_id` for everything else. A trial that moves between AMC and West/Sparrow shows up as both `deleted` (old key) and `changed` (new key), even with byte-identical eligibility. That is intentional: a source migration is worth a glance rather than being absorbed as "unchanged".
 
@@ -661,6 +664,7 @@ the old wrapper's `set -a; . /etc/ctm/.env; set +a` was doing.
 | --- | --- |
 | `ctm-pipeline` | `01` trials → `02` trials-diff → `03c` clinical → `03g` genomic → `04` autofill-ctml → `06` trials-merge `--from 04` → `07` trials-filter. `--end`/`--start` take a collection name or prefix (`07` or `07_filtered_trials`); `--start` after 01 needs `--db`. `--start 03c --trials FILE` re-annotates a file of trials (a backfill). A week with no changed trials skips the LLM stages and still merges the deletions |
 | `ctm-apply-edits` | `05` add-manual (`curated_by: manual-edit`) → `06` trials-merge → `07` trials-filter. `--file` names the edited trials; start them from the latest `06_master_trials`, which already holds earlier edits |
+| `ctm-review` | Serves a review page on `127.0.0.1:8765` (`--port`). Apply writes the edited trials to a temp file and runs `ctm-apply-edits` on it (`--db`, `--reviewer` passed through); on exit 0 it logs each action to `curation_reviews` |
 | `ctm-trials-report` | Read-only. Prints the run's summary to stdout (the Monday cron mail) and writes `MASTER_TRIAL_EXPORT_DIR/trials_report-<db>.txt`. `--db` reports on any past run; `--no-file` prints only. Chained with `;`, so it still reports where the pipeline stopped when it fails |
 | `ctm-load-patients` | `ctm-mm patients` → `ctm-mm load`. Reads the newest `*.xlsx` in `PATIENT_RAW_DIR` unless `--workbook` names one |
 

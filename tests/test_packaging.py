@@ -118,3 +118,11 @@ def test_every_included_template_is_present():
     assert includes, "expected report.html to include partials"
     for name in includes:
         assert (TEMPLATES_DIR / name).is_file(), f"missing partial: {name}"
+
+
+def test_review_page_ships_with_the_package():
+    """ctm-review serves this from an installed wheel, not from a checkout."""
+    from ctm.review_server import REVIEW_PAGE
+
+    assert REVIEW_PAGE.is_relative_to(PACKAGE_ROOT)
+    assert REVIEW_PAGE.is_file()
