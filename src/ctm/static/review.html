@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ctm-review</title>
+<style>
+  :root { --bg:#fff; --fg:#1d1d1f; --muted:#6b7280; --line:#e5e7eb; --panel:#f8f9fb;
+          --verified:#e6f4ea; --edited:#fff4d6; --deleted:#fde8e8; --added:#e5efff; --accent:#00274c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+  header h1 { font-size:16px; margin:0 12px 0 0; color:var(--accent); }
+  input[type=text] { padding:6px 8px; width:220px; font:inherit; }
+  button { font:inherit; padding:3px 9px; cursor:pointer; border:1px solid var(--line); background:#fff; border-radius:4px; }
+  button:disabled { opacity:.4; cursor:default; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .layout { display:grid; grid-template-columns: 1fr 340px; min-height:calc(100vh - 53px); }
+  main { padding:16px; overflow-x:auto; }
+  aside { border-left:1px solid var(--line); background:var(--panel); padding:16px; }
+  .meta { color:var(--muted); margin:4px 0 12px; }
+  details { margin:8px 0 16px; }
+  details pre { white-space:pre-wrap; background:var(--panel); padding:8px; max-height:300px; overflow:auto; }
+  .step { border:1px solid var(--line); border-radius:6px; padding:10px; margin-bottom:14px; }
+  .wrap { margin-left:18px; border-left:2px solid var(--line); padding-left:10px; }
+  .wlabel { font-weight:600; color:var(--accent); margin:6px 0 4px; }
+  .leaf { display:flex; gap:8px; align-items:flex-start; padding:6px; border-radius:4px; margin:3px 0; }
+  .leaf code { flex:1; white-space:pre-wrap; font-size:12.5px; }
+  .leaf .src { color:var(--muted); font-size:12px; }
+  .leaf.verified { background:var(--verified); } .leaf.edited { background:var(--edited); }
+  .leaf.deleted { background:var(--deleted); text-decoration:line-through; } .leaf.added { background:var(--added); }
+  .badge { font-size:11px; padding:1px 6px; border-radius:10px; background:var(--line); white-space:nowrap; }
+  .badge.auto { background:#eee; } .badge.verified { background:#bfe3c8; } .badge.manual { background:#ffe3a3; }
+  .editor { margin:6px 0 6px 18px; } .editor textarea { width:100%; height:130px; font:12.5px monospace; }
+  .err { color:#b42318; white-space:pre-wrap; } .ok { color:#067647; }
+  .staged { background:#fff; border:1px solid var(--line); border-radius:4px; padding:6px; margin:6px 0; }
+  .staged textarea { width:100%; height:44px; font:inherit; margin-top:4px; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ctm-review</h1>
+  <input id="q" type="text" placeholder="NCT ID or protocol no." autofocus>
+  <button id="go">Load</button>
+  <span id="status" class="muted"></span>
+</header>
+<div class="layout">
+  <main id="main"><p class="muted">Search a trial to start.</p></main>
+  <aside>
+    <h3 style="margin-top:0">Staged</h3>
+    <div id="count" class="muted">Nothing staged.</div>
+    <div id="stagedList"></div>
+    <button id="apply" class="primary" disabled>Apply</button>
+    <div id="result"></div>
+    <p class="muted" style="font-size:12px">Nothing is saved until Apply. Reloading the page or stopping the server discards staged actions.</p>
+  </aside>
+</div>
+<script>
+"use strict";
+let current = null;          // {trial, leaves} from /api/trial
+const staged = {};           // "trial_key|entity" -> {trial_key, entity, trial_hash, fingerprint, actions: [...]}
+let openEditor = null;       // {kind, step, path}
+
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v; else if (k.startsWith("on")) n[k] = v; else n.setAttribute(k, v);
+  }
+  for (const k of kids) n.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return n;
+}
+const fmt = (segs) => segs.reduce((s, x) => typeof x === "number" ? `${s}[${x}]` : (s ? `${s}.${x}` : x), "");
+const isLeaf = (n) => n && typeof n === "object" && !Array.isArray(n) && Object.keys(n).length === 1
+  && ["clinical", "genomic"].includes(Object.keys(n)[0]);
+const isWrapper = (n) => n && typeof n === "object" && Object.keys(n).length === 1
+  && ["and", "or"].includes(Object.keys(n)[0]) && Array.isArray(Object.values(n)[0]);
+const key = () => `${current.trial.trial_key}|${current.trial.entity}`;
+const actionsFor = (k) => (staged[k] ? staged[k].actions : []);
+const stagedOn = (step, path) => actionsFor(key()).find(a => a.step_index === step && a.path === path && a.action !== "added");
+const total = () => Object.values(staged).reduce((n, s) => n + s.actions.length, 0);
+
+async function load(q, entity) {
+  $("status").textContent = "loading…";
+  let r;
+  try {
+    r = await fetch("/api/trial?q=" + encodeURIComponent(q) + (entity ? "&entity=" + encodeURIComponent(entity) : ""));
+  } catch (e) { $("status").textContent = "server not reachable"; return; }
+  if (r.status === 404) { $("status").textContent = `not found: ${q}`; return; }
+  if (!r.ok) { $("status").textContent = `error ${r.status}`; return; }
+  current = await r.json();
+  openEditor = null;
+  $("status").textContent = "";
+  render();
+}
+
+function stage(action) {
+  const k = key();
+  if (!staged[k]) staged[k] = { trial_key: current.trial.trial_key, entity: current.trial.entity,
+                                trial_hash: current.trial.trial_hash, fingerprint: current.fingerprint, actions: [] };
+  staged[k].actions.push({ note: "", ...action });
+  openEditor = null;
+  render();
+}
+
+function unstage(k, i) {
+  staged[k].actions.splice(i, 1);
+  if (!staged[k].actions.length) delete staged[k];
+  render();
+}
+
+const ADD_TEMPLATES = {
+  clause: '{"clinical": {}}',
+  and: '{"and": [\n  {"clinical": {}},\n  {"genomic": {}}\n]}',
+  or: '{"or": [\n  {"genomic": {}},\n  {"genomic": {}}\n]}',
+};
+
+function editor(kind, step, path, initial) {
+  const ta = el("textarea", {}, initial);
+  const err = el("div", { class: "err" });
+  const save = el("button", { class: "primary", onclick: async () => {
+    let res;
+    try {
+      const r = await fetch("/api/validate-node", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: ta.value, group: kind === "added" }) });
+      res = await r.json();
+    } catch (e) { err.textContent = "server not reachable"; return; }
+    if (!res.ok) { err.textContent = res.error; return; }
+    stage({ action: kind, step_index: step, path, node: res.node });
+  } }, kind === "edited" ? "Stage edit" : "Stage add");
+  const cancel = el("button", { onclick: () => { openEditor = null; render(); } }, "Cancel");
+  const box = el("div", { class: "editor" });
+  if (kind === "added") {
+    const name = `addtype-${step}-${path}`;
+    const choice = (value, label) => el("label", {},
+      el("input", { type: "radio", name, value, ...(value === "clause" ? { checked: "" } : {}),
+                    onchange: () => { ta.value = ADD_TEMPLATES[value]; err.textContent = ""; } }), " " + label + "  ");
+    box.append(el("div", {}, "Add: ", choice("clause", "Clause"), choice("and", "AND group"), choice("or", "OR group")));
+  }
+  box.append(ta, el("div", {}, save, " ", cancel), err);
+  return box;
+}
+
+function leafRow(leaf, step, path) {
+  const info = current.leaves.find(l => l.step_index === step && l.path === path) || {};
+  const s = stagedOn(step, path);
+  const marker = (Object.values(leaf)[0] || {})._CURATED_METHOD;
+  const shown = s && s.action === "edited" ? s.node : leaf;
+  const btn = (label, title, fn) => el("button", { title, onclick: fn, ...(s ? { disabled: "" } : {}) }, label);
+  const row = el("div", { class: "leaf" + (s ? " " + s.action : "") },
+    el("span", { class: "badge " + (marker || "") }, marker || "none"),
+    el("div", { style: "flex:1" }, el("code", {}, JSON.stringify(shown, null, 1)),
+       info.source_text ? el("div", { class: "src" }, `${info.source_field}: ${info.source_text}`) : ""),
+    btn("✓", "verify", () => stage({ action: "verified", step_index: step, path })),
+    btn("✗", "delete", () => stage({ action: "deleted", step_index: step, path })),
+    btn("✎", "edit", () => { openEditor = { kind: "edited", step, path }; render(); }));
+  const frag = el("div", {}, row);
+  if (openEditor && openEditor.kind === "edited" && openEditor.step === step && openEditor.path === path) {
+    const plain = JSON.parse(JSON.stringify(leaf));
+    delete Object.values(plain)[0]._CURATED_METHOD;
+    frag.append(editor("edited", step, path, JSON.stringify(plain, null, 2)));
+  }
+  return frag;
+}
+
+function addControls(step, path) {
+  const frag = el("div", {});
+  for (const a of actionsFor(key()).filter(a => a.action === "added" && a.step_index === step && a.path === path)) {
+    frag.append(el("div", { class: "leaf added" }, el("span", { class: "badge manual" }, "new"),
+      el("code", {}, JSON.stringify(a.node, null, 1))));
+  }
+  if (openEditor && openEditor.kind === "added" && openEditor.step === step && openEditor.path === path) {
+    frag.append(editor("added", step, path, ADD_TEMPLATES.clause));
+  } else {
+    frag.append(el("button", { title: "add a clause or an and/or group here", onclick: () => { openEditor = { kind: "added", step, path }; render(); } }, "+ add"));
+  }
+  return frag;
+}
+
+function renderList(items, step, segs) {
+  const box = el("div", {});
+  items.forEach((item, i) => {
+    const p = segs.concat([i]);
+    if (isLeaf(item)) box.append(leafRow(item, step, fmt(p)));
+    else if (isWrapper(item)) {
+      const w = Object.keys(item)[0];
+      box.append(el("div", { class: "wlabel" }, w.toUpperCase()),
+        el("div", { class: "wrap" }, renderList(item[w], step, p.concat([w])), addControls(step, fmt(p))));
+    } else box.append(el("pre", { class: "muted" }, JSON.stringify(item)));
+  });
+  return box;
+}
+
+function render() {
+  const main = $("main");
+  main.replaceChildren();
+  if (current) {
+    const t = current.trial;
+    const title = (t._summary && (t._summary.long_title || t._summary.short_title)) || t.long_title || t.short_title || "";
+    const others = (current.entities || []).filter(e => e !== t.entity);
+    const switcher = el("span", {});
+    others.forEach(e => switcher.append(" ", el("button", { onclick: () => load(t.nct_id || t.trial_key, e) }, `open ${e} row`)));
+    main.append(el("h2", { style: "margin:0" }, `${t.trial_key} · ${t.entity}`),
+      (current.entities || []).length > 1
+        ? el("div", { class: "meta" }, `Also held by: ${others.join(", ")}. ${current.entities[0] === t.entity ? "This row wins in 07." : "Not the 07 row — only " + current.entities[0] + " reaches matching."}`, switcher)
+        : "",
+      el("div", {}, title),
+      el("div", { class: "meta" }, `curated_by: ${t.curated_by || "—"} · ${t.curated_by_user || "—"} · ${t.curated_at || "—"} · run_date ${t.run_date || "—"}`));
+    const elig = t.eligibility || {};
+    const text = ["inclusion", "exclusion"].map(k => `${k.toUpperCase()}\n` +
+      (elig[k] || []).map(c => "• " + (c.text || JSON.stringify(c))).join("\n")).join("\n\n");
+    main.append(el("details", {}, el("summary", {}, "Eligibility"), el("pre", {}, text)));
+    const steps = (t.treatment_list && t.treatment_list.step) || [];
+    if (!steps.length) main.append(el("p", { class: "muted" }, "No treatment_list steps."));
+    steps.forEach((s, i) => {
+      main.append(el("div", { class: "step" }, el("div", { class: "wlabel" }, `Step ${i} · match`),
+        renderList(s.match || [], i, ["match"]), addControls(i, "match")));
+    });
+  }
+  // side panel
+  const list = $("stagedList");
+  list.replaceChildren();
+  const n = total(), m = Object.keys(staged).length;
+  $("count").textContent = n ? `${n} staged across ${m} trial(s)` : "Nothing staged.";
+  for (const [k, s] of Object.entries(staged)) {
+    list.append(el("div", { style: "font-weight:600;margin-top:8px" }, k));
+    s.actions.forEach((a, i) => {
+      const note = el("textarea", { placeholder: "note (optional)" }, a.note);
+      note.oninput = () => { a.note = note.value; };
+      list.append(el("div", { class: "staged" },
+        el("div", {}, `${a.action} · step ${a.step_index} · ${a.path} `, el("button", { onclick: () => unstage(k, i) }, "remove")), note));
+    });
+  }
+  $("apply").disabled = !n;
+}
+
+$("apply").onclick = async () => {
+  const batch = Object.values(staged).map(s => ({ trial_key: s.trial_key, entity: s.entity, trial_hash: s.trial_hash, fingerprint: s.fingerprint, actions: s.actions }));
+  $("apply").disabled = true;
+  $("result").replaceChildren(el("div", { class: "muted" }, "applying… (runs ctm-apply-edits)"));
+  let res;
+  try {
+    const r = await fetch("/api/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ batch }) });
+    res = r.ok ? await r.json() : { ok: false, error: `server error ${r.status} — check 06 before re-applying` };
+  } catch (e) { res = { ok: false, error: "server not reachable — check 06 before re-applying" }; }
+  if (res.ok) {
+    for (const k of Object.keys(staged)) delete staged[k];
+    $("result").replaceChildren(el("div", { class: "ok" }, `Applied ${res.logged} action(s) on ${res.trials.join(", ")}. Batch ${res.batch_id}`));
+    if (current) await load(current.trial.trial_key, current.trial.entity);
+  } else {
+    $("result").replaceChildren(el("div", { class: "err" }, res.error));
+  }
+  render();
+};
+$("go").onclick = () => $("q").value.trim() && load($("q").value.trim());
+$("q").onkeydown = (e) => { if (e.key === "Enter") $("go").onclick(); };
+window.onbeforeunload = () => (total() ? "Staged actions will be lost." : undefined);
+</script>
+</body>
+</html>
