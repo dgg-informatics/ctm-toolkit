@@ -256,7 +256,8 @@ def make_handler(ctx: ReviewContext) -> type[BaseHTTPRequestHandler]:
                 return
             if self.path == "/api/validate-node":
                 try:
-                    self._json(200, {"ok": True, "node": validate_node(body.get("text", ""))})
+                    node = validate_node(body.get("text", ""), allow_group=body.get("group") is True)
+                    self._json(200, {"ok": True, "node": node})
                 except ValueError as exc:
                     self._json(200, {"ok": False, "error": str(exc)})
             elif self.path == "/api/apply":

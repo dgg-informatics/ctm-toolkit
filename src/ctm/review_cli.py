@@ -6,8 +6,8 @@ Runs on the server, as the account that runs the pipeline, and listens on
     ssh -L 8765:localhost:8765 <server>     then open http://localhost:8765
 
 Search an NCT ID (or AMC protocol number), then on each leaf of
-treatment_list.step[].match: ✓ verify, ✗ delete, ✎ edit, or + add a leaf under an
-and/or. Actions are staged in the page; Apply sends them all through
+treatment_list.step[].match: ✓ verify, ✗ delete, ✎ edit, or + add a clause (or a
+whole and/or group) under an and/or. Actions are staged in the page; Apply sends them all through
 ctm-apply-edits (05 → 06 → 07) and logs each one to curation_reviews. Staged actions
 that were never applied are gone when the page reloads or the server stops.
 

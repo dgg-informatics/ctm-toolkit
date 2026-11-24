@@ -268,3 +268,13 @@ def test_review_cli_defaults():
 
     args = build_parser().parse_args([])
     assert args.port == 8765 and args.db is None
+
+
+def test_http_validate_group_only_for_add(server):
+    _, port = server
+    text = '{"and": [{"clinical": {"age_numerical": ">=18"}}]}'
+    status, raw = _req(port, "POST", "/api/validate-node", {"text": text, "group": True})
+    assert status == 200 and json.loads(raw) == {
+        "ok": True, "node": {"and": [{"clinical": {"age_numerical": ">=18", MARKER: "manual"}}]}}
+    status, raw = _req(port, "POST", "/api/validate-node", {"text": text})
+    assert json.loads(raw)["ok"] is False

@@ -31,7 +31,7 @@
   .leaf.deleted { background:var(--deleted); text-decoration:line-through; } .leaf.added { background:var(--added); }
   .badge { font-size:11px; padding:1px 6px; border-radius:10px; background:var(--line); white-space:nowrap; }
   .badge.auto { background:#eee; } .badge.verified { background:#bfe3c8; } .badge.manual { background:#ffe3a3; }
-  .editor { margin:6px 0 6px 18px; } .editor textarea { width:100%; height:110px; font:12.5px monospace; }
+  .editor { margin:6px 0 6px 18px; } .editor textarea { width:100%; height:130px; font:12.5px monospace; }
   .err { color:#b42318; white-space:pre-wrap; } .ok { color:#067647; }
   .staged { background:#fff; border:1px solid var(--line); border-radius:4px; padding:6px; margin:6px 0; }
   .staged textarea { width:100%; height:44px; font:inherit; margin-top:4px; }
@@ -110,18 +110,36 @@ function unstage(k, i) {
   render();
 }
 
+const ADD_TEMPLATES = {
+  clause: '{"clinical": {}}',
+  and: '{"and": [\n  {"clinical": {}},\n  {"genomic": {}}\n]}',
+  or: '{"or": [\n  {"genomic": {}},\n  {"genomic": {}}\n]}',
+};
+
 function editor(kind, step, path, initial) {
   const ta = el("textarea", {}, initial);
   const err = el("div", { class: "err" });
   const save = el("button", { class: "primary", onclick: async () => {
-    const r = await fetch("/api/validate-node", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: ta.value }) });
-    const res = await r.json();
+    let res;
+    try {
+      const r = await fetch("/api/validate-node", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: ta.value, group: kind === "added" }) });
+      res = await r.json();
+    } catch (e) { err.textContent = "server not reachable"; return; }
     if (!res.ok) { err.textContent = res.error; return; }
     stage({ action: kind, step_index: step, path, node: res.node });
   } }, kind === "edited" ? "Stage edit" : "Stage add");
   const cancel = el("button", { onclick: () => { openEditor = null; render(); } }, "Cancel");
-  return el("div", { class: "editor" }, ta, el("div", {}, save, " ", cancel), err);
+  const box = el("div", { class: "editor" });
+  if (kind === "added") {
+    const name = `addtype-${step}-${path}`;
+    const choice = (value, label) => el("label", {},
+      el("input", { type: "radio", name, value, ...(value === "clause" ? { checked: "" } : {}),
+                    onchange: () => { ta.value = ADD_TEMPLATES[value]; err.textContent = ""; } }), " " + label + "  ");
+    box.append(el("div", {}, "Add: ", choice("clause", "Clause"), choice("and", "AND group"), choice("or", "OR group")));
+  }
+  box.append(ta, el("div", {}, save, " ", cancel), err);
+  return box;
 }
 
 function leafRow(leaf, step, path) {
@@ -153,9 +171,9 @@ function addControls(step, path) {
       el("code", {}, JSON.stringify(a.node, null, 1))));
   }
   if (openEditor && openEditor.kind === "added" && openEditor.step === step && openEditor.path === path) {
-    frag.append(editor("added", step, path, '{"clinical": {}}'));
+    frag.append(editor("added", step, path, ADD_TEMPLATES.clause));
   } else {
-    frag.append(el("button", { title: "add a leaf here", onclick: () => { openEditor = { kind: "added", step, path }; render(); } }, "+ add leaf"));
+    frag.append(el("button", { title: "add a clause or an and/or group here", onclick: () => { openEditor = { kind: "added", step, path }; render(); } }, "+ add"));
   }
   return frag;
 }

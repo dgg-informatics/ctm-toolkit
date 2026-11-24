@@ -82,18 +82,36 @@ def _with_marker(leaf: dict, value: str) -> dict:
     return {kind: {**copy.deepcopy(fields), MARKER: value} for kind, fields in leaf.items()}
 
 
-def validate_node(value: str | dict) -> dict:
-    """A user-typed leaf, checked and marked ``manual``. Raises ``ValueError``."""
+def validate_node(value: str | dict, allow_group: bool = False) -> dict:
+    """A user-typed node, checked, with every leaf marked ``manual``. Raises ``ValueError``.
+
+    Edit takes a single leaf. Add (``allow_group``) also takes an ``and``/``or`` group of
+    leaves and further groups, nested to any depth; each group needs at least one child.
+    """
     if isinstance(value, str):
         try:
             value = json.loads(value)
         except json.JSONDecodeError as exc:
             raise ValueError(f"not valid JSON: {exc}") from None
+    return _validated(value, allow_group)
+
+
+def _validated(value, allow_group: bool) -> dict:
+    keys = "'clinical', 'genomic', 'and' or 'or'" if allow_group else "'clinical' or 'genomic'"
     if not isinstance(value, dict) or len(value) != 1:
-        raise ValueError("a leaf is one object with exactly one key, 'clinical' or 'genomic'")
+        raise ValueError(f"a {'clause' if allow_group else 'leaf'} is one object with "
+                         f"exactly one key: {keys}")
     kind, fields = next(iter(value.items()))
+    if kind in WRAPPERS and allow_group:
+        if not isinstance(fields, list):
+            raise ValueError(f"'{kind}' must be a list of clauses: {{\"{kind}\": [...]}}")
+        if not fields:
+            raise ValueError(f"'{kind}' needs at least one clause")
+        return {kind: [_validated(child, True) for child in fields]}
+    if kind in WRAPPERS:
+        raise ValueError("edit takes a single leaf; to add an and/or group, use + add")
     if kind not in LEAF_KINDS:
-        raise ValueError(f"the key must be 'clinical' or 'genomic', not {kind!r}")
+        raise ValueError(f"the key must be {keys}, not {kind!r}")
     if not isinstance(fields, dict) or not {k for k in fields if k != MARKER}:
         raise ValueError(f"'{kind}' must be a non-empty object")
     return _with_marker(value, MANUAL)
@@ -161,7 +179,8 @@ def apply_actions(treatment_list: dict, actions: list[dict]) -> tuple[dict, list
                 raise ValueError(f"can only add under 'match' or an and/or, not {path!r}")
             if "node" not in action:
                 raise ValueError(f"added at {path!r} has no node")
-            plans.append((action, children, None, None, validate_node(action["node"])))
+            plans.append((action, children, None, None,
+                          validate_node(action["node"], allow_group=True)))
             continue
 
         if not isinstance(segments[-1], int):

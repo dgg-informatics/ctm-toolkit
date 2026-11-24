@@ -223,3 +223,55 @@ def test_build_review_docs_fields():
     assert deleted["node_after"] is None and deleted["node_before"] == L_DX
     assert added["node_before"] is None and added["source_text"] is None
     assert added["path"] == "match" and added["step_index"] == 0
+
+
+# ── adding and/or groups ─────────────────────────────────────────────────────
+
+GROUP = {"and": [{"clinical": {"oncotree_primary_diagnosis": "Breast"}},
+                 {"or": [{"clinical": {"age_numerical": ">=18"}},
+                         {"genomic": {"hugo_symbol": "ERBB2", MARKER: "auto"}}]}]}
+
+
+def test_validate_group_marks_every_leaf_manual():
+    node = validate_node(GROUP, allow_group=True)
+    assert [leaf for _, leaf in iter_leaves([node])] == [
+        {"clinical": {"oncotree_primary_diagnosis": "Breast", MARKER: "manual"}},
+        {"clinical": {"age_numerical": ">=18", MARKER: "manual"}},
+        {"genomic": {"hugo_symbol": "ERBB2", MARKER: "manual"}},
+    ]
+
+
+def test_validate_group_from_text():
+    text = '{"or": [{"clinical": {"age_numerical": ">=18"}}]}'
+    assert validate_node(text, allow_group=True) == {
+        "or": [{"clinical": {"age_numerical": ">=18", MARKER: "manual"}}]}
+
+
+def test_validate_node_rejects_group_unless_allowed():
+    with pytest.raises(ValueError, match="leaf"):
+        validate_node(GROUP)
+
+
+@pytest.mark.parametrize("node, msg", [
+    ({"and": []}, "at least one"),
+    ({"AND": [{"clinical": {"age_numerical": ">=18"}}]}, "'and' or 'or'"),
+    ({"and": {"clinical": {"age_numerical": ">=18"}}}, "list"),
+    ({"and": [{"clinical": {}}]}, "non-empty"),
+    ({"or": [{"and": []}]}, "at least one"),
+    ({"and": [{"clinical": {"age_numerical": ">=18"}}], "or": []}, "exactly one key"),
+])
+def test_validate_group_rejects(node, msg):
+    with pytest.raises(ValueError, match=msg):
+        validate_node(node, allow_group=True)
+
+
+def test_add_group_under_wrapper():
+    new, resolved = apply_actions(_tl(), [_act("added", "match[0]", GROUP)])
+    added = _match(new)[0]["and"][3]
+    assert added == validate_node(GROUP, allow_group=True)
+    assert resolved[0]["node_after"] == added and resolved[0]["node_before"] is None
+
+
+def test_edit_rejects_group():
+    with pytest.raises(ValueError, match="leaf"):
+        apply_actions(_tl(), [_act("edited", "match[0].and[0]", GROUP)])
